@@ -1,8 +1,11 @@
-/* Public/css/styles.css */
+/* Importamos las fuentes desde Google */
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Luckiest+Guy&family=Roboto+Mono:wght@700&display=swap');
+
 body {
     background: transparent;
     color: white;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* ELEGÍ TU FUENTE ACÁ ABAJO: 'Bangers', 'Luckiest Guy' o 'Roboto Mono' */
+    font-family: 'Roboto Mono', monospace; 
     overflow: hidden;
 }
 
@@ -15,18 +18,19 @@ body {
 }
 
 .mensaje {
-    background: rgba(0, 0, 0, 0.75);
-    border-left: 4px solid #6441a5; /* Color Twitch */
-    margin: 5px 0;
-    padding: 12px 15px;
-    border-radius: 0 8px 8px 0;
+    background: rgba(0, 0, 0, 0.8);
+    border-left: 5px solid #6441a5;
+    margin: 8px 0;
+    padding: 12px 20px;
+    border-radius: 0 10px 10px 0;
     width: fit-content;
-    font-size: 20px;
-    text-shadow: 1px 1px 2px black;
+    font-size: 24px; /* Un poquito más grande para que se lea bien */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
     animation: aparecer 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
 @keyframes aparecer {
-    from { opacity: 0; transform: translateX(-30px); }
+    from { opacity: 0; transform: translateX(-50px); }
     to { opacity: 1; transform: translateX(0); }
 }
