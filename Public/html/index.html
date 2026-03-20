@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>InteractiveWithYou</title>
+    <style>
+        body { background: transparent; color: white; font-family: sans-serif; overflow: hidden; }
+        .mensaje { background: rgba(0,0,0,0.7); margin: 5px; padding: 10px; border-radius: 5px; animation: aparecer 0.3s ease; width: fit-content; }
+        @keyframes aparecer { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="chat"></div>
+
+    <script>
+    // 1. LEER LOS PARÁMETROS DE LA URL
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Si no hay parámetro, usa 'shekssink' por defecto
+    const canal = urlParams.get('canal') || 'shekssink'; 
+    const colorUsuario = urlParams.get('color') || '#6441a5';
+    const fuenteUsuario = urlParams.get('fuente') || 'sans-serif';
+
+    // 2. APLICAR CONFIGURACIÓN VISUAL DINÁMICA
+    // Esto cambia la fuente de todo el cuerpo sin tocar el CSS
+    document.body.style.fontFamily = fuenteUsuario;
+
+    // 3. CONEXIÓN AL CHAT
+    const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+
+    socket.onopen = () => {
+        socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+        socket.send('PASS oauth:mypassword');
+        socket.send('NICK justinfan' + Math.floor(Math.random() * 10000));
+        socket.send('JOIN #' + canal); // Conexión dinámica al canal de la URL
+        console.log(`InteractiveWithYou conectado a: ${canal}`);
+    };
+
+    socket.onmessage = (event) => {
+        const data = event.data;
+        if (data.includes('PRIVMSG')) {
+            const usuario = data.split('display-name=')[1].split(';')[0];
+            const colorTwitch = data.split('color=')[1].split(';')[0] || colorUsuario;
+            const mensajeRaw = data.split('PRIVMSG #' + canal + ' :')[1];
+            
+            const contenedor = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.className = 'mensaje';
+            
+            // Aplicamos el borde del color que el usuario eligió por URL
+            div.style.borderLeft = `5px solid ${colorUsuario}`;
+            
+            div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
+            
+            contenedor.appendChild(div);
+            setTimeout(() => div.remove(), 10000);
+        }
+        if (data.startsWith('PING')) socket.send('PONG');
+    };
+</script>
+</body>
+</html>

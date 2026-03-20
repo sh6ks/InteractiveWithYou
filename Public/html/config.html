@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Configurador - InteractiveWithYou</title>
+    <style>
+        body { font-family: sans-serif; background: #18181b; color: white; display: flex; justify-content: center; padding: 50px; }
+        .card { background: #26262c; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 400px; }
+        h2 { color: #a970ff; margin-top: 0; }
+        label { display: block; margin: 15px 0 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #3f3f46; background: #18181b; color: white; box-sizing: border-box; }
+        button { width: 100%; margin-top: 25px; padding: 12px; background: #9147ff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #772ce8; }
+        #resultado { margin-top: 20px; padding: 15px; background: #000; border: 1px dashed #9147ff; word-break: break-all; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>InteractiveWithYou</h2>
+    <p>Configurá tu widget de chat</p>
+    
+    <label>Nombre de tu Canal:</label>
+    <input type="text" id="canal" placeholder="ej: shekssink">
+
+    <label>Color del borde:</label>
+    <input type="color" id="color" value="#9147ff">
+
+    <label>Fuente:</label>
+    <select id="fuente">
+        <option value="sans-serif">Estándar</option>
+        <option value="'Roboto Mono', monospace">Hacker (Roboto Mono)</option>
+        <option value="'Bangers', cursive">Cómic (Bangers)</option>
+        <option value="'Luckiest Guy', cursive">Divertida (Luckiest Guy)</option>
+    </select>
+
+    <button onclick="generarLink()">Generar Link para OBS</button>
+
+    <div id="resultado">
+        <small>Copiá este link en OBS:</small><br>
+        <strong id="linkFinal"></strong>
+    </div>
+</div>
+
+<script>
+    function generarLink() {
+        const canal = document.getElementById('canal').value.trim();
+        const color = encodeURIComponent(document.getElementById('color').value);
+        const fuente = encodeURIComponent(document.getElementById('fuente').value);
+
+        if(!canal) { alert("¡Poné el nombre de tu canal!"); return; }
+
+        // Generamos la URL absoluta basada en donde esté el index.html
+        const urlBase = window.location.href.replace('config.html', 'index.html');
+        const linkCompleto = `${urlBase}?canal=${canal}&color=${color}&fuente=${fuente}`;
+        
+        document.getElementById('linkFinal').innerText = linkCompleto;
+        document.getElementById('resultado').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>

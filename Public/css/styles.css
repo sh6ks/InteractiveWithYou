@@ -1,11 +1,10 @@
-/* Importamos las fuentes desde Google */
+
 @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Luckiest+Guy&family=Roboto+Mono:wght@700&display=swap');
 
 body {
     background: transparent;
     color: white;
-    /* ELEGÍ TU FUENTE ACÁ ABAJO: 'Bangers', 'Luckiest Guy' o 'Roboto Mono' */
-    font-family: 'Roboto Mono', monospace; 
+    font-family: 'Luckiest Guy', monospace; 
     overflow: hidden;
 }
 
@@ -24,7 +23,7 @@ body {
     padding: 12px 20px;
     border-radius: 0 10px 10px 0;
     width: fit-content;
-    font-size: 24px; /* Un poquito más grande para que se lea bien */
+    font-size: 24px; 
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
     animation: aparecer 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
