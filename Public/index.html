@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/styles.css">
+    <title>InteractiveWithYou</title>
+</head>
+<body>
+
+    <div id="contenedor-chat"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
+    
+    <script>
+        // JS: Acá conectamos con Twitch y creamos los elementos visuales
+        const client = new tmi.Client({
+            channels: [ 'shekssink' ] 
+        });
+
+        client.connect();
+
+        client.on('message', (channel, tags, message, self) => {
+            const contenedor = document.getElementById('contenedor-chat');
+            
+            // Creamos la "caja" principal del mensaje
+            const cajaMensaje = document.createElement('div');
+            cajaMensaje.classList.add('mensaje-chat');
+            
+            // Creamos el texto del nombre del usuario
+            const spanUsuario = document.createElement('span');
+            spanUsuario.classList.add('usuario');
+            // Usamos el color de Twitch del usuario, o un violeta por defecto si no tiene
+            spanUsuario.style.color = tags['color'] || '#bf94ff'; 
+            spanUsuario.innerText = `${tags['display-name']}: `;
+            
+            // Creamos el texto de lo que escribió
+            const spanTexto = document.createElement('span');
+            spanTexto.innerText = message;
+            
+            // Metemos el nombre y el texto adentro de la caja, y la caja a la pantalla
+            cajaMensaje.appendChild(spanUsuario);
+            cajaMensaje.appendChild(spanTexto);
+            contenedor.appendChild(cajaMensaje);
+
+            // Opcional: Borrar el mensaje después de 10 segundos para que no se llene la pantalla
+            setTimeout(() => {
+                cajaMensaje.remove();
+            }, 10000);
+        });
+    </script>
+</body>
+</html>

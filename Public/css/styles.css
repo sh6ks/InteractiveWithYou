@@ -1,0 +1,29 @@
+ /* CSS: Acá le damos el estilo visual */
+        body {
+            background-color: transparent; /* Súper importante para OBS */
+            color: white;
+            font-family: 'Arial', sans-serif;
+            font-size: 24px;
+            overflow: hidden; /* Para que no aparezcan barras de scroll en OBS */
+            margin: 0;
+            padding: 20px;
+        }
+
+        .mensaje-chat {
+            background-color: rgba(0, 0, 0, 0.6); /* Fondo negro semitransparente */
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            width: fit-content;
+            animation: aparecer 0.3s ease-in-out;
+        }
+
+        .usuario {
+            font-weight: bold;
+        }
+
+        /* Animación para que el mensaje entre suave */
+        @keyframes aparecer {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
