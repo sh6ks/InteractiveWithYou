@@ -50,12 +50,18 @@
 
         if(!canal) { alert("¡Poné el nombre de tu canal!"); return; }
 
-        // Generamos la URL absoluta basada en donde esté el index.html
-        const urlBase = window.location.href.replace('config.html', 'index.html');
+        const urlBase = "https://sh6ks.github.io/InteractiveWithYou/widget.html";
         const linkCompleto = `${urlBase}?canal=${canal}&color=${color}&fuente=${fuente}`;
         
         document.getElementById('linkFinal').innerText = linkCompleto;
         document.getElementById('resultado').style.display = 'block';
+    } // <--- REVISÁ QUE ESTA LLAVE ESTÉ ACÁ
+
+    function copiarAlPortapapeles() {
+        const link = document.getElementById('linkFinal').innerText;
+        navigator.clipboard.writeText(link).then(() => {
+            alert("¡Link copiado! Pegalo en una 'Fuente de Navegador' en OBS.");
+        });
     }
 </script>
 
