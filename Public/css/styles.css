@@ -1,29 +1,32 @@
- /* CSS: Acá le damos el estilo visual */
-        body {
-            background-color: transparent; /* Súper importante para OBS */
-            color: white;
-            font-family: 'Arial', sans-serif;
-            font-size: 24px;
-            overflow: hidden; /* Para que no aparezcan barras de scroll en OBS */
-            margin: 0;
-            padding: 20px;
-        }
+/* Public/css/styles.css */
+body {
+    background: transparent;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+}
 
-        .mensaje-chat {
-            background-color: rgba(0, 0, 0, 0.6); /* Fondo negro semitransparente */
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            width: fit-content;
-            animation: aparecer 0.3s ease-in-out;
-        }
+#chat {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100vh;
+    padding: 20px;
+}
 
-        .usuario {
-            font-weight: bold;
-        }
+.mensaje {
+    background: rgba(0, 0, 0, 0.75);
+    border-left: 4px solid #6441a5; /* Color Twitch */
+    margin: 5px 0;
+    padding: 12px 15px;
+    border-radius: 0 8px 8px 0;
+    width: fit-content;
+    font-size: 20px;
+    text-shadow: 1px 1px 2px black;
+    animation: aparecer 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
 
-        /* Animación para que el mensaje entre suave */
-        @keyframes aparecer {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
+@keyframes aparecer {
+    from { opacity: 0; transform: translateX(-30px); }
+    to { opacity: 1; transform: translateX(0); }
+}

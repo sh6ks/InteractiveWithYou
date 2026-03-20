@@ -1,53 +1,46 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/styles.css">
     <title>InteractiveWithYou</title>
+    <style>
+        body { background: transparent; color: white; font-family: sans-serif; overflow: hidden; }
+        .mensaje { background: rgba(0,0,0,0.7); margin: 5px; padding: 10px; border-radius: 5px; animation: aparecer 0.3s ease; width: fit-content; }
+        @keyframes aparecer { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
 <body>
+    <div id="chat"></div>
 
-    <div id="contenedor-chat"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tmi.js/1.8.5/tmi.min.js"></script>
-    
     <script>
-        // JS: Acá conectamos con Twitch y creamos los elementos visuales
-        const client = new tmi.Client({
-            channels: [ 'shekssink' ] 
-        });
+        // CONEXIÓN DIRECTA POR WEBSOCKET (Sin librerías que fallen)
+        const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
 
-        client.connect();
+        socket.onopen = () => {
+            socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+            socket.send('PASS oauth:mypassword'); // No importa el password para solo leer
+            socket.send('NICK justinfan' + Math.floor(Math.random() * 10000));
+            socket.send('JOIN #shekssink');
+            console.log("%c InteractiveWithYou %c Conectado con éxito", "background: #6441a5; color: white; font-weight: bold; border-radius: 3px;", "color: inherit;");
+        };
 
-        client.on('message', (channel, tags, message, self) => {
-            const contenedor = document.getElementById('contenedor-chat');
-            
-            // Creamos la "caja" principal del mensaje
-            const cajaMensaje = document.createElement('div');
-            cajaMensaje.classList.add('mensaje-chat');
-            
-            // Creamos el texto del nombre del usuario
-            const spanUsuario = document.createElement('span');
-            spanUsuario.classList.add('usuario');
-            // Usamos el color de Twitch del usuario, o un violeta por defecto si no tiene
-            spanUsuario.style.color = tags['color'] || '#bf94ff'; 
-            spanUsuario.innerText = `${tags['display-name']}: `;
-            
-            // Creamos el texto de lo que escribió
-            const spanTexto = document.createElement('span');
-            spanTexto.innerText = message;
-            
-            // Metemos el nombre y el texto adentro de la caja, y la caja a la pantalla
-            cajaMensaje.appendChild(spanUsuario);
-            cajaMensaje.appendChild(spanTexto);
-            contenedor.appendChild(cajaMensaje);
-
-            // Opcional: Borrar el mensaje después de 10 segundos para que no se llene la pantalla
-            setTimeout(() => {
-                cajaMensaje.remove();
-            }, 10000);
-        });
+        socket.onmessage = (event) => {
+            const data = event.data;
+            if (data.includes('PRIVMSG')) {
+                // Extraer el nombre y el mensaje de forma rústica pero efectiva
+                const usuario = data.split('display-name=')[1].split(';')[0];
+                const color = data.split('color=')[1].split(';')[0] || '#00FF7F';
+                const mensajeRaw = data.split('PRIVMSG #shekssink :')[1];
+                
+                const contenedor = document.getElementById('chat');
+                const div = document.createElement('div');
+                div.className = 'mensaje';
+                div.innerHTML = `<span style="color:${color}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
+                
+                contenedor.appendChild(div);
+                setTimeout(() => div.remove(), 10000);
+            }
+            if (data.startsWith('PING')) socket.send('PONG');
+        };
     </script>
 </body>
 </html>
