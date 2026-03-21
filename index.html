@@ -1,57 +1,101 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>InteractiveWithYou</title>
+    <meta charset="UTF-8">
+    <title>InteractiveWithYou - Inicio</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Estilo para que la página de inicio no sea transparente como el widget */
+        body { 
+            background: #0e0e10 !important; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh;
+            color: white;
+            text-align: center;
+        }
+        .card {
+            background: #1f1f23;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        h1 { color: #a970ff; margin-bottom: 10px; }
+        .btn-google {
+            background: #4285F4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+        .btn-google:hover { background: #357abd; }
+        .btn-config {
+            display: inline-block;
+            margin-top: 15px;
+            background: #9147ff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <div id="chat"></div>
 
-    <script>
-    // 1. LEER LOS PARÁMETROS DE LA URL
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // Si no hay parámetro, usa 'shekssink' por defecto
-    const canal = urlParams.get('canal') || 'shekssink'; 
-    const colorUsuario = urlParams.get('color') || '#6441a5';
-    const fuenteUsuario = urlParams.get('fuente') || 'sans-serif';
+    <div class="card">
+        <h1>InteractiveWithYou</h1>
+        <p>El widget de chat dinámico para tu stream.</p>
+        <br>
+        <div id="auth-section">
+            <p>Cargando...</p>
+        </div>
+    </div>
 
-    // 2. APLICAR CONFIGURACIÓN VISUAL DINÁMICA
-    // Esto cambia la fuente de todo el cuerpo sin tocar el CSS
-    document.body.style.fontFamily = fuenteUsuario;
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    // 3. CONEXIÓN AL CHAT
-    const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+        // Tu config de Firebase que ya venimos usando
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
+            authDomain: "interactivewithyou.firebaseapp.com",
+            projectId: "interactivewithyou",
+            storageBucket: "interactivewithyou.firebasestorage.app",
+            messagingSenderId: "220446228684",
+            appId: "1:220446228684:web:759044ab4365962d300269"
+        };
 
-    socket.onopen = () => {
-        socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-        socket.send('PASS oauth:mypassword');
-        socket.send('NICK justinfan' + Math.floor(Math.random() * 10000));
-        socket.send('JOIN #' + canal); // Conexión dinámica al canal de la URL
-        console.log(`InteractiveWithYou conectado a: ${canal}`);
-    };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
 
-    socket.onmessage = (event) => {
-        const data = event.data;
-        if (data.includes('PRIVMSG')) {
-            const usuario = data.split('display-name=')[1].split(';')[0];
-            const colorTwitch = data.split('color=')[1].split(';')[0] || colorUsuario;
-            const mensajeRaw = data.split('PRIVMSG #' + canal + ' :')[1];
-            
-            const contenedor = document.getElementById('chat');
-            const div = document.createElement('div');
-            div.className = 'mensaje';
-            
-            // Aplicamos el borde del color que el usuario eligió por URL
-            div.style.borderLeft = `5px solid ${colorUsuario}`;
-            
-            div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
-            
-            contenedor.appendChild(div);
-            setTimeout(() => div.remove(), 10000);
-        }
-        if (data.startsWith('PING')) socket.send('PONG');
-    };
-</script>
+        // Funciones globales para los botones
+        window.login = () => signInWithPopup(auth, provider).catch(console.error);
+        window.logout = () => signOut(auth);
+
+        // Cambiar lo que ve el usuario según si está logueado o no
+        onAuthStateChanged(auth, (user) => {
+            const section = document.getElementById('auth-section');
+            if (user) {
+                section.innerHTML = `
+                    <p>Hola, <strong>${user.displayName}</strong></p>
+                    <a href="config.html" class="btn-config">Configurar mi Chat</a>
+                    <br><br>
+                    <button onclick="logout()" style="background:none; border:none; color:gray; cursor:pointer;">Cerrar sesión</button>
+                `;
+            } else {
+                section.innerHTML = `
+                    <button class="btn-google" onclick="login()">Entrar con Google</button>
+                `;
+            }
+        });
+    </script>
 </body>
 </html>

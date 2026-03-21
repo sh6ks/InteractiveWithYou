@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>InteractiveWithYou - Widget</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="chat"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
+            authDomain: "interactivewithyou.firebaseapp.com",
+            projectId: "interactivewithyou",
+            storageBucket: "interactivewithyou.firebasestorage.app",
+            messagingSenderId: "220446228684",
+            appId: "1:220446228684:web:759044ab4365962d300269"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const canalSolicitado = urlParams.get('canal')?.toLowerCase();
+
+        async function iniciarWidget() {
+            if (!canalSolicitado) {
+                console.error("No se especificó un canal en la URL. Ejemplo: widget.html?canal=tu_usuario");
+                return;
+            }
+
+            const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
+            const querySnapshot = await getDocs(q);
+            
+            let config = { color: "#6441a5", fuente: "sans-serif" };
+
+            querySnapshot.forEach((doc) => {
+                config = doc.data();
+            });
+
+            document.body.style.fontFamily = config.fuente;
+            conectarTwitch(canalSolicitado, config.color);
+        }
+
+        function conectarTwitch(canal, colorBorde) {
+            const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+            socket.onopen = () => {
+                socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+                socket.send('PASS oauth:mypassword');
+                socket.send('NICK justinfan' + Math.floor(Math.random() * 10000));
+                socket.send('JOIN #' + canal);
+                console.log("Conectado al chat de:", canal);
+            };
+
+            socket.onmessage = (event) => {
+                const data = event.data;
+                if (data.includes('PRIVMSG')) {
+                    const usuario = data.split('display-name=')[1].split(';')[0];
+                    const colorTwitch = data.split('color=')[1].split(';')[0] || colorBorde;
+                    const mensajeRaw = data.split(`PRIVMSG #${canal} :`)[1];
+                    
+                    const contenedor = document.getElementById('chat');
+                    const div = document.createElement('div');
+                    div.className = 'mensaje';
+                    div.style.borderLeft = `5px solid ${colorBorde}`;
+                    div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
+                    
+                    contenedor.appendChild(div);
+                    setTimeout(() => div.remove(), 10000);
+                }
+                if (data.startsWith('PING')) socket.send('PONG');
+            };
+        }
+
+        iniciarWidget();
+    </script>
+</body>
+</html>
