@@ -112,7 +112,7 @@
         });
 
         // Generamos el link LIMPIO (el widget buscará el resto en la DB)
-        const urlBase = "https://sh6ks.github.io/InteractiveWithYou/widget.html";
+        const urlBase = "https://interactive-with-you.vercel.app/widget.html";
         const linkCompleto = `${urlBase}?canal=${canal}`;
         
         document.getElementById('linkFinal').innerText = linkCompleto;
@@ -130,6 +130,13 @@
             alert("¡Link copiado! Pegalo en OBS.");
         });
     }
+    // Función para actualizar el color del borde del resultado en tiempo real
+const inputColor = document.getElementById('color');
+const recuadroResultado = document.getElementById('resultado');
+
+inputColor.addEventListener('input', () => {
+    recuadroResultado.style.borderColor = inputColor.value;
+});
 </script>
 
 </body>
