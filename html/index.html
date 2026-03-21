@@ -79,13 +79,13 @@
         window.login = () => signInWithPopup(auth, provider).catch(console.error);
         window.logout = () => signOut(auth);
 
-        // Cambiar lo que ve el usuario según si está logueado o no
+        // Cambia lo que ve el usuario según si está logueado o no
         onAuthStateChanged(auth, (user) => {
             const section = document.getElementById('auth-section');
             if (user) {
                 section.innerHTML = `
                     <p>Hola, <strong>${user.displayName}</strong></p>
-                    <a href="config.html" class="btn-config">Configurar mi Chat</a>
+                    <a href="main.html" class="btn-config">Continuar al Menú</a>
                     <br><br>
                     <button onclick="logout()" style="background:none; border:none; color:gray; cursor:pointer;">Cerrar sesión</button>
                 `;
