@@ -28,10 +28,6 @@
 
     <label>Fuente:</label>
     <select id="fuente">
-        <option value="sans-serif">Estándar</option>
-        <option value="'Roboto Mono', monospace">Hacker (Roboto Mono)</option>
-        <option value="'Bangers', cursive">Cómic (Bangers)</option>
-        <option value="'Luckiest Guy', cursive">Divertida (Luckiest Guy)</option>
     </select>
 
     <button onclick="generarLink()">Generar Link para OBS</button>
@@ -146,6 +142,17 @@
             document.getElementById('resultado').style.display = 'none';
             console.log("Configuración modificada: link anterior invalidado.");
         });
+    });
+    //  lista con los nombres de las fuentes de Google
+const misFuentes = ["Roboto", "Bangers", "Luckiest Guy", "Lora", "Montserrat", "Press Start 2P", "Open Sans"];
+
+const selectFuente = document.getElementById('fuente');
+
+misFuentes.forEach(nombre => {
+    const opcion = document.createElement('option');
+    opcion.value = nombre;       
+    opcion.textContent = nombre; 
+    selectFuente.appendChild(opcion);
     });
 </script>
 
