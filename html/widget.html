@@ -29,36 +29,37 @@
         const canalSolicitado = urlParams.get('canal')?.toLowerCase();
 
         async function iniciarWidget() {
-    if (!canalSolicitado) {
-        console.error("No se especificó un canal en la URL.");
-        return;
-    }
+            if (!canalSolicitado) {
+                console.error("No se especificó un canal en la URL.");
+                return;
+            }
 
-    const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
-    const querySnapshot = await getDocs(q);
-    
-    let config = { color: "#6441a5", fuente: "Roboto" }; // Roboto por defecto
+            const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
+            const querySnapshot = await getDocs(q);
+            
+            let config = { color: "#6441a5", fuente: "Roboto" };
 
-    querySnapshot.forEach((doc) => {
-        config = doc.data();
-    });
+            querySnapshot.forEach((doc) => {
+                config = doc.data();
+            });
 
-    
-    WebFont.load({
-        google: {
-            families: [config.fuente]
-        },
-        active: function() {
-            console.log("Fuente cargada con éxito:", config.fuente);
-            document.body.style.fontFamily = config.fuente;
-            // Recién cuando la fuente está lista, conectamos al chat
-            conectarTwitch(canalSolicitado, config.color);
-        },
-        inactive: function() {
-            console.log("No se pudo cargar la fuente, usando fallback.");
-            document.body.style.fontFamily = "sans-serif";
-            conectarTwitch(canalSolicitado, config.color);
-        
+            // Cargamos la fuente y RECIÉN AHÍ conectamos al chat
+            WebFont.load({
+                google: {
+                    families: [config.fuente]
+                },
+                active: function() {
+                    console.log("Fuente cargada con éxito:", config.fuente);
+                    document.body.style.fontFamily = config.fuente;
+                    conectarTwitch(canalSolicitado, config.color);
+                },
+                inactive: function() {
+                    console.log("No se pudo cargar la fuente, usando fallback.");
+                    document.body.style.fontFamily = "sans-serif";
+                    conectarTwitch(canalSolicitado, config.color);
+                }
+            }); // <-- Aquí cerramos WebFont correctamente
+        }
 
         function conectarTwitch(canal, colorBorde) {
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
