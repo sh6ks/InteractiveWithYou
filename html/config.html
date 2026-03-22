@@ -130,13 +130,23 @@
             alert("¡Link copiado! Pegalo en OBS.");
         });
     }
-    // Función para actualizar el color del borde del resultado en tiempo real
-const inputColor = document.getElementById('color');
-const recuadroResultado = document.getElementById('resultado');
+        const inputColor = document.getElementById('color');
 
-inputColor.addEventListener('input', () => {
-    recuadroResultado.style.borderColor = inputColor.value;
-});
+    // Esto hace que la barra del selector cambie de color mientras elegís
+    inputColor.addEventListener('input', () => {
+        inputColor.style.borderBottom = `2px solid ${inputColor.value}`;
+        // Si querés que el borde del cuadro de resultado también cambie:
+        document.getElementById('resultado').style.borderColor = inputColor.value;
+    });
+    const campos = [document.getElementById('canal'), document.getElementById('color'), document.getElementById('fuente')];
+    
+    campos.forEach(campo => {
+        campo.addEventListener('input', () => {
+            // Escondemos el resultado para que el usuario tenga que generar uno nuevo
+            document.getElementById('resultado').style.display = 'none';
+            console.log("Configuración modificada: link anterior invalidado.");
+        });
+    });
 </script>
 
 </body>
