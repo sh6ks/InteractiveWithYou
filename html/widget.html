@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>InteractiveWithYou - Widget</title>
     <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
 </head>
 <body>
     <div id="chat"></div>
@@ -28,23 +29,36 @@
         const canalSolicitado = urlParams.get('canal')?.toLowerCase();
 
         async function iniciarWidget() {
-            if (!canalSolicitado) {
-                console.error("No se especificó un canal en la URL. Ejemplo: widget.html?canal=tu_usuario");
-                return;
-            }
+    if (!canalSolicitado) {
+        console.error("No se especificó un canal en la URL.");
+        return;
+    }
 
-            const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
-            const querySnapshot = await getDocs(q);
-            
-            let config = { color: "#6441a5", fuente: "sans-serif" };
+    const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
+    const querySnapshot = await getDocs(q);
+    
+    let config = { color: "#6441a5", fuente: "Roboto" }; // Roboto por defecto
 
-            querySnapshot.forEach((doc) => {
-                config = doc.data();
-            });
+    querySnapshot.forEach((doc) => {
+        config = doc.data();
+    });
 
+    
+    WebFont.load({
+        google: {
+            families: [config.fuente]
+        },
+        active: function() {
+            console.log("Fuente cargada con éxito:", config.fuente);
             document.body.style.fontFamily = config.fuente;
+            // Recién cuando la fuente está lista, conectamos al chat
             conectarTwitch(canalSolicitado, config.color);
-        }
+        },
+        inactive: function() {
+            console.log("No se pudo cargar la fuente, usando fallback.");
+            document.body.style.fontFamily = "sans-serif";
+            conectarTwitch(canalSolicitado, config.color);
+        
 
         function conectarTwitch(canal, colorBorde) {
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
