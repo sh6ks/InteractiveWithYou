@@ -2,66 +2,87 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>InteractiveWithYou - Inicio</title>
-    <link rel="stylesheet" href="../css/styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InteractiveWithYou - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
     <style>
-        body { 
-            background: #0e0e10 !important; 
-            display: flex; 
-            flex-direction: column;
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh;
-            color: white;
-            text-align: center;
+        .loading-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80vh;
+            font-size: 1.2rem;
+            color: #a970ff;
         }
-        .card {
-            background: #1f1f23;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        h1 { color: #a970ff; margin-bottom: 10px; }
-        .btn-google {
-            background: #4285F4;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: 0.3s;
-        }
-        .btn-google:hover { background: #357abd; }
-        .btn-config {
-            display: inline-block;
-            margin-top: 15px;
-            background: #9147ff;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
+        /* Ajuste para que el submenú no se pise con otros elementos */
+        .nav-links li.showMenu .sub-menu {
+            display: block;
         }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>InteractiveWithYou</h1>
-        <p>El widget de chat dinámico para tu stream.</p>
-        <br>
-        <div id="auth-section">
-            <p>Cargando...</p>
+    <nav class="sidebar close" id="sidebar">
+        <div class="logo-details">
+            <i class="fa-solid fa-ghost"></i>
+            <span class="logo_name">Interactive
+                With 
+                You</span>
         </div>
-    </div>
+        
+        <ul class="nav-links">
+            <li>
+                <a href="#" onclick="cargarSeccion('home')">
+                    <i class="fa-solid fa-house"></i>
+                    <span class="link_name">Inicio</span>
+                </a>
+            </li>
+            <li class="menu-item-dropdown">
+                <div class="iocn-link" style="cursor:pointer;">
+                    <a>
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span class="link_name">Funciones</span>
+                    </a>
+                    <i class="fa-solid fa-chevron-down arrow"></i>
+                </div>
+                <ul class="sub-menu">
+                    <li><a href="#" onclick="cargarSeccion('chat')">Widget de Chat</a></li>
+                </ul>
+            </li>
+            <li>
+                <a href="#" onclick="cargarSeccion('comunidad')">
+                    <i class="fa-solid fa-comments"></i>
+                    <span class="link_name">Comunidad</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="cargarSeccion('contacto')">
+                    <i class="fa-solid fa-address-book"></i>
+                    <span class="link_name">Contacto</span>
+                </a>
+            </li>
+
+            <li id="auth-sidebar-item" style="cursor:pointer;">
+                </li>
+        </ul>
+    </nav>
+
+    <section class="home-section">
+        <div class="home-content">
+            <i class="fa-solid fa-bars" id="btn-menu" style="cursor:pointer;"></i>
+            <span class="text" id="section-title">Panel Principal</span>
+        </div>
+        
+        <div id="main-container" class="container" style="padding: 20px;">
+            <div class="loading-screen">Cargando plataforma...</div>
+        </div>
+    </section>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        //  config de Firebase 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
             authDomain: "interactivewithyou.firebaseapp.com",
@@ -75,23 +96,90 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // Funciones globales para los botones
         window.login = () => signInWithPopup(auth, provider).catch(console.error);
         window.logout = () => signOut(auth);
 
-        // Cambia lo que ve el usuario según si está logueado o no
+        const sidebar = document.querySelector(".sidebar");
+        const authItem = document.getElementById('auth-sidebar-item');
+        const mainContainer = document.getElementById('main-container');
+
+        // --- 1. ABRIR/CERRAR CON EL MOUSE (HOVER) ---
+        sidebar.addEventListener("mouseenter", () => {
+            sidebar.classList.remove("close");
+        });
+
+        sidebar.addEventListener("mouseleave", () => {
+            sidebar.classList.add("close");
+        });
+
+        // --- 2. ABRIR/CERRAR SUBMENÚ CON CLICK ---
+        const dropdownBtn = document.querySelector(".menu-item-dropdown");
+        dropdownBtn.addEventListener("click", (e) => {
+            dropdownBtn.classList.toggle("showMenu");
+        });
+
+        window.cargarSeccion = (seccion) => {
+    const user = auth.currentUser;
+    const container = document.getElementById('main-container');
+    const title = document.getElementById('section-title');
+
+    // Validación de seguridad para que nadie use las funciones sin loguearse
+    if (!user && seccion !== 'contacto') {
+        container.innerHTML = '<h2 style="color:white; text-align:center; margin-top:50px;">Iniciá sesión para continuar.</h2>';
+        return;
+    }
+
+    if (seccion === 'home') {
+        title.innerText = "Panel Principal";
+        // Ahora el Home carga el archivo home.html que creamos antes
+        container.innerHTML = '<iframe src="home.html" style="width:100%; height:80vh; border:none;"></iframe>';
+    } 
+    else if (seccion === 'funciones') {
+        title.innerText = "Galería de Funciones";
+        // Acá es donde cargamos el nuevo archivo con las "Cards"
+        container.innerHTML = '<iframe src="funciones.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
+    }
+    else if (seccion === 'chat') {
+        title.innerText = "Configuración de Chat";
+        // El configurador real es config.html
+        container.innerHTML = '<iframe src="config.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
+    } 
+    else if (seccion === 'comunidad') {
+        title.innerText = "Muro de la Comunidad";
+        container.innerHTML = '<iframe src="comunity.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
+    } 
+    else if (seccion === 'contacto') {
+        title.innerText = "Contacto";
+        container.innerHTML = '<iframe src="contacto.html" style="width:100%; height:80vh; border:none;"></iframe>';
+    }
+};
+
+        // Reemplazá el onAuthStateChanged por este:
         onAuthStateChanged(auth, (user) => {
-            const section = document.getElementById('auth-section');
             if (user) {
-                section.innerHTML = `
-                    <p>Hola, <strong>${user.displayName}</strong></p>
-                    <a href="main.html" class="btn-config">Continuar al Menú</a>
-                    <br><br>
-                    <button onclick="logout()" style="background:none; border:none; color:gray; cursor:pointer;">Cerrar sesión</button>
+                // Si hay usuario, mostramos su foto en el menú lateral
+                authItem.innerHTML = `
+                    <a onclick="logout()">
+                        <img src="${user.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
+                        <span class="link_name">Cerrar Sesión</span>
+                    </a>
                 `;
+                // Cargamos la página de inicio automáticamente
+                cargarSeccion('home');
             } else {
-                section.innerHTML = `
-                    <button class="btn-google" onclick="login()">Entrar con Google</button>
+                // Si no hay usuario, mostramos el botón de Google
+                authItem.innerHTML = `
+                    <a onclick="login()">
+                        <i class="fa-brands fa-google"></i>
+                        <span class="link_name">Entrar con Google</span>
+                    </a>
+                `;
+                // Pantalla de bienvenida para usuarios no logueados
+                mainContainer.innerHTML = `
+                    <div style="text-align:center; padding-top: 50px;">
+                        <h1>Bienvenido a Interactive With You</h1>
+                        <p>Por favor, iniciá sesión para configurar tus widgets de stream.</p>
+                    </div>
                 `;
             }
         });

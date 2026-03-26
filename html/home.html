@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { 
+            background: transparent; 
+            color: white; 
+            font-family: 'Poppins', sans-serif; 
+            padding: 20px; 
+            overflow: hidden;
+        }
+        .welcome-card {
+            background: #1d1b31;
+            padding: 30px;
+            border-radius: 15px;
+            border-left: 5px solid #9147ff;
+            margin-bottom: 30px;
+        }
+        h1 { color: #a970ff; margin-bottom: 10px; }
+        
+        /* Contenedor de las tarjetas cliqueables */
+        .stats { 
+            display: flex; 
+            gap: 20px; 
+        }
+        
+        .stat-box { 
+            background: #11101d; 
+            padding: 25px; 
+            border-radius: 12px; 
+            flex: 1; 
+            text-align: center; 
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Efecto de expansión y color al pasar el mouse */
+        .stat-box:hover {
+            transform: scale(1.05); /* Se expande un poquito */
+            background: #1d1b31;
+            border-color: #9147ff;
+            box-shadow: 0 10px 20px rgba(145, 71, 255, 0.2);
+        }
+
+        .stat-box i {
+            font-size: 2rem;
+            color: #9147ff;
+            margin-bottom: 10px;
+        }
+
+        .stat-box strong {
+            display: block;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-box span {
+            font-size: 0.9rem;
+            color: #adadb8;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-card">
+        <h1>¡Bienvenido a Interactive With You!</h1>
+        <p>Tu centro de herramientas para streaming.</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box" onclick="parent.cargarSeccion('chat')">
+            <i class="fa-solid fa-comments"></i>
+            <strong>Función activa:</strong>
+            <span>Widget de Chat</span>
+        </div>
+
+        <div class="stat-box" onclick="parent.cargarSeccion('funciones')">
+            <i class="fa-solid fa-star"></i>
+            <strong>Próximamente:</strong>
+            <span>Alertas en vivo</span>
+        </div>
+    </div>
+</body>
+</html>

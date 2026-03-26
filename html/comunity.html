@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Comunidad - Ghostly</title>
+    <style>
+        body { background: transparent; color: white; font-family: sans-serif; padding: 20px; }
+        .comunidad-container { max-width: 600px; margin: auto; }
+        textarea { width: 100%; height: 80px; background: #11101d; border: 1px solid #9147ff; color: white; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; }
+        button { background: #9147ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .mensaje-card { background: #1d1b31; padding: 15px; border-radius: 10px; margin-top: 15px; border-bottom: 2px solid #333; }
+        .autor { color: #a970ff; font-weight: bold; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="comunidad-container">
+        <h2>Muro de la Comunidad 💬</h2>
+        <textarea id="nuevo-comentario" placeholder="Dejame un comentario..."></textarea>
+        <button id="btn-enviar">Publicar Mensaje</button>
+
+        <div id="lista-mensajes">
+            </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
+            authDomain: "interactivewithyou.firebaseapp.com",
+            projectId: "interactivewithyou",
+            storageBucket: "interactivewithyou.firebasestorage.app",
+            messagingSenderId: "220446228684",
+            appId: "1:220446228684:web:759044ab4365962d300269"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- Configuración de Audio ---
+        const audioNotificacion = new Audio('../assets/notificacion.mp3'); 
+        let cargaInicial = true;
+
+        // --- Función para enviar mensajes ---
+        document.getElementById('btn-enviar').onclick = async () => {
+            const texto = document.getElementById('nuevo-comentario').value;
+            const user = auth.currentUser;
+
+            if (texto.trim() !== "" && user) {
+                try {
+                    await addDoc(collection(db, "comunidad"), {
+                        nombre: user.displayName,
+                        texto: texto,
+                        fecha: serverTimestamp()
+                    });
+                    document.getElementById('nuevo-comentario').value = "";
+                } catch (error) {
+                    console.error("Error al enviar mensaje:", error);
+                }
+            }
+        };
+
+        // --- Escuchar mensajes en tiempo real (Unificado) ---
+        const q = query(collection(db, "comunidad"), orderBy("fecha", "desc"));
+        
+        onSnapshot(q, (snapshot) => {
+            const lista = document.getElementById('lista-mensajes');
+            
+            // Si hay un mensaje nuevo (no es la carga inicial de la página), suena
+            if (!cargaInicial && !snapshot.metadata.hasPendingWrites) {
+                audioNotificacion.play().catch(error => {
+                    console.log("Audio bloqueado: interactúa con la página primero.");
+                });
+            }
+
+            lista.innerHTML = "";
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const div = document.createElement('div');
+                div.className = 'mensaje-card';
+                div.innerHTML = `
+                    <span class="autor">${data.nombre}</span>
+                    <p>${data.texto}</p>
+                `;
+                lista.appendChild(div);
+            });
+
+            cargaInicial = false; 
+        });
+    </script>
+</body>
+</html>

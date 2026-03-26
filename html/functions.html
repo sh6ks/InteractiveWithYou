@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Funciones - Ghostly</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Usamos fondo transparente para que se vea el del index.html */
+        body { 
+            background: transparent !important; 
+            margin: 0; 
+            padding: 30px; 
+            color: white; 
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .grid-funciones {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            justify-content: center;
+        }
+        
+        /* Tus antiguas clases .btn-main mejoradas como .card-funcion */
+        .card-funcion {
+            background: #1d1b31;
+            border: 2px solid #3f3f46;
+            padding: 30px;
+            border-radius: 20px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .card-funcion:hover {
+            border-color: #9147ff;
+            transform: translateY(-8px);
+            background: #24223d;
+            box-shadow: 0 10px 30px rgba(145, 71, 255, 0.3);
+        }
+        
+        .card-funcion i { 
+            font-size: 3rem; 
+            color: #a970ff; 
+            margin-bottom: 20px; 
+        }
+        
+        .card-funcion strong { 
+            font-size: 1.5rem; 
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .card-funcion p {
+            color: #adadb8;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-bottom: 30px;">Elegí una herramienta 🛠️</h2>
+
+    <div class="grid-funciones">
+        <div class="card-funcion" onclick="parent.cargarSeccion('chat')">
+            <i class="fa-solid fa-comment-dots"></i>
+            <strong>Widget de Chat</strong>
+            <p>Personalizá colores y fuentes de Google para tu chat de Twitch.</p>
+        </div>
+
+        <div class="card-funcion locked">
+            <i class="fa-solid fa-bell"></i>
+            <strong>Alertas PRO</strong>
+            <p>Notificaciones visuales para follows y subs. (Próximamente)</p>
+        </div>
+
+        <div class="card-funcion locked">
+            <i class="fa-solid fa-terminal"></i>
+            <strong>Bot de Comandos</strong>
+            <p>Gestioná respuestas automáticas para tu comunidad.</p>
+        </div>
+    </div>
+
+</body>
+</html>
