@@ -28,6 +28,18 @@ body {
     box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
     animation: aparecer 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
+.discord i {
+    color: #5865F2; 
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.contacto-link.discord:hover {
+    background: #5865f21a; 
+    border-color: #5865F2;
+    transform: translateX(10px); 
+    transition: 0.3s;
+}
 
 @keyframes aparecer {
     from { opacity: 0; transform: translateX(-50px); }

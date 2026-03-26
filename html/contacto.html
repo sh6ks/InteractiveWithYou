@@ -1,23 +1,69 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { background: transparent; color: white; font-family: sans-serif; text-align: center; padding: 40px; }
-        .social-links { display: flex; justify-content: center; gap: 30px; margin-top: 30px; }
-        .social-links a { color: white; font-size: 40px; transition: 0.3s; }
-        .social-links a:hover { color: #9147ff; transform: scale(1.2); }
+        /* Contenedor principal para centrar todo */
+        body {
+            background: transparent;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center; 
+            align-items: center;    
+            height: 100vh;           
+            text-align: center;
+        }
+
+        .contacto-container {
+            background: #1d1b31;
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            max-width: 500px;
+            width: 90%; /* Para que en el celu no se pegue a los bordes */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h2 { color: #a970ff; margin-bottom: 15px; }
+        p { color: #ccc; margin-bottom: 30px; }
+
+        .redes {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+        }
+
+        .redes a {
+            color: white;
+            font-size: 2.5rem;
+            transition: 0.3s;
+            text-decoration: none;
+        }
+
+        /* Colores originales al pasar el mouse */
+        .redes a:hover { transform: translateY(-5px); }
+        .fa-twitch:hover { color: #9147ff; }
+        .fa-instagram:hover { color: #e1306c; }
+        .fa-discord:hover { color: #5865f2; }
+        .fa-x-twitter:hover { color: #000000; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
     </style>
 </head>
 <body>
-    <h2>¿Tenés dudas o querés colaborar?</h2>
-    <p>Seguime en mis redes para estar al tanto de las actualizaciones.</p>
-    <div class="social-links">
-        <a href="https://twitch.tv/shekssink" target="_blank"><i class="fa-brands fa-twitch"></i></a>
-        <a href="#">https://www.instagram.com/shekssink/<i class="fa-brands fa-x-twitter"></i></a>
-        <a href="#">https://x.com/sheks_sin_k<i class="fa-brands fa-instagram"></i></a>
-        <a href="https://discord.gg/Xr3UspB57Z" target="_blank" class="contacto-link discord"><i class="fa-brands fa-discord"></i>
-</a>
+
+    <div class="contacto-container">
+        <h2>¿Tenés dudas o querés colaborar?</h2>
+        <p>Seguime en mis redes para estar al tanto de las actualizaciones.</p>
+
+        <div class="redes">
+            <a href="https://www.twitch.tv/shekssink" target="_blank"><i class="fa-brands fa-twitch"></i></a>
+            <a href="https://www.instagram.com/shekssink/" target="_blank"><i class="fa-brands fa-instagram"></i></a>
+            <a href="https://discord.gg/Xr3UspB57Z" target="_blank"><i class="fa-brands fa-discord"></i></a>
+            <a href="https://x.com/sheks_sin_k" target="_blank"><i class="fa-brands fa-x-twitter"></i></a>
+        </div>
     </div>
+
 </body>
 </html>
