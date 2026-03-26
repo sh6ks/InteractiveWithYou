@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <title>Comunidad - Ghostly</title>
     <style>
-        body { background: transparent; color: white; font-family: sans-serif; padding: 20px; }
+        body { background: transparent; color: white; font-family: 'Poppins', sans-serif; padding: 20px; }
         .comunidad-container { max-width: 600px; margin: auto; }
-        textarea { width: 100%; height: 80px; background: #11101d; border: 1px solid #9147ff; color: white; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; }
-        button { background: #9147ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .mensaje-card { background: #1d1b31; padding: 15px; border-radius: 10px; margin-top: 15px; border-bottom: 2px solid #333; }
-        .autor { color: #a970ff; font-weight: bold; font-size: 0.9rem; }
+        textarea { width: 100%; height: 80px; background: #11101d; border: 1px solid #9147ff; color: white; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; font-size: 1rem; }
+        button { background: #9147ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #bf94ff; transform: scale(1.05); }
+        .mensaje-card { background: #1d1b31; padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 4px solid #9147ff; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .autor { color: #a970ff; font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 5px; }
+        p { margin: 0; line-height: 1.4; color: #efeff1; }
     </style>
 </head>
 <body>
@@ -18,8 +20,7 @@
         <textarea id="nuevo-comentario" placeholder="Dejame un comentario..."></textarea>
         <button id="btn-enviar">Publicar Mensaje</button>
 
-        <div id="lista-mensajes">
-            </div>
+        <div id="lista-mensajes"></div>
     </div>
 
     <script type="module">
@@ -40,9 +41,24 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // --- Configuración de Audio ---
-        const audioNotificacion = new Audio('/html/assets/notificacion.mp3'); 
+        // --- Configuración de Audio y Notificaciones ---
+        const audioNotificacion = new Audio('assets/notificacion.mp3'); 
         let cargaInicial = true;
+
+        // Pedir permiso para notificaciones de Windows al cargar
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+
+        function enviarNotificacionWindows(usuario, mensaje) {
+            if (Notification.permission === "granted") {
+                const n = new Notification(`Ghostly: Mensaje de ${usuario}`, {
+                    body: mensaje,
+                    icon: 'assets/favicon.ico' // Asegurate de tener este icono o quita esta linea
+                });
+                n.onclick = () => window.focus();
+            }
+        }
 
         // --- Función para enviar mensajes ---
         document.getElementById('btn-enviar').onclick = async () => {
@@ -63,19 +79,25 @@
             }
         };
 
-        // --- Escuchar mensajes en tiempo real (Unificado) ---
+        // --- Escuchar mensajes en tiempo real ---
         const q = query(collection(db, "comunidad"), orderBy("fecha", "desc"));
         
         onSnapshot(q, (snapshot) => {
             const lista = document.getElementById('lista-mensajes');
             
-            // Si hay un mensaje nuevo (no es la carga inicial de la página), suena
-            if (!cargaInicial && !snapshot.metadata.hasPendingWrites) {
-                audioNotificacion.play().catch(error => {
-                    console.log("Audio bloqueado: interactúa con la página primero.");
-                });
-            }
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" && !cargaInicial) {
+                    const data = change.doc.data();
+                    
+                    // Sonido
+                    audioNotificacion.play().catch(() => console.log("Clickeá la página para activar audio"));
+                    
+                    // Cartelito de Windows
+                    enviarNotificacionWindows(data.nombre, data.texto);
+                }
+            });
 
+            // Renderizar la lista completa
             lista.innerHTML = "";
             snapshot.forEach((doc) => {
                 const data = doc.data();
