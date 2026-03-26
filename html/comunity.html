@@ -2,10 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Comunidad - Ghostly</title>
+    <title>Comunidad - Interactive With You</title>
     <style>
         body { background: transparent; color: white; font-family: 'Poppins', sans-serif; padding: 20px; }
         .comunidad-container { max-width: 600px; margin: auto; }
+        h2 { color: #a970ff; margin-bottom: 20px; }
         textarea { width: 100%; height: 80px; background: #11101d; border: 1px solid #9147ff; color: white; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; font-size: 1rem; }
         button { background: #9147ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         button:hover { background: #bf94ff; transform: scale(1.05); }
@@ -41,26 +42,22 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // --- Configuración de Audio y Notificaciones ---
         const audioNotificacion = new Audio('assets/notificacion.mp3'); 
         let cargaInicial = true;
 
-        // Pedir permiso para notificaciones de Windows al cargar
         if (Notification.permission !== "granted" && Notification.permission !== "denied") {
             Notification.requestPermission();
         }
 
         function enviarNotificacionWindows(usuario, mensaje) {
             if (Notification.permission === "granted") {
-                const n = new Notification(`Ghostly: Mensaje de ${usuario}`, {
-                    body: mensaje,
-                    icon: 'assets/favicon.ico' // Asegurate de tener este icono o quita esta linea
+                const n = new Notification(`Interactive With You: Mensaje de ${usuario}`, {
+                    body: mensaje
                 });
                 n.onclick = () => window.focus();
             }
         }
 
-        // --- Función para enviar mensajes ---
         document.getElementById('btn-enviar').onclick = async () => {
             const texto = document.getElementById('nuevo-comentario').value;
             const user = auth.currentUser;
@@ -79,7 +76,6 @@
             }
         };
 
-        // --- Escuchar mensajes en tiempo real ---
         const q = query(collection(db, "comunidad"), orderBy("fecha", "desc"));
         
         onSnapshot(q, (snapshot) => {
@@ -88,16 +84,11 @@
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added" && !cargaInicial) {
                     const data = change.doc.data();
-                    
-                    // Sonido
-                    audioNotificacion.play().catch(() => console.log("Clickeá la página para activar audio"));
-                    
-                    // Cartelito de Windows
+                    audioNotificacion.play().catch(() => {});
                     enviarNotificacionWindows(data.nombre, data.texto);
                 }
             });
 
-            // Renderizar la lista completa
             lista.innerHTML = "";
             snapshot.forEach((doc) => {
                 const data = doc.data();
