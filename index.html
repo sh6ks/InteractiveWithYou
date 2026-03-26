@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InteractiveWithYou - Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="css/dashboard.css">
     <style>
         .loading-screen {
             display: flex;
@@ -123,34 +123,31 @@
     const container = document.getElementById('main-container');
     const title = document.getElementById('section-title');
 
-    // Validación de seguridad para que nadie use las funciones sin loguearse
     if (!user && seccion !== 'contacto') {
-        container.innerHTML = '<h2 style="color:white; text-align:center; margin-top:50px;">Iniciá sesión para continuar.</h2>';
+        container.innerHTML = '<h2 style="color:white; text-align:center;">Iniciá sesión para continuar.</h2>';
         return;
     }
 
+    // Ahora agregamos "html/" porque los archivos están en esa carpeta
     if (seccion === 'home') {
         title.innerText = "Panel Principal";
-        // Ahora el Home carga el archivo home.html que creamos antes
-        container.innerHTML = '<iframe src="home.html" style="width:100%; height:80vh; border:none;"></iframe>';
+        container.innerHTML = '<iframe src="html/home.html" style="width:100%; height:80vh; border:none;"></iframe>';
     } 
     else if (seccion === 'funciones') {
         title.innerText = "Galería de Funciones";
-        // Acá es donde cargamos el nuevo archivo con las "Cards"
-        container.innerHTML = '<iframe src="funciones.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
+        container.innerHTML = '<iframe src="html/functions.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
     }
     else if (seccion === 'chat') {
         title.innerText = "Configuración de Chat";
-        // El configurador real es config.html
-        container.innerHTML = '<iframe src="config.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
+        container.innerHTML = '<iframe src="html/config.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
     } 
     else if (seccion === 'comunidad') {
         title.innerText = "Muro de la Comunidad";
-        container.innerHTML = '<iframe src="comunity.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
+        container.innerHTML = '<iframe src="html/comunity.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
     } 
     else if (seccion === 'contacto') {
         title.innerText = "Contacto";
-        container.innerHTML = '<iframe src="contacto.html" style="width:100%; height:80vh; border:none;"></iframe>';
+        container.innerHTML = '<iframe src="html/contacto.html" style="width:100%; height:80vh; border:none;"></iframe>';
     }
 };
 
