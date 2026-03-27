@@ -7,6 +7,7 @@
     font-family: 'Poppins', sans-serif;
 }
 
+
 :root {
     --bg-dark: #0c0b14;
     --sidebar-color: #11101d;
@@ -18,6 +19,18 @@ body {
     background-color: var(--bg-dark);
     color: var(--text-color);
     overflow: hidden;
+}
+h1 {
+    font-size: clamp(1.5rem, 5vw, 3rem);
+    color: var(--accent-color);
+}
+
+.card {
+    background: #1d1b31;
+    padding: 25px;
+    border-radius: 15px;
+    width: min(95%, 450px); 
+    margin: 20px auto; 
 }
 
 .sidebar {
@@ -138,6 +151,10 @@ body {
     min-height: 0;
     opacity: 0;
     transition: opacity 0.3s ease;
+}
+.home-section .home-content .text {
+    font-size: clamp(1.2rem, 3vw, 1.8rem); 
+    font-weight: 600;
 }
 
 .nav-links li.showMenu .sub-menu .sub-menu-content {
