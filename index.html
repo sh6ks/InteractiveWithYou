@@ -23,7 +23,7 @@
                 </a>
             </li>
             
-            <li>
+            <li class="menu-item-dropdown">
                 <div class="iocn-link" style="cursor:pointer;">
                     <a href="#">
                         <i class="fa-solid fa-layer-group"></i>
@@ -54,8 +54,7 @@
                 </a>
             </li>
 
-            <li id="auth-item">
-                </li>
+            <li id="auth-item"></li>
         </ul>
     </nav>
 
@@ -65,8 +64,7 @@
             <span class="text">Panel de Control</span>
         </div>
 
-        <div id="main-container">
-            </div>
+        <div id="main-container"></div>
     </section>
 
     <script type="module">
@@ -91,7 +89,7 @@
         const authItem = document.getElementById("auth-item");
         const mainContainer = document.getElementById("main-container");
 
-        // Lógica de apertura/cierre de submenús
+        // --- Lógica de Submenús (Clic en flecha) ---
         document.querySelectorAll(".arrow").forEach(arrow => {
             arrow.addEventListener("click", (e) => {
                 let arrowParent = e.target.parentElement.parentElement;
@@ -99,7 +97,22 @@
             });
         });
 
-        // Toggle del Sidebar (Responsivo)
+        // --- Lógica de Hover (Mouse encima) ---
+        const dropdownItem = document.querySelector(".menu-item-dropdown");
+        if (dropdownItem) {
+            dropdownItem.addEventListener("mouseenter", () => {
+                if (window.innerWidth > 768) {
+                    dropdownItem.classList.add("showMenu");
+                }
+            });
+            dropdownItem.addEventListener("mouseleave", () => {
+                if (window.innerWidth > 768) {
+                    dropdownItem.classList.remove("showMenu");
+                }
+            });
+        }
+
+        // --- Toggle Sidebar (Móvil/PC) ---
         btnMenu.addEventListener("click", () => {
             if (window.innerWidth <= 768) {
                 sidebar.classList.toggle("open-mobile");
@@ -117,47 +130,60 @@
         };
 
         window.cargarSeccion = (seccion) => {
-            mainContainer.innerHTML = '<div class="loading-screen">Cargando...</div>';
+            mainContainer.innerHTML = '<div style="color:#a970ff; padding:20px;">Cargando...</div>';
             
-            // Si estamos en móvil, cerramos el menú al elegir sección
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove("open-mobile");
             }
 
-            if (seccion === 'home') {
-                mainContainer.innerHTML = '<iframe src="home.html" style="width:100%; height:85vh; border:none;"></iframe>';
-            } else if (seccion === 'chat') {
-                mainContainer.innerHTML = '<iframe src="config.html" style="width:100%; height:85vh; border:none;"></iframe>';
-            } else if (seccion === 'comunidad') {
-                mainContainer.innerHTML = '<iframe src="comunity.html" style="width:100%; height:85vh; border:none;"></iframe>';
-            } else if (seccion === 'contacto') {
-                mainContainer.innerHTML = '<iframe src="contacto.html" style="width:100%; height:85vh; border:none;"></iframe>';
+            let archivo = "";
+            if (seccion === 'home') archivo = "html/home.html";
+            else if (seccion === 'chat') archivo = "html/config.html";
+            else if (seccion === 'comunidad') archivo = "html/comunity.html";
+            else if (seccion === 'contacto') archivo = "html/contacto.html";
+
+            if (archivo) {
+                mainContainer.innerHTML = `<iframe src="${archivo}" style="width:100%; height:85vh; border:none;"></iframe>`;
             }
         };
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                authItem.innerHTML = `
-                    <a onclick="logout()" style="cursor:pointer;">
-                        <img src="${user.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
-                        <span class="link_name">Cerrar Sesión</span>
-                    </a>
-                `;
-                cargarSeccion('home');
-            } else {
-                authItem.innerHTML = `
-                    <a onclick="login()" style="cursor:pointer;">
-                        <i class="fa-brands fa-google"></i>
-                        <span class="link_name">Entrar con Google</span>
-                    </a>
-                `;
-                mainContainer.innerHTML = `
-                    <div style="text-align:center; padding-top: 50px;">
-                        <h1>Bienvenido a Interactive With You</h1>
-                        <p>Iniciá sesión para empezar a configurar tus herramientas.</p>
-                    </div>
-                `;
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        authItem.innerHTML = `
+                            <a onclick="logout()" style="cursor:pointer;">
+                                <img src="${user.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
+                                <span class="link_name">Cerrar Sesión</span>
+                            </a>
+                        `;
+                        cargarSeccion('home');
+                    } else {
+                        authItem.innerHTML = `
+                            <a onclick="login()" style="cursor:pointer;">
+                                <i class="fa-brands fa-google"></i>
+                                <span class="link_name">Entrar con Google</span>
+                            </a>
+                        `;
+                        mainContainer.innerHTML = `
+                            <div style="text-align:center; padding-top: 50px;">
+                                <h1>Bienvenido a Interactive With You</h1>
+                                <p>Iniciá sesión para empezar.</p>
+                            </div>
+                        `;
+                    }
+                    sidebar.addEventListener("mouseenter", () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove("close");
             }
+        });
+
+            sidebar.addEventListener("mouseleave", () => {
+                if (window.innerWidth > 768) {
+                    sidebar.classList.add("close");
+                    document.querySelectorAll(".showMenu").forEach(menu => {
+                        menu.classList.remove("showMenu");
+                    });
+                }
+            });
         });
     </script>
 </body>
