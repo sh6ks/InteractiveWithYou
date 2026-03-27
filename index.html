@@ -3,32 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InteractiveWithYou - Dashboard</title>
+    <title>Interactive With You - Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
-    <style>
-        .loading-screen {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 80vh;
-            font-size: 1.2rem;
-            color: #a970ff;
-        }
-        /* Ajuste para que el submenú no se pise con otros elementos */
-        .nav-links li.showMenu .sub-menu {
-            display: block;
-        }
-    </style>
 </head>
 <body>
 
     <nav class="sidebar close" id="sidebar">
         <div class="logo-details">
             <i class="fa-solid fa-ghost"></i>
-            <span class="logo_name">Interactive
-                With 
-                You</span>
+            <span class="logo_name">Interactive With You</span>
         </div>
         
         <ul class="nav-links">
@@ -38,49 +22,51 @@
                     <span class="link_name">Inicio</span>
                 </a>
             </li>
-                <li class="menu-item-dropdown">
-                    <div class="iocn-link" style="cursor:pointer;">
-                        <a>
-                            <i class="fa-solid fa-layer-group"></i>
-                            <span class="link_name">Funciones</span>
-                        </a>
-                        <i class="fa-solid fa-chevron-down arrow"></i>
+            
+            <li>
+                <div class="iocn-link" style="cursor:pointer;">
+                    <a href="#">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span class="link_name">Funciones</span>
+                    </a>
+                    <i class="fa-solid fa-chevron-down arrow"></i>
+                </div>
+                <div class="sub-menu">
+                    <div class="sub-menu-content">
+                        <ul>
+                            <li><a href="#" onclick="cargarSeccion('chat')">Widget de Chat</a></li>
+                        </ul>
                     </div>
-                    <div class="sub-menu">
-                        <div class="sub-menu-content">
-                            <ul>
-                                <li><a href="#" onclick="cargarSeccion('chat')">Widget de Chat</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </li>
+                </div>
+            </li>
+
             <li>
                 <a href="#" onclick="cargarSeccion('comunidad')">
-                    <i class="fa-solid fa-comments"></i>
+                    <i class="fa-solid fa-users"></i>
                     <span class="link_name">Comunidad</span>
                 </a>
             </li>
+
             <li>
                 <a href="#" onclick="cargarSeccion('contacto')">
-                    <i class="fa-solid fa-address-book"></i>
+                    <i class="fa-solid fa-envelope"></i>
                     <span class="link_name">Contacto</span>
                 </a>
             </li>
 
-            <li id="auth-sidebar-item" style="cursor:pointer;">
+            <li id="auth-item">
                 </li>
         </ul>
     </nav>
 
     <section class="home-section">
         <div class="home-content">
-            <i class="fa-solid fa-bars" id="btn-menu" style="cursor:pointer;"></i>
-            <span class="text" id="section-title">Panel Principal</span>
+            <i class="fa-solid fa-bars" id="btn-menu"></i>
+            <span class="text">Panel de Control</span>
         </div>
-        
-        <div id="main-container" class="container" style="padding: 20px;">
-            <div class="loading-screen">Cargando plataforma...</div>
-        </div>
+
+        <div id="main-container">
+            </div>
     </section>
 
     <script type="module">
@@ -100,86 +86,75 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        window.login = () => signInWithPopup(auth, provider).catch(console.error);
-        window.logout = () => signOut(auth);
+        const sidebar = document.getElementById("sidebar");
+        const btnMenu = document.getElementById("btn-menu");
+        const authItem = document.getElementById("auth-item");
+        const mainContainer = document.getElementById("main-container");
 
-        const sidebar = document.querySelector(".sidebar");
-        const authItem = document.getElementById('auth-sidebar-item');
-        const mainContainer = document.getElementById('main-container');
-
-        // --- 1. ABRIR/CERRAR CON EL MOUSE (HOVER) ---
-        sidebar.addEventListener("mouseenter", () => {
-            sidebar.classList.remove("close");
+        // Lógica de apertura/cierre de submenús
+        document.querySelectorAll(".arrow").forEach(arrow => {
+            arrow.addEventListener("click", (e) => {
+                let arrowParent = e.target.parentElement.parentElement;
+                arrowParent.classList.toggle("showMenu");
+            });
         });
 
-        sidebar.addEventListener("mouseleave", () => {
-            sidebar.classList.add("close");
+        // Toggle del Sidebar (Responsivo)
+        btnMenu.addEventListener("click", () => {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.toggle("open-mobile");
+            } else {
+                sidebar.classList.toggle("close");
+            }
         });
 
-        // --- 2. ABRIR/CERRAR SUBMENÚ CON CLICK ---
-        const dropdownBtn = document.querySelector(".menu-item-dropdown");
-        dropdownBtn.addEventListener("click", (e) => {
-            dropdownBtn.classList.toggle("showMenu");
-        });
+        window.login = () => {
+            signInWithPopup(auth, provider).catch(error => console.error(error));
+        };
+
+        window.logout = () => {
+            signOut(auth).then(() => location.reload());
+        };
 
         window.cargarSeccion = (seccion) => {
-    const user = auth.currentUser;
-    const container = document.getElementById('main-container');
-    const title = document.getElementById('section-title');
+            mainContainer.innerHTML = '<div class="loading-screen">Cargando...</div>';
+            
+            // Si estamos en móvil, cerramos el menú al elegir sección
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove("open-mobile");
+            }
 
-    if (!user && seccion !== 'contacto') {
-        container.innerHTML = '<h2 style="color:white; text-align:center;">Iniciá sesión para continuar.</h2>';
-        return;
-    }
+            if (seccion === 'home') {
+                mainContainer.innerHTML = '<iframe src="home.html" style="width:100%; height:85vh; border:none;"></iframe>';
+            } else if (seccion === 'chat') {
+                mainContainer.innerHTML = '<iframe src="config.html" style="width:100%; height:85vh; border:none;"></iframe>';
+            } else if (seccion === 'comunidad') {
+                mainContainer.innerHTML = '<iframe src="comunity.html" style="width:100%; height:85vh; border:none;"></iframe>';
+            } else if (seccion === 'contacto') {
+                mainContainer.innerHTML = '<iframe src="contacto.html" style="width:100%; height:85vh; border:none;"></iframe>';
+            }
+        };
 
-    // Ahora agregamos "html/" porque los archivos están en esa carpeta
-    if (seccion === 'home') {
-        title.innerText = "Panel Principal";
-        container.innerHTML = '<iframe src="html/home.html" style="width:100%; height:80vh; border:none;"></iframe>';
-    } 
-    else if (seccion === 'funciones') {
-        title.innerText = "Galería de Funciones";
-        container.innerHTML = '<iframe src="html/functions.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
-    }
-    else if (seccion === 'chat') {
-        title.innerText = "Configuración de Chat";
-        container.innerHTML = '<iframe src="html/config.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
-    } 
-    else if (seccion === 'comunidad') {
-        title.innerText = "Muro de la Comunidad";
-        container.innerHTML = '<iframe src="html/comunity.html" style="width:100%; height:85vh; border:none; border-radius:10px;"></iframe>';
-    } 
-    else if (seccion === 'contacto') {
-        title.innerText = "Contacto";
-        container.innerHTML = '<iframe src="html/contacto.html" style="width:100%; height:80vh; border:none;"></iframe>';
-    }
-};
-
-        // Reemplazá el onAuthStateChanged por este:
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // Si hay usuario, mostramos su foto en el menú lateral
                 authItem.innerHTML = `
-                    <a onclick="logout()">
+                    <a onclick="logout()" style="cursor:pointer;">
                         <img src="${user.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
                         <span class="link_name">Cerrar Sesión</span>
                     </a>
                 `;
-                // Cargamos la página de inicio automáticamente
                 cargarSeccion('home');
             } else {
-                // Si no hay usuario, mostramos el botón de Google
                 authItem.innerHTML = `
-                    <a onclick="login()">
+                    <a onclick="login()" style="cursor:pointer;">
                         <i class="fa-brands fa-google"></i>
                         <span class="link_name">Entrar con Google</span>
                     </a>
                 `;
-                // Pantalla de bienvenida para usuarios no logueados
                 mainContainer.innerHTML = `
                     <div style="text-align:center; padding-top: 50px;">
                         <h1>Bienvenido a Interactive With You</h1>
-                        <p>Por favor, iniciá sesión para configurar tus widgets de stream.</p>
+                        <p>Iniciá sesión para empezar a configurar tus herramientas.</p>
                     </div>
                 `;
             }

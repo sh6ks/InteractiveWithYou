@@ -213,3 +213,38 @@ body {
 .nav-links li.showMenu i.arrow {
     transform: rotate(-180deg);
 }
+@media (max-width: 768px) {
+    .sidebar {
+        left: -100%; 
+        width: 100%; 
+        transition: all 0.4s ease;
+    }
+
+    .sidebar.open-mobile {
+        left: 0;
+    }
+
+    .home-section {
+        left: 0;
+        width: 100%;
+    }
+
+    .sidebar.close ~ .home-section {
+        left: 0;
+        width: 100%;
+    }
+
+    .home-section .home-content .text {
+        font-size: 18px;
+    }
+
+
+    #main-container {
+        padding: 10px;
+    }
+
+
+    iframe {
+        height: 85vh !important;
+    }
+}
