@@ -37,7 +37,7 @@ body {
 .contacto-link.discord:hover {
     background: #5865f21a; 
     border-color: #5865F2;
-    transform: translateX(10px); 
+    transform: translateX(10px); /* Efecto de desplazamiento */
     transition: 0.3s;
 }
 

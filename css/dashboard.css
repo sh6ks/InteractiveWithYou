@@ -1,4 +1,3 @@
-/* Google Fonts para el Dashboard */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 * {
@@ -11,7 +10,7 @@
 :root {
     --bg-dark: #0c0b14;
     --sidebar-color: #11101d;
-    --accent-color: #9147ff; /* Morado Twitch */
+    --accent-color: #9147ff;
     --text-color: #fff;
 }
 
@@ -21,7 +20,6 @@ body {
     overflow: hidden;
 }
 
-/* --- BARRA LATERAL --- */
 .sidebar {
     position: fixed;
     top: 0;
@@ -30,7 +28,7 @@ body {
     width: 260px;
     background: var(--sidebar-color);
     z-index: 100;
-    transition: all 0.5s ease;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar.close {
@@ -51,6 +49,7 @@ body {
     min-width: 78px;
     text-align: center;
     line-height: 50px;
+    transition: all 0.3s ease;
 }
 
 .sidebar .logo-details .logo_name {
@@ -73,10 +72,14 @@ body {
     overflow: auto;
 }
 
+.sidebar .nav-links::-webkit-scrollbar {
+    display: none;
+}
+
 .sidebar .nav-links li {
     position: relative;
     list-style: none;
-    transition: all 0.4s ease;
+    transition: all 0.3s ease;
 }
 
 .sidebar .nav-links li:hover {
@@ -118,14 +121,50 @@ body {
     pointer-events: none;
 }
 
-/* --- CONTENIDO PRINCIPAL --- */
+.nav-links li .sub-menu {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #1d1b31;
+    overflow: hidden;
+    padding-left: 80px;
+}
+
+.nav-links li.showMenu .sub-menu {
+    grid-template-rows: 1fr;
+}
+
+.sub-menu-content {
+    min-height: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.nav-links li.showMenu .sub-menu .sub-menu-content {
+    opacity: 1;
+    padding: 10px 0 15px 0;
+}
+
+.nav-links li .sub-menu li a {
+    color: #efeff1 !important; 
+    font-size: 15px;
+    padding: 8px 0;
+    display: block;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.nav-links li .sub-menu li a:hover {
+    color: #9147ff !important; 
+}
+
 .home-section {
     position: relative;
     background: var(--bg-dark);
     height: 100vh;
     left: 260px;
     width: calc(100% - 260px);
-    transition: all 0.5s ease;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar.close ~ .home-section {
@@ -156,35 +195,20 @@ body {
     font-weight: 600;
 }
 
-/* El logo cambia a un violeta más brillante al pasar el mouse */
 .sidebar .logo-details:hover i,
 .sidebar .logo-details:hover .logo_name {
-    color: #bf94ff; /* Un violeta más claro que el de Twitch */
-    text-shadow: 0 0 10px rgba(145, 71, 255, 0.5); /* Efecto neón */
+    color: #bf94ff; 
+    text-shadow: 0 0 10px rgba(145, 71, 255, 0.5); 
     cursor: pointer;
 }
 
-/* Animación para que el fantasmita flote un poco */
-.sidebar .logo-details i {
-    transition: all 0.3s ease;
-}
-
 .sidebar .logo-details:hover i {
-    transform: translateY(-3px); /* Hace que el fantasmita 'suba' */
+    transform: translateY(-3px); 
 }
 
-.nav-links li .sub-menu {
-    padding: 6px 6px 14px 80px;
-    margin-top: -10px;
-    background: #1d1b31;
-    display: none; 
+.sidebar .nav-links li i.arrow {
+    transition: transform 0.3s ease;
 }
-
-
-.nav-links li.showMenu .sub-menu {
-    display: block;
-}
-
 
 .nav-links li.showMenu i.arrow {
     transform: rotate(-180deg);
