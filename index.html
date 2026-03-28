@@ -92,10 +92,9 @@
 
         // --- LÓGICA DE TWITCH (NUEVA PESTAÑA) ---
         window.loginTwitch = () => {
-            let redirectUri = window.location.origin + "/";
-            
+            const redirectUri = window.location.origin;
+            console.log("👉 COPIÁ ESTO Y PEGALO EN TWITCH: ", redirectUri);
             const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID_TWITCH}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=user:read:email+chat:read`;
-
             window.open(authUrl, 'TwitchLogin', 'width=500,height=700');
         };
 
