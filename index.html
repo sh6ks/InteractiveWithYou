@@ -34,6 +34,7 @@
                     <div class="sub-menu-content">
                         <ul>
                             <li><a href="#" onclick="cargarSeccion('chat')">Widget de Chat</a></li>
+                            <li><a href="#" onclick="cargarSeccion('alerts')">Alertas en vivo</a></li>
                         </ul>
                     </div>
                 </div>
@@ -206,6 +207,8 @@
             let archivo = "";
             if (seccion === 'home') archivo = "html/home.html";
             else if (seccion === 'chat') archivo = "html/config.html";
+            else if (seccion === 'alerts') archivo = "html/alerts.html";
+            else if (seccion === 'funciones') archivo = "html/functions.html";
             else if (seccion === 'comunidad') archivo = "html/comunity.html";
             else if (seccion === 'contacto') archivo = "html/contacto.html";
 

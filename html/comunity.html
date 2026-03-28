@@ -14,6 +14,12 @@
         .mensaje-card { background: #1d1b31; padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 4px solid #9147ff; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .autor { color: #a970ff; font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 5px; }
         p { margin: 0; line-height: 1.4; color: #efeff1; }
+        .comment-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+        .comment-actions button { background: #2d2750; color: #dcd7ff; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s ease; }
+        .comment-actions button:hover { background: #3e3478; }
+        .reply-card { background: #141322; border-left: 4px solid #5f42e0; padding: 12px; margin-top: 12px; margin-left: 18px; }
+        .reply-box { margin-top: 12px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -27,8 +33,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -43,8 +49,26 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        const audioNotificacion = new Audio('assets/notificacion.mp3'); 
+        let currentUser = null;
+        const twitchName = localStorage.getItem('nombreTwitch') || '';
+        const audioNotificacion = new Audio('assets/notificacion.mp3');
         let cargaInicial = true;
+
+        const getDisplayName = () => {
+            if (currentUser) {
+                return currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario';
+            }
+            return twitchName || 'Invitado';
+        };
+
+        const requireLogin = () => {
+            if (!currentUser && !twitchName) {
+                alert('Debés iniciar sesión con Google o Twitch para usar la Comunidad.');
+                window.parent.location.href = '/index.html';
+                return false;
+            }
+            return true;
+        };
 
         if (Notification.permission !== "granted" && Notification.permission !== "denied") {
             Notification.requestPermission();
@@ -59,50 +83,140 @@
             }
         }
 
-        document.getElementById('btn-enviar').onclick = async () => {
-            const texto = document.getElementById('nuevo-comentario').value;
-            const user = auth.currentUser;
+        const renderComments = (docs) => {
+            const lista = document.getElementById('lista-mensajes');
+            const comments = docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const rootComments = comments.filter(c => !c.parentId).sort((a, b) => b.fecha?.seconds - a.fecha?.seconds);
+            const repliesMap = {};
+            comments.filter(c => c.parentId).forEach(reply => {
+                if (!repliesMap[reply.parentId]) repliesMap[reply.parentId] = [];
+                repliesMap[reply.parentId].push(reply);
+            });
 
-            if (texto.trim() !== "" && user) {
-                try {
-                    await addDoc(collection(db, "comunidad"), {
-                        nombre: user.displayName,
-                        texto: texto,
-                        fecha: serverTimestamp()
-                    });
-                    document.getElementById('nuevo-comentario').value = "";
-                } catch (error) {
-                    console.error("Error al enviar mensaje:", error);
-                }
+            lista.innerHTML = '';
+            rootComments.forEach(comment => {
+                const div = document.createElement('div');
+                div.className = 'mensaje-card';
+                div.innerHTML = `
+                    <span class="autor">${comment.nombre}</span>
+                    <p>${comment.texto}</p>
+                    <div class="comment-actions">
+                        <button class="like-btn" data-id="${comment.id}">👍 ${comment.likes || 0}</button>
+                        <button class="reply-btn" data-id="${comment.id}">Responder</button>
+                    </div>
+                    <div class="reply-box hidden" id="reply-box-${comment.id}">
+                        <textarea class="reply-input" placeholder="Escribí tu respuesta..."></textarea>
+                        <button class="submit-reply-btn" data-id="${comment.id}">Enviar respuesta</button>
+                    </div>
+                `;
+
+                const replies = repliesMap[comment.id] || [];
+                replies.sort((a, b) => a.fecha?.seconds - b.fecha?.seconds).forEach(reply => {
+                    const replyDiv = document.createElement('div');
+                    replyDiv.className = 'mensaje-card reply-card';
+                    replyDiv.innerHTML = `
+                        <span class="autor">${reply.nombre}</span>
+                        <p>${reply.texto}</p>
+                        <div class="comment-actions">
+                            <button class="like-btn" data-id="${reply.id}">👍 ${reply.likes || 0}</button>
+                            <button class="reply-btn" data-id="${reply.id}">Responder</button>
+                        </div>
+                        <div class="reply-box hidden" id="reply-box-${reply.id}">
+                            <textarea class="reply-input" placeholder="Escribí tu respuesta..."></textarea>
+                            <button class="submit-reply-btn" data-id="${reply.id}">Enviar respuesta</button>
+                        </div>
+                    `;
+                    div.appendChild(replyDiv);
+                });
+
+                lista.appendChild(div);
+            });
+
+            lista.querySelectorAll('.like-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const id = button.dataset.id;
+                    try {
+                        await updateDoc(doc(db, 'comunidad', id), { likes: increment(1) });
+                    } catch (error) {
+                        console.error('Error al dar like:', error);
+                    }
+                });
+            });
+
+            lista.querySelectorAll('.reply-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.dataset.id;
+                    const box = document.getElementById(`reply-box-${id}`);
+                    if (box) box.classList.toggle('hidden');
+                });
+            });
+
+            lista.querySelectorAll('.submit-reply-btn').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const id = button.dataset.id;
+                    const textarea = button.parentElement.querySelector('.reply-input');
+                    const texto = textarea?.value.trim();
+                    if (!texto) return;
+                    if (!requireLogin()) return;
+                    try {
+                        await addDoc(collection(db, 'comunidad'), {
+                            nombre: getDisplayName(),
+                            texto: texto,
+                            parentId: id,
+                            likes: 0,
+                            fecha: serverTimestamp()
+                        });
+                        textarea.value = '';
+                        button.parentElement.classList.add('hidden');
+                    } catch (error) {
+                        console.error('Error al responder:', error);
+                    }
+                });
+            });
+        };
+
+        document.getElementById('btn-enviar').onclick = async () => {
+            if (!requireLogin()) return;
+            const texto = document.getElementById('nuevo-comentario').value.trim();
+            if (!texto) return;
+
+            try {
+                await addDoc(collection(db, 'comunidad'), {
+                    nombre: getDisplayName(),
+                    texto: texto,
+                    parentId: null,
+                    likes: 0,
+                    fecha: serverTimestamp()
+                });
+                document.getElementById('nuevo-comentario').value = '';
+            } catch (error) {
+                console.error('Error al enviar mensaje:', error);
             }
         };
 
-        const q = query(collection(db, "comunidad"), orderBy("fecha", "desc"));
-        
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (!currentUser && !twitchName) {
+                alert('Tenés que iniciar sesión con Google o Twitch para usar la Comunidad.');
+                window.parent.location.href = '/index.html';
+            }
+        });
+
+        const q = query(collection(db, 'comunidad'), orderBy('fecha', 'desc'));
+
         onSnapshot(q, (snapshot) => {
             const lista = document.getElementById('lista-mensajes');
-            
+
             snapshot.docChanges().forEach((change) => {
-                if (change.type === "added" && !cargaInicial) {
+                if (change.type === 'added' && !cargaInicial) {
                     const data = change.doc.data();
                     audioNotificacion.play().catch(() => {});
                     enviarNotificacionWindows(data.nombre, data.texto);
                 }
             });
 
-            lista.innerHTML = "";
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const div = document.createElement('div');
-                div.className = 'mensaje-card';
-                div.innerHTML = `
-                    <span class="autor">${data.nombre}</span>
-                    <p>${data.texto}</p>
-                `;
-                lista.appendChild(div);
-            });
-
-            cargaInicial = false; 
+            renderComments(snapshot.docs);
+            cargaInicial = false;
         });
     </script>
 </body>

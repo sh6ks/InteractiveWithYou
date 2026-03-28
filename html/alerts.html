@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Alertas en vivo - InteractiveWithYou</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Poppins', sans-serif;
+            background: #100f1f;
+            color: #eef2ff;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 32px;
+        }
+
+        .card {
+            width: min(760px, 100%);
+            background: #161529;
+            border: 1px solid rgba(145, 71, 255, 0.25);
+            border-radius: 20px;
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        h1 {
+            margin: 0 0 18px;
+            font-size: 2rem;
+            color: #d9d7ff;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        label {
+            display: block;
+            margin: 16px 0 8px;
+            color: #bdb9ff;
+            font-weight: 600;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid #3b3660;
+            background: #120f25;
+            color: #eef2ff;
+            padding: 12px 14px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 18px;
+            width: 100%;
+            padding: 14px 18px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        .primary { background: #9147ff; color: white; }
+        .secondary { background: #27223d; color: #dcd7ff; }
+
+        .info-box {
+            margin-top: 20px;
+            background: rgba(145, 71, 255, 0.1);
+            padding: 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(145, 71, 255, 0.2);
+        }
+
+        .field-group {
+            display: grid;
+            gap: 14px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 720px) {
+            .row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Alertas en vivo</h1>
+        <p>Esta sección te permite crear alertas para el overlay de OBS usando Firestore. El overlay recibirá alertas y las mostrará automáticamente.</p>
+
+        <div class="row">
+            <div class="field-group">
+                <label>Nombre de canal</label>
+                <input id="canal" placeholder="ej: shekssink" />
+
+                <label>Tipo de alerta</label>
+                <select id="tipo">
+                    <option value="image">Imagen</option>
+                    <option value="video">Video</option>
+                    <option value="sound">Sonido</option>
+                </select>
+
+                <label>URL del asset</label>
+                <input id="assetUrl" placeholder="https://.../alert.mp3" />
+
+                <label>Texto de la alerta</label>
+                <textarea id="alertText" placeholder="Texto para mostrar en la alerta"></textarea>
+
+                <label>Duración (segundos)</label>
+                <input id="duration" type="number" value="8" min="2" />
+            </div>
+
+            <div class="field-group">
+                <div class="info-box">
+                    <strong>Pasos:</strong>
+                    <ol style="padding-left:18px; margin:10px 0 0; color:#cfc9ff;">
+                        <li>Iniciá sesión con Google o Twitch.</li>
+                        <li>Completá tu canal y la URL del asset.</li>
+                        <li>Presioná <strong>Crear alerta</strong>.</li>
+                        <li>Abre <strong>overlay.html</strong> en OBS.</li>
+                    </ol>
+                </div>
+
+                <button id="createButton" class="primary">Crear alerta</button>
+                <button id="openOverlay" class="secondary">Abrir overlay</button>
+                <label>Link del overlay</label>
+                <input id="overlayLink" readonly />
+                <button id="copyOverlay" class="secondary">Copiar link del overlay</button>
+                <button id="sampleImage" class="secondary">Prueba: Imagen</button>
+                <button id="sampleVideo" class="secondary">Prueba: Video</button>
+                <button id="sampleSound" class="secondary">Prueba: Sonido</button>
+            </div>
+        </div>
+
+        <div id="status" class="info-box" style="display:none;"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
+            authDomain: "interactivewithyou.firebaseapp.com",
+            projectId: "interactivewithyou",
+            storageBucket: "interactivewithyou.firebasestorage.app",
+            messagingSenderId: "220446228684",
+            appId: "1:220446228684:web:759044ab4365962d300269"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const canalInput = document.getElementById('canal');
+        const tipoSelect = document.getElementById('tipo');
+        const assetInput = document.getElementById('assetUrl');
+        const textInput = document.getElementById('alertText');
+        const durationInput = document.getElementById('duration');
+        const overlayLinkInput = document.getElementById('overlayLink');
+        const statusBox = document.getElementById('status');
+        const createButton = document.getElementById('createButton');
+        const openOverlay = document.getElementById('openOverlay');
+        const copyOverlay = document.getElementById('copyOverlay');
+        const sampleImage = document.getElementById('sampleImage');
+        const sampleVideo = document.getElementById('sampleVideo');
+        const sampleSound = document.getElementById('sampleSound');
+
+        const sampleAssets = {
+            image: 'https://placekitten.com/900/500',
+            video: 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
+            sound: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+        };
+
+        const getTwitchChannel = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
+
+        const getSessionName = () => {
+            const user = auth.currentUser;
+            if (user) return user.displayName?.toLowerCase() || user.email?.split('@')[0] || 'streamer';
+            return getTwitchChannel();
+        };
+
+        const requireSession = () => {
+            if (!auth.currentUser && !getTwitchChannel()) {
+                alert('Tenés que iniciar sesión con Google o Twitch para usar Alertas en vivo.');
+                window.parent.location.href = '/index.html';
+                return false;
+            }
+            return true;
+        };
+
+        const setStatus = (message, success = true) => {
+            statusBox.style.display = 'block';
+            statusBox.style.borderColor = success ? 'rgba(0,255,153,0.3)' : 'rgba(255,99,132,0.3)';
+            statusBox.innerText = message;
+        };
+
+        const createAlert = async (type, assetUrl, text) => {
+            if (!requireSession()) return;
+            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
+            const url = assetUrl || assetInput.value.trim();
+            const alertText = text || textInput.value.trim() || '¡Alerta en vivo!';
+            const duration = Number(durationInput.value) || 8;
+
+            if (!canal) {
+                return setStatus('Debes ingresar el nombre de tu canal o iniciar sesión con Twitch.', false);
+            }
+
+            if (!url) {
+                return setStatus('Debes ingresar la URL del asset o usar una prueba.', false);
+            }
+
+            try {
+                await addDoc(collection(db, 'liveAlerts'), {
+                    canal: canal,
+                    type: type,
+                    assetUrl: url,
+                    text: alertText,
+                    duration: duration,
+                    status: 'pending',
+                    createdAt: serverTimestamp()
+                });
+                setStatus(`Alerta creada. El overlay la mostrará en breve.`);
+            } catch (error) {
+                console.error(error);
+                setStatus('Error al crear la alerta. Revisa la consola.', false);
+            }
+        };
+
+        const updateOverlayLink = () => {
+            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
+            const url = canal ? `${window.location.origin}/html/overlay.html?canal=${canal}` : `${window.location.origin}/html/overlay.html`;
+            overlayLinkInput.value = url;
+            return url;
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            const twitchChannel = getTwitchChannel();
+            if (user) {
+                canalInput.value = user.displayName?.toLowerCase() || twitchChannel || '';
+            } else if (twitchChannel) {
+                canalInput.value = twitchChannel;
+            } else {
+                requireSession();
+            }
+            updateOverlayLink();
+        });
+
+        canalInput.addEventListener('input', updateOverlayLink);
+        openOverlay.addEventListener('click', () => window.open(updateOverlayLink(), '_blank'));
+        copyOverlay.addEventListener('click', () => {
+            overlayLinkInput.select();
+            document.execCommand('copy');
+            setStatus('Link del overlay copiado al portapapeles.');
+        });
+
+        sampleImage.addEventListener('click', () => {
+            tipoSelect.value = 'image';
+            assetInput.value = sampleAssets.image;
+            textInput.value = 'Prueba de imagen';
+            createAlert('image', sampleAssets.image, 'Prueba de imagen');
+        });
+
+        sampleVideo.addEventListener('click', () => {
+            tipoSelect.value = 'video';
+            assetInput.value = sampleAssets.video;
+            textInput.value = 'Prueba de video';
+            createAlert('video', sampleAssets.video, 'Prueba de video');
+        });
+
+        sampleSound.addEventListener('click', () => {
+            tipoSelect.value = 'sound';
+            assetInput.value = sampleAssets.sound;
+            textInput.value = 'Prueba de sonido';
+            createAlert('sound', sampleAssets.sound, 'Prueba de sonido');
+        });
+    </script>
+</body>
+</html>

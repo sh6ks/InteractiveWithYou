@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Overlay de alertas</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+        body { display: grid; place-items: center; font-family: 'Poppins', sans-serif; }
+        #alertContainer { position: relative; width: 100%; height: 100%; }
+        .alert-box { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.25); }
+        .alert-card { max-width: 900px; width: 100%; background: rgba(7, 4, 20, 0.9); border: 2px solid rgba(145, 71, 255, 0.8); border-radius: 26px; overflow: hidden; box-shadow: 0 0 80px rgba(145, 71, 255, 0.4); display: flex; flex-direction: column; gap: 14px; padding: 24px; }
+        .alert-media { width: 100%; max-height: 480px; overflow: hidden; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: #050313; }
+        .alert-media img, .alert-media video { max-width: 100%; max-height: 100%; }
+        .alert-text { color: #f7f3ff; text-align: center; font-size: clamp(1.4rem, 2vw, 2.8rem); font-weight: 800; text-shadow: 0 0 24px rgba(145,71,255,0.45); }
+        .sound-only { font-size: 2rem; color: #b9a4ff; text-align: center; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="alertContainer"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
+            authDomain: "interactivewithyou.firebaseapp.com",
+            projectId: "interactivewithyou",
+            storageBucket: "interactivewithyou.firebasestorage.app",
+            messagingSenderId: "220446228684",
+            appId: "1:220446228684:web:759044ab4365962d300269"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const canalParam = urlParams.get('canal')?.toLowerCase();
+
+        const alertsQuery = canalParam
+            ? query(collection(db, 'liveAlerts'), where('status', '==', 'pending'), where('canal', '==', canalParam), orderBy('createdAt', 'asc'))
+            : query(collection(db, 'liveAlerts'), where('status', '==', 'pending'), orderBy('createdAt', 'asc'));
+
+        const container = document.getElementById('alertContainer');
+        const shownIds = new Set();
+        let active = false;
+
+        const createAlertElement = (data) => {
+            const card = document.createElement('div');
+            card.className = 'alert-box';
+
+            const body = document.createElement('div');
+            body.className = 'alert-card';
+
+            const media = document.createElement('div');
+            media.className = 'alert-media';
+
+            if (data.type === 'image') {
+                const img = document.createElement('img');
+                img.src = data.assetUrl;
+                img.alt = data.text || 'Alerta';
+                media.appendChild(img);
+            } else if (data.type === 'video') {
+                const video = document.createElement('video');
+                video.src = data.assetUrl;
+                video.autoplay = true;
+                video.muted = false;
+                video.controls = false;
+                video.playsInline = true;
+                video.style.objectFit = 'contain';
+                media.appendChild(video);
+            } else {
+                const audio = document.createElement('audio');
+                audio.src = data.assetUrl;
+                audio.autoplay = true;
+                audio.controls = false;
+                audio.style.display = 'none';
+                media.appendChild(audio);
+
+                const soundText = document.createElement('div');
+                soundText.className = 'sound-only';
+                soundText.innerText = data.text || 'Reproduciendo sonido...';
+                media.appendChild(soundText);
+            }
+
+            const text = document.createElement('div');
+            text.className = 'alert-text';
+            text.innerText = data.text || '¡Alerta en vivo!';
+
+            body.appendChild(media);
+            body.appendChild(text);
+            card.appendChild(body);
+            return card;
+        };
+
+        const playAlert = async (docSnap) => {
+            if (active || shownIds.has(docSnap.id)) return;
+            shownIds.add(docSnap.id);
+            active = true;
+
+            const data = docSnap.data();
+            const alertEl = createAlertElement(data);
+            alertEl.style.display = 'flex';
+            container.appendChild(alertEl);
+
+            const duration = Number(data.duration) || 8;
+            const video = alertEl.querySelector('video');
+            const audio = alertEl.querySelector('audio');
+
+            if (video) {
+                await video.play().catch(() => {});
+            }
+
+            setTimeout(async () => {
+                alertEl.remove();
+                active = false;
+                try {
+                    await updateDoc(doc(db, 'liveAlerts', docSnap.id), { status: 'shown' });
+                } catch (err) {
+                    console.error('No se pudo actualizar el estado de la alerta', err);
+                }
+            }, duration * 1000);
+        };
+
+        onSnapshot(alertsQuery, (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    playAlert(change.doc);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
