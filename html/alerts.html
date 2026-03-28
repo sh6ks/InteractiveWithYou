@@ -8,7 +8,7 @@
             margin: 0;
             min-height: 100vh;
             font-family: 'Poppins', sans-serif;
-            background: #100f1f;
+            background: transparent;
             color: #eef2ff;
             display: flex;
             justify-content: center;
@@ -19,7 +19,7 @@
         .card {
             width: min(760px, 100%);
             background: #161529;
-            border: 1px solid rgba(145, 71, 255, 0.25);
+            border: none;
             border-radius: 20px;
             padding: 28px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.4);
@@ -96,8 +96,20 @@
             grid-column: 1 / -1;
         }
 
+        @media (max-width: 1024px) {
+            body { padding: 20px; }
+            .card { padding: 24px; }
+            .row { gap: 14px; }
+        }
+
         @media (max-width: 720px) {
+            body { align-items: stretch; padding: 16px; }
+            .card { width: 100%; padding: 20px; box-shadow: none; }
             .row { grid-template-columns: 1fr; }
+            .info-box { padding: 16px; }
+            button { padding: 14px; }
+            .field-group { gap: 12px; }
+            .full-width { grid-column: 1 / -1; }
         }
     </style>
 </head>
@@ -208,6 +220,12 @@
             return true;
         };
 
+        const setCanalReadonly = (readonly) => {
+            canalInput.readOnly = readonly;
+            canalInput.style.background = readonly ? '#2a273f' : '#11101d';
+            canalInput.style.cursor = readonly ? 'not-allowed' : 'text';
+        };
+
         const setStatus = (message, success = true) => {
             statusBox.style.display = 'block';
             statusBox.style.borderColor = success ? 'rgba(0,255,153,0.3)' : 'rgba(255,99,132,0.3)';
@@ -255,13 +273,17 @@
 
         onAuthStateChanged(auth, (user) => {
             const twitchChannel = getTwitchChannel();
-            if (user) {
-                canalInput.value = user.displayName?.toLowerCase() || twitchChannel || '';
-            } else if (twitchChannel) {
-                canalInput.value = twitchChannel;
+            const canalValue = user ? (user.displayName?.toLowerCase() || twitchChannel) : twitchChannel;
+
+            if (canalValue) {
+                canalInput.value = canalValue;
+                setCanalReadonly(true);
             } else {
+                canalInput.value = '';
+                setCanalReadonly(false);
                 requireSession();
             }
+
             updateOverlayLink();
         });
 
