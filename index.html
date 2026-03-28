@@ -89,12 +89,16 @@
         const authItem = document.getElementById("auth-item");
         const mainContainer = document.getElementById("main-container");
         const CLIENT_ID_TWITCH = 'bbuohadfekqiis4sww2zynigtb0dia';
+        const TWITCH_REDIRECT_URI = window.location.hostname.includes('vercel.app')
+            ? 'https://interactive-with-you.vercel.app/'
+            : `${window.location.origin}/`;
 
         // --- LÓGICA DE TWITCH (NUEVA PESTAÑA) ---
         window.loginTwitch = () => {
-            const redirectUri = `${window.location.origin}/`;
-            console.log("👉 COPIÁ ESTO Y PEGALO EN TWITCH: ", redirectUri);
+            const redirectUri = TWITCH_REDIRECT_URI;
+            console.log("👉 Twitch redirect_uri:", redirectUri);
             const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID_TWITCH}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=user:read:email+chat:read`;
+            console.log("👉 Twitch authUrl:", authUrl);
             window.open(authUrl, 'TwitchLogin', 'width=500,height=700');
         };
 
