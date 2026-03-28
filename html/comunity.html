@@ -11,13 +11,15 @@
         textarea { width: 100%; height: 80px; background: #11101d; border: 1px solid #9147ff; color: white; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; font-size: 1rem; }
         button { background: #9147ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         button:hover { background: #bf94ff; transform: scale(1.05); }
-        .mensaje-card { background: #1d1b31; padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 4px solid #9147ff; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .mensaje-card { background: #1d1b31; padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 4px solid #9147ff; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .mensaje-card:hover { transform: scale(1.01); box-shadow: 0 8px 22px rgba(0,0,0,0.3); }
         .autor { color: #a970ff; font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 5px; }
         p { margin: 0; line-height: 1.4; color: #efeff1; }
         .comment-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
         .comment-actions button { background: #2d2750; color: #dcd7ff; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s ease; }
         .comment-actions button:hover { background: #3e3478; }
-        .reply-card { background: #141322; border-left: 4px solid #5f42e0; padding: 12px; margin-top: 12px; margin-left: 18px; }
+        .reply-card { background: #141322; border-left: 4px solid #5f42e0; padding: 12px; margin-top: 12px; margin-left: 18px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .reply-card:hover { transform: scale(1.01); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
         .reply-box { margin-top: 12px; }
         .hidden { display: none; }
 
@@ -40,9 +42,9 @@
 </head>
 <body>
     <div class="comunidad-container">
-        <h2>Muro de la Comunidad 💬</h2>
-        <textarea id="nuevo-comentario" placeholder="Dejame un comentario..."></textarea>
-        <button id="btn-enviar">Publicar Mensaje</button>
+        <h2>Muro de ideas y opiniones 💬</h2>
+        <textarea id="nuevo-comentario" placeholder="Contanos tus ideas, opiniones o sugerencias..."></textarea>
+        <button id="btn-enviar">Enviar idea</button>
 
         <div id="lista-mensajes"></div>
     </div>

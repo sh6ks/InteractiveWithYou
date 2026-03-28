@@ -1,84 +1,233 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { 
-            background: transparent; 
-            color: white; 
-            font-family: 'Poppins', sans-serif; 
-            padding: 20px; 
+        body {
+            background: transparent;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            padding: 28px;
             overflow: hidden;
         }
-        .welcome-card {
-            background: #1d1b31;
-            padding: 30px;
-            border-radius: 15px;
-            border-left: 5px solid #9147ff;
-            margin-bottom: 30px;
+
+        .hero {
+            background: linear-gradient(180deg, rgba(145,71,255,0.16) 0%, rgba(18,11,30,0.95) 100%);
+            border: 1px solid rgba(145, 71, 255, 0.2);
+            border-radius: 24px;
+            padding: 36px;
+            margin-bottom: 28px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.35);
         }
-        h1 { color: #a970ff; margin-bottom: 10px; }
-        
-        /* Contenedor de las tarjetas cliqueables */
-        .stats { 
-            display: flex; 
-            gap: 20px; 
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -30px;
+            right: -40px;
+            width: 180px;
+            height: 180px;
+            background: rgba(145,71,255,0.18);
+            border-radius: 50%;
+            filter: blur(20px);
         }
-        
-        .stat-box { 
-            background: #11101d; 
-            padding: 25px; 
-            border-radius: 12px; 
-            flex: 1; 
-            text-align: center; 
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 1px solid transparent;
+
+        .hero h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 4vw, 3rem);
+            color: #c9b7ff;
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 760px;
+            color: #dad3ff;
+            line-height: 1.8;
+        }
+
+        .features {
+            display: grid;
+            gap: 18px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin-bottom: 28px;
+        }
+
+        .feature-card {
+            background: #161429;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 24px;
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            gap: 14px;
+            cursor: pointer;
         }
 
-        /* Efecto de expansión y color al pasar el mouse */
-        .stat-box:hover {
-            transform: scale(1.05); /* Se expande un poquito */
-            background: #1d1b31;
-            border-color: #9147ff;
-            box-shadow: 0 10px 20px rgba(145, 71, 255, 0.2);
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(145,71,255,0.4);
+            box-shadow: 0 18px 36px rgba(145,71,255,0.12);
         }
 
-        .stat-box i {
-            font-size: 2rem;
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            background: rgba(145,71,255,0.16);
+            color: #c9b7ff;
+            font-size: 1.4rem;
+        }
+
+        .feature-card h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            color: white;
+        }
+
+        .feature-card p {
+            margin: 0;
+            color: #b9b1ff;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .action-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(145,71,255,0.16);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .action-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(145,71,255,0.4);
+            box-shadow: 0 14px 30px rgba(145,71,255,0.12);
+        }
+
+        .action-card i {
+            font-size: 1.8rem;
             color: #9147ff;
-            margin-bottom: 10px;
+            margin-bottom: 14px;
         }
 
-        .stat-box strong {
+        .action-card strong {
             display: block;
-            font-size: 1.1rem;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            font-size: 1.05rem;
+            color: white;
         }
 
-        .stat-box span {
-            font-size: 0.9rem;
-            color: #adadb8;
+        .action-card span {
+            font-size: 0.95rem;
+            color: #c4b9ff;
+        }
+
+        .cta-row {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 18px;
+        }
+
+        .btn-primary,
+        .btn-secondary {
+            padding: 16px 24px;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #9147ff;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.06);
+            color: #dcd7ff;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .btn-primary:hover,
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+        }
+
+        .note {
+            color: #b9b1ff;
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 1000px) {
+            .features,
+            .action-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="welcome-card">
-        <h1>¡Bienvenido a Interactive With You!</h1>
-        <p>Tu centro de herramientas para streaming.</p>
+    <div class="hero">
+        <h1>Bienvenido a Interactive With You</h1>
+        <p>Diseñamos tu panel de control para streaming con foco en interacción, alertas y comunidad. Usá los accesos directos para arrancar rápido con tu chat, alertas o muro social.</p>
+        <div class="cta-row">
+            <button class="btn-primary" onclick="parent.cargarSeccion('funciones')">Ir a herramientas</button>
+            <button class="btn-secondary" onclick="parent.cargarSeccion('comunidad')">Ver comunidad</button>
+            <button class="btn-secondary" onclick="parent.cargarSeccion('contacto')">Contacto</button>
+            <span class="note">También podés usar el menú lateral para navegar.</span>
+        </div>
     </div>
 
-    <div class="stats">
-        <div class="stat-box" onclick="parent.cargarSeccion('funciones')">
-            <i class="fa-solid fa-star"></i>
-            <strong>Ir a herramientas</strong>
-            <span>Alertas en vivo</span>
+    <div class="features">
+        <div class="feature-card" onclick="parent.cargarSeccion('chat')">
+            <div class="feature-icon"><i class="fa-solid fa-comment-dots"></i></div>
+            <h3>Widget de chat</h3>
+            <p>Personalizá tu chat con fuentes, colores y estilo para que quede perfecto en tu overlay.</p>
+        </div>
+        <div class="feature-card" onclick="parent.cargarSeccion('alerts')">
+            <div class="feature-icon"><i class="fa-solid fa-bell"></i></div>
+            <h3>Alertas en vivo</h3>
+            <p>Creá notificaciones visuales para tu overlay en OBS con imagen, video o sonido.</p>
+        </div>
+        <div class="feature-card" onclick="parent.cargarSeccion('comunidad')">
+            <div class="feature-icon"><i class="fa-solid fa-users"></i></div>
+            <h3>Comunidad</h3>
+            <p>Contanos tus ideas, opiniones o sugerencias y ayudanos a mejorar la plataforma.</p>
+        </div>
+    </div>
+
+    <div class="action-grid">
+        <div class="action-card">
+            <i class="fa-solid fa-cog"></i>
+            <strong>Próximamente</strong>
+            <span>Más funciones de chat estarán disponibles aquí.</span>
+        </div>
+        <div class="action-card">
+            <i class="fa-solid fa-bolt"></i>
+            <strong>Próximamente</strong>
+            <span>Nuevas alertas y efectos en vivo llegarán pronto.</span>
+        </div>
+        <div class="action-card">
+            <i class="fa-solid fa-heart"></i>
+            <strong>Próximamente</strong>
+            <span>Estamos preparando nuevas herramientas de comunidad.</span>
         </div>
     </div>
 </body>

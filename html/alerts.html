@@ -23,6 +23,12 @@
             border-radius: 20px;
             padding: 28px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: scale(1.01);
+            box-shadow: 0 24px 68px rgba(0,0,0,0.45);
         }
 
         h1 {
@@ -273,15 +279,13 @@
 
         onAuthStateChanged(auth, (user) => {
             const twitchChannel = getTwitchChannel();
-            const canalValue = user ? (user.displayName?.toLowerCase() || twitchChannel) : twitchChannel;
 
-            if (canalValue) {
-                canalInput.value = canalValue;
+            if (twitchChannel) {
+                canalInput.value = twitchChannel;
                 setCanalReadonly(true);
             } else {
                 canalInput.value = '';
                 setCanalReadonly(false);
-                requireSession();
             }
 
             updateOverlayLink();
