@@ -6,7 +6,7 @@
     <style>
        body { 
         font-family: 'Poppins', sans-serif; 
-        background: transparent; /* Para que se vea el fondo del Dashboard */
+        background: transparent; 
         color: white; 
         display: flex; 
         justify-content: center; 
@@ -14,13 +14,13 @@
     }
     
     .card { 
-        background: #1d1b31; /* Mismo color que el sidebar */
+        background: #1d1b31; 
         padding: 30px; 
         border-radius: 15px; 
         border: 1px solid #333;
         box-shadow: 0 10px 40px rgba(0,0,0,0.7); 
         width: 450px; 
-        border-left: 5px solid #9147ff; /* Barrita violeta de tu marca */
+        border-left: 5px solid #9147ff; 
     }
     
     h2 { color: #a970ff; margin-top: 0; font-weight: 600; }
@@ -110,7 +110,6 @@
 </div>
 </div>
 
-
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -131,7 +130,6 @@
 
     let usuarioActual = null;
 
-    // si no está logueado, lo mandamos al inicio
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             usuarioActual = user;
@@ -146,102 +144,94 @@
                 document.getElementById('fuente').value = data.fuente;
             }
         } else {
-            // Si intenta entrar sin loguearse, lo mandamos a la main page
+            // ACÁ ESTÁ EL ARREGLO: Agregué la barrita "/" para que siempre vaya a la raíz
             alert("Primero debés iniciar sesión.");
-            window.location.href = "index.html"; 
+            window.parent.location.href = "/index.html"; 
         }
     });
 
     window.generarLink = async function() {
-    if (!usuarioActual) {
-        alert("Sesión no detectada. Volvé al inicio.");
-        return;
+        if (!usuarioActual) {
+            alert("Sesión no detectada. Volvé al inicio.");
+            return;
+        }
+
+        const canal = document.getElementById('canal').value.trim().toLowerCase();
+        const color = document.getElementById('color').value;
+        const fuente = document.getElementById('fuente').value;
+
+        if(!canal) { alert("¡Poné el nombre de tu canal!"); return; }
+
+        try {
+            await setDoc(doc(db, "usuarios", usuarioActual.uid), {
+                uid: usuarioActual.uid,
+                email: usuarioActual.email || "",
+                canal: canal,
+                color: color,
+                fuente: fuente,
+                ultima_actualizacion: new Date()
+            });
+
+            const urlBase = "https://interactive-with-you.vercel.app/widget.html";
+            const linkCompleto = `${urlBase}?canal=${canal}`;
+            
+            document.getElementById('linkFinal').innerText = linkCompleto;
+            document.getElementById('resultado').style.display = 'block';
+            
+            console.log("¡Configuración guardada en la nube para:", canal, "!");
+        } catch (error) {
+            console.error("Error al guardar:", error);
+            alert("Error al conectar con la base de datos.");
+        }
     }
 
-    const canal = document.getElementById('canal').value.trim().toLowerCase();
-    const color = document.getElementById('color').value;
-    const fuente = document.getElementById('fuente').value;
-
-    if(!canal) { alert("¡Poné el nombre de tu canal!"); return; }
-
-    try {
-        // guardo todo en Firebase
-        await setDoc(doc(db, "usuarios", usuarioActual.uid), {
-            uid: usuarioActual.uid,
-            email: usuarioActual.email || "",
-            canal: canal,
-            color: color,
-            fuente: fuente,
-            ultima_actualizacion: new Date()
-        });
-
-        // genero el link LIMPIO (el widget buscará el resto en la DB)
-        const urlBase = "https://interactive-with-you.vercel.app/widget.html";
-        const linkCompleto = `${urlBase}?canal=${canal}`;
-        
-        document.getElementById('linkFinal').innerText = linkCompleto;
-        document.getElementById('resultado').style.display = 'block';
-        
-        console.log("¡Configuración guardada en la nube para:", canal, "!");
-    } catch (error) {
-        console.error("Error al guardar:", error);
-        alert("Error al conectar con la base de datos.");
-    }
-}
     window.copiarAlPortapapeles = function() {
         const link = document.getElementById('linkFinal').innerText;
         navigator.clipboard.writeText(link).then(() => {
             alert("¡Link copiado! Pegalo en OBS.");
         });
     }
-        const inputColor = document.getElementById('color');
 
-    // Esto hace que la barra del selector cambie de color mientras elegís
+    const inputColor = document.getElementById('color');
     inputColor.addEventListener('input', () => {
         inputColor.style.borderBottom = `2px solid ${inputColor.value}`;
         document.getElementById('resultado').style.borderColor = inputColor.value;
     });
+
     const campos = [document.getElementById('canal'), document.getElementById('color'), document.getElementById('fuente')];
-    
     campos.forEach(campo => {
         campo.addEventListener('input', () => {
             document.getElementById('resultado').style.display = 'none';
-            console.log("Configuración modificada: link anterior invalidado.");
         });
     });
+
     const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE'; 
-const selectFuente = document.getElementById('fuente');
+    const selectFuente = document.getElementById('fuente');
 
-async function cargarFuentesDeGoogle() {
-    try {
-        // consulta la API de Google Fonts por las más populares
-        const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${API_KEY}`);
-        const data = await response.json();
+    async function cargarFuentesDeGoogle() {
+        try {
+            const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${API_KEY}`);
+            const data = await response.json();
 
-        if (data.items) {
-            selectFuente.innerHTML = ''; 
-            
-            // agarro las primeras 150 fuentes para no sobrecargar el menú
-            data.items.slice(0, 150).forEach(font => {
-                const option = document.createElement('option');
-                option.value = font.family;
-                option.textContent = font.family;
-                selectFuente.appendChild(option);
-            });
-            console.log("¡Catálogo de Google Fonts cargado!");
+            if (data.items) {
+                selectFuente.innerHTML = ''; 
+                data.items.slice(0, 150).forEach(font => {
+                    const option = document.createElement('option');
+                    option.value = font.family;
+                    option.textContent = font.family;
+                    selectFuente.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error("Hubo un problema al traer las fuentes:", error);
         }
-    } catch (error) {
-        console.error("Hubo un problema al traer las fuentes:", error);
     }
-}
 
+    cargarFuentesDeGoogle();
 
-cargarFuentesDeGoogle();
-
-
-selectFuente.addEventListener('change', () => {
-    document.getElementById('resultado').style.display = 'none';
-});
+    selectFuente.addEventListener('change', () => {
+        document.getElementById('resultado').style.display = 'none';
+    });
 </script>
 
 </body>

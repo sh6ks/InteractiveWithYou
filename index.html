@@ -54,7 +54,7 @@
                 </a>
             </li>
 
-            <li id="auth-item"></li>
+            <li id="auth-item" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;"></li>
         </ul>
     </nav>
 
@@ -88,53 +88,104 @@
         const btnMenu = document.getElementById("btn-menu");
         const authItem = document.getElementById("auth-item");
         const mainContainer = document.getElementById("main-container");
+        const CLIENT_ID_TWITCH = 'bbuohadfekqiis4sww2zynigtb0dia';
 
-        // --- Lógica de Submenús (Clic en flecha) ---
-        document.querySelectorAll(".arrow").forEach(arrow => {
-            arrow.addEventListener("click", (e) => {
-                let arrowParent = e.target.parentElement.parentElement;
-                arrowParent.classList.toggle("showMenu");
-            });
-        });
+        // --- LÓGICA DE TWITCH (NUEVA PESTAÑA) ---
+        window.loginTwitch = () => {
+            // Pasamos la URL a la que tiene que volver (nuestro index en la raíz)
+            let redirectUri = window.location.origin + "/index.html";
+            const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID_TWITCH}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=user:read:email+chat:read`;
+            
+            // Abrimos Twitch en una ventana/pestaña emergente
+            window.open(authUrl, 'TwitchLogin', 'width=500,height=700');
+        };
 
-        // --- Lógica de Hover (Mouse encima) ---
-        const dropdownItem = document.querySelector(".menu-item-dropdown");
-        if (dropdownItem) {
-            dropdownItem.addEventListener("mouseenter", () => {
-                if (window.innerWidth > 768) {
-                    dropdownItem.classList.add("showMenu");
-                }
-            });
-            dropdownItem.addEventListener("mouseleave", () => {
-                if (window.innerWidth > 768) {
-                    dropdownItem.classList.remove("showMenu");
-                }
-            });
-        }
+        // Capturar los datos cuando volvemos de Twitch
+        window.addEventListener('load', () => {
+            const hash = window.location.hash;
+            if (hash.includes("access_token")) {
+                const params = new URLSearchParams(hash.replace("#", "?"));
+                const token = params.get("access_token");
 
-        // --- Toggle Sidebar (Móvil/PC) ---
-        btnMenu.addEventListener("click", () => {
-            if (window.innerWidth <= 768) {
-                sidebar.classList.toggle("open-mobile");
-            } else {
-                sidebar.classList.toggle("close");
+                fetch('https://api.twitch.tv/helix/users', {
+                    headers: {
+                        'Client-ID': CLIENT_ID_TWITCH,
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.data && data.data[0]) {
+                        const user = data.data[0];
+                        localStorage.setItem('nombreTwitch', user.login); 
+                        localStorage.setItem('fotoTwitch', user.profile_image_url);
+                        
+                        // Si estamos en la ventana emergente, recargamos la página madre y nos cerramos
+                        if (window.opener) {
+                            window.opener.location.reload();
+                            window.close();
+                        } else {
+                            window.history.replaceState({}, document.title, "/");
+                            location.reload(); 
+                        }
+                    }
+                });
             }
         });
 
-        window.login = () => {
-            signInWithPopup(auth, provider).catch(error => console.error(error));
-        };
-
+        // --- LÓGICA DE GOOGLE ---
+        window.login = () => signInWithPopup(auth, provider).catch(error => console.error(error));
+        
         window.logout = () => {
+            localStorage.clear();
             signOut(auth).then(() => location.reload());
         };
 
+        // --- INTERFAZ Y BOTONES ---
+        onAuthStateChanged(auth, (user) => {
+            const nombreTwitch = localStorage.getItem('nombreTwitch');
+            const fotoTwitch = localStorage.getItem('fotoTwitch');
+
+            if (nombreTwitch) {
+                authItem.innerHTML = `
+                    <a onclick="logout()" style="cursor:pointer; background: rgba(145, 71, 255, 0.1); border-radius: 8px;">
+                        <img src="${fotoTwitch}" style="width:30px; border-radius:50%; margin: 0 24px;">
+                        <span class="link_name">Salir (${nombreTwitch})</span>
+                    </a>
+                `;
+                cargarSeccion('home');
+            } else if (user) {
+                authItem.innerHTML = `
+                    <a onclick="logout()" style="cursor:pointer; background: rgba(66, 133, 244, 0.1); border-radius: 8px;">
+                        <img src="${user.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
+                        <span class="link_name">Salir</span>
+                    </a>
+                `;
+                cargarSeccion('home');
+            } else {
+                authItem.innerHTML = `
+                    <a onclick="login()" style="cursor:pointer; background: rgba(66, 133, 244, 0.1); border-radius: 8px; margin-bottom: 5px;">
+                        <i class="fa-brands fa-google" style="color: #4285F4;"></i>
+                        <span class="link_name">Entrar con Google</span>
+                    </a>
+                    <a onclick="loginTwitch()" style="cursor:pointer; background: rgba(145, 71, 255, 0.1); border-radius: 8px;">
+                        <i class="fa-brands fa-twitch" style="color: #9147ff;"></i>
+                        <span class="link_name">Entrar con Twitch</span>
+                    </a>
+                `;
+                mainContainer.innerHTML = `
+                    <div style="text-align:center; padding-top: 50px;">
+                        <h1>Bienvenido a Interactive With You</h1>
+                        <p>Iniciá sesión para empezar.</p>
+                    </div>
+                `;
+            }
+        });
+
+        // --- LÓGICA DE LA SIDEBAR Y SECCIONES ---
         window.cargarSeccion = (seccion) => {
             mainContainer.innerHTML = '<div style="color:#a970ff; padding:20px;">Cargando...</div>';
-            
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove("open-mobile");
-            }
+            if (window.innerWidth <= 768) sidebar.classList.remove("open-mobile");
 
             let archivo = "";
             if (seccion === 'home') archivo = "html/home.html";
@@ -147,43 +198,29 @@
             }
         };
 
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        authItem.innerHTML = `
-                            <a onclick="logout()" style="cursor:pointer;">
-                                <img src="${user.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
-                                <span class="link_name">Cerrar Sesión</span>
-                            </a>
-                        `;
-                        cargarSeccion('home');
-                    } else {
-                        authItem.innerHTML = `
-                            <a onclick="login()" style="cursor:pointer;">
-                                <i class="fa-brands fa-google"></i>
-                                <span class="link_name">Entrar con Google</span>
-                            </a>
-                        `;
-                        mainContainer.innerHTML = `
-                            <div style="text-align:center; padding-top: 50px;">
-                                <h1>Bienvenido a Interactive With You</h1>
-                                <p>Iniciá sesión para empezar.</p>
-                            </div>
-                        `;
-                    }
-                    sidebar.addEventListener("mouseenter", () => {
-            if (window.innerWidth > 768) {
-                sidebar.classList.remove("close");
-            }
+        document.querySelectorAll(".arrow").forEach(arrow => {
+            arrow.addEventListener("click", (e) => {
+                let arrowParent = e.target.parentElement.parentElement;
+                arrowParent.classList.toggle("showMenu");
+            });
         });
 
-            sidebar.addEventListener("mouseleave", () => {
-                if (window.innerWidth > 768) {
-                    sidebar.classList.add("close");
-                    document.querySelectorAll(".showMenu").forEach(menu => {
-                        menu.classList.remove("showMenu");
-                    });
-                }
-            });
+        btnMenu.addEventListener("click", () => {
+            if (window.innerWidth <= 768) sidebar.classList.toggle("open-mobile");
+            else sidebar.classList.toggle("close");
+        });
+
+        sidebar.addEventListener("mouseenter", () => {
+            if (window.innerWidth > 768) sidebar.classList.remove("close");
+        });
+
+        sidebar.addEventListener("mouseleave", () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.add("close");
+                document.querySelectorAll(".showMenu").forEach(menu => {
+                    menu.classList.remove("showMenu");
+                });
+            }
         });
     </script>
 </body>
