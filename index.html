@@ -92,7 +92,7 @@
         const TWITCH_REDIRECT_URI = window.location.hostname.includes('vercel.app')
             ? 'https://interactive-with-you.vercel.app/'
             : `${window.location.origin}/`;
-        const TWITCH_SCOPE = 'user:read:email+chat:read';
+        const TWITCH_SCOPE = 'user:read:email chat:read';
 
         const getTwitchAuthUrl = () => {
             const params = new URLSearchParams({
