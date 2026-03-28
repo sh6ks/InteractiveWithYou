@@ -92,11 +92,10 @@
 
         // --- LÓGICA DE TWITCH (NUEVA PESTAÑA) ---
         window.loginTwitch = () => {
-            // Pasamos la URL a la que tiene que volver (nuestro index en la raíz)
-            let redirectUri = window.location.origin + "/index.html";
-            const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID_TWITCH}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=user:read:email+chat:read`;
+            let redirectUri = window.location.origin + "/";
             
-            // Abrimos Twitch en una ventana/pestaña emergente
+            const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID_TWITCH}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=user:read:email+chat:read`;
+
             window.open(authUrl, 'TwitchLogin', 'width=500,height=700');
         };
 
