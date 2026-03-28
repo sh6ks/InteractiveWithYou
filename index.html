@@ -119,6 +119,50 @@
             return data.data?.[0];
         };
 
+        const renderAuthState = (firebaseUser = null) => {
+            const nombreTwitch = localStorage.getItem('nombreTwitch');
+            const fotoTwitch = localStorage.getItem('fotoTwitch');
+
+            if (nombreTwitch) {
+                authItem.innerHTML = `
+                    <a onclick="logout()" style="cursor:pointer; background: rgba(145, 71, 255, 0.1); border-radius: 8px;">
+                        <img src="${fotoTwitch}" style="width:30px; border-radius:50%; margin: 0 24px;">
+                        <span class="link_name">Salir (${nombreTwitch})</span>
+                    </a>
+                `;
+                cargarSeccion('home');
+                return;
+            }
+
+            if (firebaseUser) {
+                authItem.innerHTML = `
+                    <a onclick="logout()" style="cursor:pointer; background: rgba(66, 133, 244, 0.1); border-radius: 8px;">
+                        <img src="${firebaseUser.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
+                        <span class="link_name">Salir</span>
+                    </a>
+                `;
+                cargarSeccion('home');
+                return;
+            }
+
+            authItem.innerHTML = `
+                <a onclick="login()" style="cursor:pointer; background: rgba(66, 133, 244, 0.1); border-radius: 8px; margin-bottom: 5px;">
+                    <i class="fa-brands fa-google" style="color: #4285F4;"></i>
+                    <span class="link_name">Entrar con Google</span>
+                </a>
+                <a onclick="loginTwitch()" style="cursor:pointer; background: rgba(145, 71, 255, 0.1); border-radius: 8px;">
+                    <i class="fa-brands fa-twitch" style="color: #9147ff;"></i>
+                    <span class="link_name">Entrar con Twitch</span>
+                </a>
+            `;
+            mainContainer.innerHTML = `
+                <div style="text-align:center; padding-top: 50px;">
+                    <h1>Bienvenido a Interactive With You</h1>
+                    <p>Iniciá sesión para empezar.</p>
+                </div>
+            `;
+        };
+
         const handleTwitchCallback = async () => {
             const hash = window.location.hash;
             if (!hash.includes('access_token')) return;
@@ -138,7 +182,7 @@
                 window.close();
             } else {
                 window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-                location.reload();
+                renderAuthState();
             }
         };
 
@@ -153,45 +197,7 @@
         };
 
         // --- INTERFAZ Y BOTONES ---
-        onAuthStateChanged(auth, (user) => {
-            const nombreTwitch = localStorage.getItem('nombreTwitch');
-            const fotoTwitch = localStorage.getItem('fotoTwitch');
-
-            if (nombreTwitch) {
-                authItem.innerHTML = `
-                    <a onclick="logout()" style="cursor:pointer; background: rgba(145, 71, 255, 0.1); border-radius: 8px;">
-                        <img src="${fotoTwitch}" style="width:30px; border-radius:50%; margin: 0 24px;">
-                        <span class="link_name">Salir (${nombreTwitch})</span>
-                    </a>
-                `;
-                cargarSeccion('home');
-            } else if (user) {
-                authItem.innerHTML = `
-                    <a onclick="logout()" style="cursor:pointer; background: rgba(66, 133, 244, 0.1); border-radius: 8px;">
-                        <img src="${user.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
-                        <span class="link_name">Salir</span>
-                    </a>
-                `;
-                cargarSeccion('home');
-            } else {
-                authItem.innerHTML = `
-                    <a onclick="login()" style="cursor:pointer; background: rgba(66, 133, 244, 0.1); border-radius: 8px; margin-bottom: 5px;">
-                        <i class="fa-brands fa-google" style="color: #4285F4;"></i>
-                        <span class="link_name">Entrar con Google</span>
-                    </a>
-                    <a onclick="loginTwitch()" style="cursor:pointer; background: rgba(145, 71, 255, 0.1); border-radius: 8px;">
-                        <i class="fa-brands fa-twitch" style="color: #9147ff;"></i>
-                        <span class="link_name">Entrar con Twitch</span>
-                    </a>
-                `;
-                mainContainer.innerHTML = `
-                    <div style="text-align:center; padding-top: 50px;">
-                        <h1>Bienvenido a Interactive With You</h1>
-                        <p>Iniciá sesión para empezar.</p>
-                    </div>
-                `;
-            }
-        });
+        onAuthStateChanged(auth, renderAuthState);
 
         // --- LÓGICA DE LA SIDEBAR Y SECCIONES ---
         window.cargarSeccion = (seccion) => {
