@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  alerts.html
+  Formulario para crear alertas en vivo y generar el enlace del overlay de OBS.
+-->
 <head>
     <meta charset="UTF-8">
     <title>Alertas en vivo - InteractiveWithYou</title>
@@ -120,6 +124,7 @@
     </style>
 </head>
 <body>
+<!-- Contenedor principal de alertas con formulario, botones de prueba y estado -->
     <div class="card">
         <h1>Alertas en vivo</h1>
         <p>Esta sección te permite crear alertas para el overlay de OBS usando Firestore. El overlay recibirá alertas y las mostrará automáticamente.</p>
@@ -172,6 +177,7 @@
     </div>
 
     <script type="module">
+        // Script de alertas: crea alertas en vivo y guarda datos en Firestore.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -238,6 +244,7 @@
             statusBox.innerText = message;
         };
 
+        // Inserta una alerta pendiente en Firestore para que el overlay la muestre.
         const createAlert = async (type, assetUrl, text) => {
             if (!requireSession()) return;
             const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
@@ -270,6 +277,7 @@
             }
         };
 
+        // Genera y actualiza el link del overlay que se usa en OBS.
         const updateOverlayLink = () => {
             const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
             const url = canal ? `${window.location.origin}/html/overlay.html?canal=${canal}` : `${window.location.origin}/html/overlay.html`;

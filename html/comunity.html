@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  comunity.html
+  Muro de comunidad para compartir ideas, responder y dar likes en tiempo real.
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,6 +45,7 @@
     </style>
 </head>
 <body>
+<!-- Sección principal de comunidad con caja de envío y lista de mensajes -->
     <div class="comunidad-container">
         <h2>Muro de ideas y opiniones 💬</h2>
         <textarea id="nuevo-comentario" placeholder="Contanos tus ideas, opiniones o sugerencias..."></textarea>
@@ -50,6 +55,7 @@
     </div>
 
     <script type="module">
+        // Script de comunidad: muestra comentarios en tiempo real y permite likes/respuestas.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -72,6 +78,7 @@
         const audioNotificacion = new Audio('assets/notificacion.mp3');
         let cargaInicial = true;
 
+        // Obtiene el nombre a mostrar según el usuario autenticado o Twitch.
         const getDisplayName = () => {
             if (currentUser) {
                 return currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario';
@@ -101,6 +108,7 @@
             }
         }
 
+        // Renderiza los comentarios y las respuestas recibidas desde Firestore.
         const renderComments = (docs) => {
             const lista = document.getElementById('lista-mensajes');
             const comments = docs.map(doc => ({ id: doc.id, ...doc.data() }));

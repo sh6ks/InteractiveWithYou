@@ -1,5 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
+/*
+  dashboard.css
+  Estilos principales para el panel de control, incluyendo la sidebar
+  y la sección de contenido principal.
+*/
+
 * {
     margin: 0;
     padding: 0;
@@ -8,6 +14,7 @@
 }
 
 
+/* Variables globales de colores y estilo */
 :root {
     --bg-dark: #0c0b14;
     --sidebar-color: #11101d;
@@ -33,6 +40,7 @@ h1 {
     margin: 20px auto; 
 }
 
+/* Estilos de la barra lateral izquierda (sidebar) */
 .sidebar {
     position: fixed;
     top: 0;
@@ -175,6 +183,7 @@ h1 {
     color: #9147ff !important; 
 }
 
+/* Estilos del área principal de contenido (home-section) */
 .home-section {
     position: relative;
     background: var(--bg-dark);

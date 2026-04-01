@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  config.html
+  Configurador del widget de chat: canal, color, fuente y enlace para OBS.
+-->
 <head>
     <meta charset="UTF-8">
     <title>Configurador - InteractiveWithYou</title>
@@ -89,6 +93,7 @@
     </style>
 </head>
 <body>
+<!-- Formulario de configuración del widget y resultado del enlace generado -->
 
 <div class="card">
     <h2>InteractiveWithYou</h2>
@@ -116,6 +121,7 @@
 </div>
 
 <script type="module">
+    // Script de configuración: genera el link del widget y guarda la configuración del canal.
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -136,6 +142,7 @@
     let usuarioActual = null;
     const canalInput = document.getElementById('canal');
 
+    // Obtiene el canal guardado si el usuario se autenticó con Twitch.
     const getTwitchChannelFromStorage = () => {
         return localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
     };
@@ -175,6 +182,7 @@
         window.parent.location.href = "/index.html"; 
     });
 
+    // Genera el enlace del widget y guarda la configuración de canal en Firestore.
     window.generarLink = async function() {
         const canal = document.getElementById('canal').value.trim().toLowerCase() || getTwitchChannelFromStorage();
         const color = document.getElementById('color').value;
@@ -231,6 +239,7 @@
     const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE'; 
     const selectFuente = document.getElementById('fuente');
 
+    // Descarga las fuentes de Google Fonts para llenar el selector de fuentes.
     async function cargarFuentesDeGoogle() {
         try {
             const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${API_KEY}`);

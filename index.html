@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  index.html
+  Panel de control principal con navegación, autenticación y carga de secciones.
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +12,7 @@
     <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
+<!-- Navegación lateral (sidebar) y contenido principal cargado dinámicamente -->
 
     <nav class="sidebar close" id="sidebar">
         <div class="logo-details">
@@ -68,9 +73,11 @@
     </section>
 
     <script type="module">
+        // Script principal: inicializa Firebase, gestiona autenticación, sidebar y carga de secciones.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // Configuración de Firebase para autenticación y acceso a datos.
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
             authDomain: "interactivewithyou.firebaseapp.com",
@@ -94,6 +101,7 @@
             : `${window.location.origin}/`;
         const TWITCH_SCOPE = 'user:read:email chat:read';
 
+        // Construye la URL de autorización para Twitch.
         const getTwitchAuthUrl = () => {
             const params = new URLSearchParams({
                 client_id: CLIENT_ID_TWITCH,
@@ -104,10 +112,12 @@
             return `https://id.twitch.tv/oauth2/authorize?${params.toString()}`;
         };
 
+        // Abre la ventana de autenticación de Twitch.
         window.loginTwitch = () => {
             window.open(getTwitchAuthUrl(), 'TwitchLogin', 'width=500,height=700');
         };
 
+        // Consulta información del usuario de Twitch usando el token recibido.
         const fetchTwitchUser = async (token) => {
             const response = await fetch('https://api.twitch.tv/helix/users', {
                 headers: {
@@ -119,6 +129,7 @@
             return data.data?.[0];
         };
 
+        // Actualiza el UI del dashboard según si el usuario está autenticado.
         const renderAuthState = (firebaseUser = null) => {
             const nombreTwitch = localStorage.getItem('nombreTwitch');
             const fotoTwitch = localStorage.getItem('fotoTwitch');
@@ -200,6 +211,7 @@
         onAuthStateChanged(auth, renderAuthState);
 
         // --- LÓGICA DE LA SIDEBAR Y SECCIONES ---
+        // Carga la sección correspondiente dentro del iframe principal.
         window.cargarSeccion = (seccion) => {
             mainContainer.innerHTML = '<div style="color:#a970ff; padding:20px;">Cargando...</div>';
             if (window.innerWidth <= 768) sidebar.classList.remove("open-mobile");

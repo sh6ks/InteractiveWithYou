@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  overlay.html
+  Overlay de alerta para OBS que reproduce imágenes, videos o sonidos desde Firestore.
+-->
 <head>
     <meta charset="UTF-8" />
     <title>Overlay de alertas</title>
@@ -18,9 +22,11 @@
     </style>
 </head>
 <body>
+<!-- Contenedor dinámico donde se muestran las alertas emitidas desde Firebase -->
     <div id="alertContainer"></div>
 
     <script type="module">
+        // Script del overlay: recibe alertas pendientes desde Firestore y las muestra visualmente.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, query, where, orderBy, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -47,6 +53,7 @@
         const shownIds = new Set();
         let active = false;
 
+        // Crea el elemento visual de alerta según el tipo de asset.
         const createAlertElement = (data) => {
             const card = document.createElement('div');
             card.className = 'alert-box';
@@ -95,6 +102,7 @@
             return card;
         };
 
+        // Reproduce la alerta y actualiza su estado a 'shown' cuando finaliza.
         const playAlert = async (docSnap) => {
             if (active || shownIds.has(docSnap.id)) return;
             shownIds.add(docSnap.id);

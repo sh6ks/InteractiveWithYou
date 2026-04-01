@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  widget.html
+  Interfaz embebida del widget de chat que se conecta al canal de Twitch.
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +15,7 @@
     <div id="chat"></div>
 
     <script type="module">
+        // Script del widget: carga configuración desde Firestore y se conecta al chat de Twitch.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -29,6 +34,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const canalSolicitado = urlParams.get('canal')?.toLowerCase();
 
+        // Inicializa la configuración del widget y carga la fuente antes de conectar.
         async function iniciarWidget() {
             if (!canalSolicitado) {
                 console.error("No se especificó un canal en la URL.");
@@ -62,6 +68,7 @@
             }); // <-- Aquí cerramos WebFont correctamente
         }
 
+        // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
         function conectarTwitch(canal, colorBorde) {
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
             socket.onopen = () => {
