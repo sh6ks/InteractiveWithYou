@@ -21,15 +21,17 @@
     }
     
     .card { 
-        background: #1d1b31; 
+        background: #161529; 
         padding: 30px; 
-        border-radius: 15px; 
-        border: 1px solid #333;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.7); 
+        border-radius: 20px; 
+        border: 1px solid rgba(145, 71, 255, 0.2);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4); 
         width: 100%; 
         max-width: 480px;
+        min-width: 0;
         border-left: 5px solid #9147ff; 
         transition: transform 0.2s ease, box-shadow 0.2s ease;
+        z-index: 1;
     }
     .card:hover {
         transform: scale(1.01);
@@ -39,23 +41,28 @@
     h2 { color: #a970ff; margin-top: 0; font-weight: 600; }
     p { color: #adadb8; font-size: 0.9rem; }
     
-    label { display: block; margin: 20px 0 8px; font-weight: bold; color: #efeff1; }
+    label { display: block; margin: 14px 0 6px; color: #bdb9ff; font-weight: 600; font-size: 0.85rem; }
     
-    input, select { 
-        width: 100%; 
-        padding: 12px; 
-        border-radius: 8px; 
-        border: 1px solid #3f3f46; 
-        background: #11101d; 
-        color: white; 
-        box-sizing: border-box; 
-        transition: 0.3s;
+    input, select, textarea {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid #3b3660;
+        background: #120f25;
+        color: #eef2ff;
+        padding: 10px 12px;
+        box-sizing: border-box;
+        font-size: 0.95rem;
+        transition: all 0.2s;
     }
     
-    input:focus, select:focus {
+    input[type="color"] {
+        padding: 8px;
+    }
+
+    input:focus, select:focus, textarea:focus {
         border-color: #9147ff;
         outline: none;
-        box-shadow: 0 0 10px rgba(145, 71, 255, 0.3);
+        box-shadow: 0 0 10px rgba(145, 71, 255, 0.25);
     }
     
     button { 
@@ -65,10 +72,10 @@
         background: #9147ff; 
         color: white; 
         border: none; 
-        border-radius: 8px; 
-        font-weight: bold; 
+        border-radius: 10px; 
+        font-weight: 700; 
         cursor: pointer; 
-        transition: 0.3s;
+        transition: all 0.2s;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
@@ -76,7 +83,7 @@
     button:hover { 
         background: #772ce8; 
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(145, 71, 255, 0.4);
+        box-shadow: 0 10px 25px rgba(145, 71, 255, 0.25);
     }
     
     #resultado { 
@@ -92,19 +99,21 @@
 
     .layout {
         display: grid;
-        grid-template-columns: minmax(320px, 430px) minmax(320px, 1fr);
-        gap: 30px;
-        width: min(100%, 1120px);
+        grid-template-columns: repeat(2, minmax(320px, 1fr));
+        gap: 32px;
+        width: min(100%, 1000px);
         margin: 0 auto;
         align-items: start;
+        position: relative;
+        z-index: 0;
     }
 
     .preview-card {
-        background: #1d1b31;
+        background: #161529;
         padding: 30px;
-        border-radius: 15px;
-        border: 1px solid #333;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+        border-radius: 20px;
+        border: 1px solid rgba(145, 71, 255, 0.2);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
         border-left: 5px solid #9147ff;
         display: flex;
         flex-direction: column;
@@ -229,6 +238,10 @@
 
     <label>Fuente:</label>
     <select id="fuente">
+        <option value="Poppins">Poppins</option>
+        <option value="Roboto">Roboto</option>
+        <option value="Bangers">Bangers</option>
+        <option value="Montserrat">Montserrat</option>
     </select>
 
     <label>Animación de ingreso:</label>
@@ -290,11 +303,21 @@
     const canalInput = document.getElementById('canal');
     const animacionDireccionSelect = document.getElementById('animacionDireccion');
     const animacionEstiloSelect = document.getElementById('animacionEstilo');
+    const selectFuente = document.getElementById('fuente');
+    const inputColor = document.getElementById('color');
+    const previewChat = document.getElementById('chatPreview');
 
-    // Obtiene el canal guardado si el usuario se autenticó con Twitch.
-    const getTwitchChannelFromStorage = () => {
-        return localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
-    };
+    const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE';
+    const sampleMessages = [
+        { usuario: 'StreamBot', mensaje: '¡Bienvenidos al stream!', color: '#55c2ff' },
+        { usuario: 'Gamer123', mensaje: '¿Qué vamos a hacer hoy?', color: '#ffb300' },
+        { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86' },
+        { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d' }
+    ];
+    let previewInterval = null;
+    let previewIndex = 0;
+
+    const getTwitchChannelFromStorage = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
 
     const setCanalReadonly = (readonly) => {
         canalInput.readOnly = readonly;
@@ -302,146 +325,40 @@
         canalInput.style.cursor = readonly ? 'not-allowed' : 'text';
     };
 
-    onAuthStateChanged(auth, async (user) => {
-        setCanalReadonly(false);
-
-        if (user) {
-            usuarioActual = user;
-            console.log("Configurando para:", user.displayName);
-            
-            const docRef = doc(db, "usuarios", user.uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                canalInput.value = data.canal;
-                document.getElementById('color').value = data.color;
-                document.getElementById('fuente').value = data.fuente;
-                animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
-                animacionEstiloSelect.value = data.animacionEstilo || 'slide';
-                // Aplicar la fuente guardada al select
-                document.getElementById('fuente').style.fontFamily = `'${data.fuente}', sans-serif`;
-            }
-            return;
-        }
-
-        const twitchChannel = getTwitchChannelFromStorage();
-        if (twitchChannel) {
-            canalInput.value = twitchChannel;
-            setCanalReadonly(true);
-            return;
-        }
-
-        alert("Primero debés iniciar sesión.");
-        window.parent.location.href = "/index.html"; 
-    });
-
-    // Genera el enlace del widget y guarda la configuración de canal en Firestore.
-    window.generarLink = async function() {
-        const canal = document.getElementById('canal').value.trim().toLowerCase() || getTwitchChannelFromStorage();
-        const color = document.getElementById('color').value;
-        const fuente = document.getElementById('fuente').value;
-
-        if(!canal) { alert("¡Poné el nombre de tu canal!"); return; }
-
-        try {
-            const urlBase = "https://interactive-with-you.vercel.app/widget.html";
-            const linkCompleto = `${urlBase}?canal=${canal}`;
-
-            if (usuarioActual) {
-                await setDoc(doc(db, "usuarios", usuarioActual.uid), {
-                    uid: usuarioActual.uid,
-                    email: usuarioActual.email || "",
-                    canal: canal,
-                    color: color,
-                    fuente: fuente,
-                    animacionDireccion: animacionDireccionSelect.value,
-                    animacionEstilo: animacionEstiloSelect.value,
-                    ultima_actualizacion: new Date()
-                });
-                console.log("¡Configuración guardada en la nube para:", canal, "!");
-            } else {
-                console.log("Usuario Twitch sin Firebase: link generado localmente para:", canal);
-            }
-
-            document.getElementById('linkFinal').innerText = linkCompleto;
-            document.getElementById('resultado').style.display = 'block';
-        } catch (error) {
-            console.error("Error al guardar:", error);
-            alert("Error al conectar con la base de datos.");
-        }
-    }
-
-    window.copiarAlPortapapeles = function() {
-        const link = document.getElementById('linkFinal').innerText;
-        navigator.clipboard.writeText(link).then(() => {
-            alert("¡Link copiado! Pegalo en OBS.");
-        });
-    }
-
-    const inputColor = document.getElementById('color');
-    const animacionDireccionSelect = document.getElementById('animacionDireccion');
-    const animacionEstiloSelect = document.getElementById('animacionEstilo');
-
-    inputColor.addEventListener('input', () => {
-        inputColor.style.borderBottom = `2px solid ${inputColor.value}`;
-        document.getElementById('resultado').style.borderColor = inputColor.value;
-    });
-
-    const campos = [document.getElementById('canal'), document.getElementById('color'), document.getElementById('fuente'), animacionDireccionSelect, animacionEstiloSelect];
-    campos.forEach(campo => {
-        campo.addEventListener('input', () => {
-            document.getElementById('resultado').style.display = 'none';
-            renderPreview();
-        });
-    });
-
-    const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE'; 
-    const selectFuente = document.getElementById('fuente');
-
-    // Descarga las fuentes de Google Fonts para llenar el selector de fuentes con preview.
     async function cargarFuentesDeGoogle() {
         try {
             const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${API_KEY}`);
             const data = await response.json();
 
             if (data.items) {
-                selectFuente.innerHTML = ''; 
-                const fontesParaCargar = data.items.slice(0, 150);
-                
-                // Registrar todas las fuentes en WebFont
-                const familias = fontesParaCargar.map(font => font.family);
-                WebFont.load({
-                    google: {
-                        families: familias
-                    }
-                });
+                const allowedCategories = ['sans-serif', 'serif', 'display', 'handwriting', 'monospace'];
+                const fontesParaCargar = data.items
+                    .filter(font => allowedCategories.includes(font.category))
+                    .filter(font => !font.family.toLowerCase().includes('material icons'))
+                    .filter(font => !font.family.toLowerCase().includes('emoji'))
+                    .slice(0, 120);
 
+                const familias = fontesParaCargar.map(font => font.family);
+                WebFont.load({ google: { families: familias } });
+
+                selectFuente.innerHTML = '';
                 fontesParaCargar.forEach(font => {
                     const option = document.createElement('option');
                     option.value = font.family;
                     option.textContent = font.family;
-                    // Aplicar el estilo de fuente a la opción para mostrar preview
                     option.style.fontFamily = `'${font.family}', sans-serif`;
-                    option.style.fontSize = '16px';
                     selectFuente.appendChild(option);
                 });
             }
         } catch (error) {
-            console.error("Hubo un problema al traer las fuentes:", error);
+            console.error('Error al cargar fuentes:', error);
+            selectFuente.innerHTML = '<option value="Poppins">Poppins</option><option value="Roboto">Roboto</option>'; 
         }
     }
 
-    cargarFuentesDeGoogle();
-
-    const previewChat = document.getElementById('chatPreview');
-    const sampleMessages = [
-        { usuario: 'StreamBot', mensaje: '¡Bienvenidos al stream!', color: '#55c2ff' },
-        { usuario: 'Gamer123', mensaje: '¿Qué vamos a hacer hoy?', color: '#ffb300' },
-        { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86' },
-        { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d' }
-    ];
-    let previewInterval = null;
-    let previewIndex = 0;
+    function loadFont(family) {
+        WebFont.load({ google: { families: [family] } });
+    }
 
     function mapDirectionClass() {
         return animacionDireccionSelect.value || 'from-top';
@@ -455,38 +372,7 @@
         const item = sampleMessages[previewIndex % sampleMessages.length];
         const div = document.createElement('div');
         div.className = `preview-message ${mapDirectionClass()} ${mapStyleClass()}`;
-        div.style.borderLeftColor = document.getElementById('color').value;
-        div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
-        previewChat.appendChild(div);
-        if (previewChat.children.length > 5) {
-            previewChat.removeChild(previewChat.firstElementChild);
-        }
-        previewIndex += 1;
-    }
-
-    const previewChat = document.getElementById('chatPreview');
-    const sampleMessages = [
-        { usuario: 'StreamBot', mensaje: '¡Bienvenidos al stream!', color: '#55c2ff' },
-        { usuario: 'Gamer123', mensaje: '¿Qué vamos a hacer hoy?', color: '#ffb300' },
-        { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86' },
-        { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d' }
-    ];
-    let previewInterval = null;
-    let previewIndex = 0;
-
-    function mapDirectionClass() {
-        return animacionDireccionSelect.value || 'from-top';
-    }
-
-    function mapStyleClass() {
-        return animacionEstiloSelect.value || 'slide';
-    }
-
-    function addPreviewMessage() {
-        const item = sampleMessages[previewIndex % sampleMessages.length];
-        const div = document.createElement('div');
-        div.className = `preview-message ${mapDirectionClass()} ${mapStyleClass()}`;
-        div.style.borderLeftColor = document.getElementById('color').value;
+        div.style.borderLeftColor = inputColor.value;
         div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
         previewChat.appendChild(div);
         if (previewChat.children.length > 5) {
@@ -497,27 +383,114 @@
 
     function renderPreview() {
         previewChat.innerHTML = '';
-        previewChat.style.fontFamily = `'${selectFuente.value || 'Poppins'}', sans-serif`;
+        previewChat.style.fontFamily = `'${selectFuente.value}', sans-serif`;
         previewIndex = 0;
         addPreviewMessage();
         clearInterval(previewInterval);
         previewInterval = setInterval(addPreviewMessage, 2200);
     }
 
-    renderPreview();
+    onAuthStateChanged(auth, async (user) => {
+        setCanalReadonly(false);
 
-    selectFuente.addEventListener('change', () => {
-        document.getElementById('resultado').style.display = 'none';
-        selectFuente.style.fontFamily = `'${selectFuente.value}', sans-serif`;
+        if (user) {
+            usuarioActual = user;
+            const docRef = doc(db, 'usuarios', user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                canalInput.value = data.canal || getTwitchChannelFromStorage();
+                inputColor.value = data.color || '#9147ff';
+                selectFuente.value = data.fuente || 'Poppins';
+                animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
+                animacionEstiloSelect.value = data.animacionEstilo || 'slide';
+            } else {
+                canalInput.value = getTwitchChannelFromStorage();
+            }
+            setCanalReadonly(Boolean(getTwitchChannelFromStorage()));
+            loadFont(selectFuente.value);
+            renderPreview();
+            return;
+        }
+
+        const twitchChannel = getTwitchChannelFromStorage();
+        if (twitchChannel) {
+            canalInput.value = twitchChannel;
+            setCanalReadonly(true);
+            renderPreview();
+            return;
+        }
+
+        alert('Primero debés iniciar sesión.');
+        window.parent.location.href = '/index.html';
+    });
+
+    window.generarLink = async function() {
+        const canal = canalInput.value.trim().toLowerCase() || getTwitchChannelFromStorage();
+        const color = inputColor.value;
+        const fuente = selectFuente.value;
+
+        if (!canal) {
+            alert('¡Poné el nombre de tu canal!');
+            return;
+        }
+
+        try {
+            const urlBase = 'https://interactive-with-you.vercel.app/widget.html';
+            const linkCompleto = `${urlBase}?canal=${canal}`;
+
+            if (usuarioActual) {
+                await setDoc(doc(db, 'usuarios', usuarioActual.uid), {
+                    uid: usuarioActual.uid,
+                    email: usuarioActual.email || '',
+                    canal,
+                    color,
+                    fuente,
+                    animacionDireccion: animacionDireccionSelect.value,
+                    animacionEstilo: animacionEstiloSelect.value,
+                    ultima_actualizacion: new Date()
+                });
+            }
+
+            document.getElementById('linkFinal').innerText = linkCompleto;
+            document.getElementById('resultado').style.display = 'block';
+        } catch (error) {
+            console.error('Error al guardar:', error);
+            alert('Error al conectar con la base de datos.');
+        }
+    };
+
+    window.copiarAlPortapapeles = function() {
+        const link = document.getElementById('linkFinal').innerText;
+        navigator.clipboard.writeText(link).then(() => {
+            alert('¡Link copiado! Pegalo en OBS.');
+        });
+    };
+
+    inputColor.addEventListener('input', () => {
+        inputColor.style.borderBottom = `2px solid ${inputColor.value}`;
+        document.getElementById('resultado').style.borderColor = inputColor.value;
         renderPreview();
     });
 
-    const previewControls = [document.getElementById('canal'), inputColor, selectFuente, animacionDireccionSelect, animacionEstiloSelect];
+    selectFuente.addEventListener('change', () => {
+        document.getElementById('resultado').style.display = 'none';
+        loadFont(selectFuente.value);
+        renderPreview();
+    });
+
+    const previewControls = [canalInput, selectFuente, animacionDireccionSelect, animacionEstiloSelect];
     previewControls.forEach(el => {
         el.addEventListener('input', () => {
             document.getElementById('resultado').style.display = 'none';
             renderPreview();
         });
+    });
+
+    cargarFuentesDeGoogle().then(() => {
+        if (!selectFuente.value) selectFuente.value = 'Poppins';
+        loadFont(selectFuente.value);
+        renderPreview();
     });
 </script>
 

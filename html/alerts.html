@@ -776,7 +776,12 @@
                 const data = await response.json();
 
                 if (data.items) {
-                    const fontesParaCargar = data.items.slice(0, 150);
+                    const allowedCategories = ['sans-serif', 'serif', 'display', 'handwriting', 'monospace'];
+                    const fontesParaCargar = data.items
+                        .filter(font => allowedCategories.includes(font.category))
+                        .filter(font => !font.family.toLowerCase().includes('material icons'))
+                        .filter(font => !font.family.toLowerCase().includes('emoji'))
+                        .slice(0, 150);
                     const familias = fontesParaCargar.map(font => font.family);
                     
                     WebFont.load({ google: { families: familias } });
@@ -792,6 +797,7 @@
                 }
             } catch (error) {
                 console.error("Error al cargar fuentes:", error);
+                fuenteSelect.innerHTML = '<option value="Roboto">Roboto</option><option value="Poppins">Poppins</option>';
             }
         }
 
