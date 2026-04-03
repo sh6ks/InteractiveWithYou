@@ -148,23 +148,27 @@
                     return;
                 }
 
-                const messageMatch = data.match(/^@([^ ]+) PRIVMSG #[^ ]+ :(.*)$/);
+                const messageMatch = data.match(/^(?:@([^ ]+) )?:([^ ]+) PRIVMSG #[^ ]+ :(.*)$/);
                 if (!messageMatch) return;
 
                 if (firstRealMessage) {
                     document.querySelectorAll('.ejemplo').forEach(el => el.remove());
                     firstRealMessage = false;
+                    setStatus(`Recibiendo chat real de #${canal}`, 'info');
                 }
 
-                const tags = messageMatch[1].split(';').reduce((acc, part) => {
+                const rawTags = messageMatch[1] || '';
+                const userPrefix = messageMatch[2] || '';
+                const mensajeRaw = messageMatch[3] || '';
+
+                const tags = rawTags.split(';').reduce((acc, part) => {
                     const [key, value] = part.split('=');
-                    acc[key] = value || '';
+                    if (key) acc[key] = value || '';
                     return acc;
                 }, {});
 
-                const usuario = tags['display-name'] || tags['login'] || 'anon';
+                const usuario = tags['display-name'] || tags['login'] || userPrefix.split('!')[0] || 'anon';
                 const colorTwitch = tags['color'] || colorBorde;
-                const mensajeRaw = messageMatch[2] || '';
                 const contenedor = document.getElementById('chat');
                 const div = document.createElement('div');
                 const direction = animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
