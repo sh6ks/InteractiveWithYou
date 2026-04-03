@@ -47,34 +47,48 @@
         async function iniciarWidget() {
             if (!canalSolicitado) {
                 console.error("No se especificó un canal en la URL.");
+                setStatus('Falta parámetro canal en la URL', 'error');
                 return;
             }
 
-            const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
-            const querySnapshot = await getDocs(q);
-            
-            let config = { color: "#6441a5", fuente: "Roboto", animacionDireccion: 'from-left', animacionEstilo: 'slide' };
+            setStatus(`Buscando configuración para #${canalSolicitado}...`, 'info');
 
-            querySnapshot.forEach((doc) => {
-                config = { ...config, ...doc.data() };
-            });
+            try {
+                const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
+                const querySnapshot = await getDocs(q);
+                
+                let config = { color: "#6441a5", fuente: "Roboto", animacionDireccion: 'from-left', animacionEstilo: 'slide' };
 
-            // Cargamos la fuente y RECIÉN AHÍ conectamos al chat
-            WebFont.load({
-                google: {
-                    families: [config.fuente]
-                },
-                active: function() {
-                    console.log("Fuente cargada con éxito:", config.fuente);
-                    document.body.style.fontFamily = config.fuente;
-                    conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
-                },
-                inactive: function() {
-                    console.log("No se pudo cargar la fuente, usando fallback.");
-                    document.body.style.fontFamily = "sans-serif";
-                    conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
+                querySnapshot.forEach((doc) => {
+                    config = { ...config, ...doc.data() };
+                });
+
+                if (querySnapshot.empty) {
+                    console.warn('No se encontró configuración para', canalSolicitado);
+                    setStatus(`Sin config personalizada para #${canalSolicitado}, usando valores por defecto`, 'warning');
                 }
-            }); // <-- Aquí cerramos WebFont correctamente
+
+                // Cargamos la fuente y RECIÉN AHÍ conectamos al chat
+                WebFont.load({
+                    google: {
+                        families: [config.fuente]
+                    },
+                    active: function() {
+                        console.log("Fuente cargada con éxito:", config.fuente);
+                        document.body.style.fontFamily = config.fuente;
+                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
+                    },
+                    inactive: function() {
+                        console.log("No se pudo cargar la fuente, usando fallback.");
+                        document.body.style.fontFamily = "sans-serif";
+                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
+                    }
+                });
+            } catch (error) {
+                console.error('Error cargando configuración:', error);
+                setStatus('No se pudo cargar la configuración del widget', 'error');
+                mostrarEjemplos('Revisa la consola para más detalles.');
+            }
         }
 
         const previewSamples = [
@@ -112,20 +126,25 @@
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
         function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide') {
+            setStatus(`Conectando al chat de #${canal}...`, 'info');
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
-            socket.onopen = () => {
-                socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+
+            socket.addEventListener('open', () => {
+                socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership');
                 socket.send('PASS oauth:anonymous');
                 socket.send('NICK justinfan' + Math.floor(Math.random() * 10000));
                 socket.send('JOIN #' + canal);
-                console.log("Conectado al chat de:", canal);
+                console.log('Socket abierto y JOIN enviado para', canal);
                 setStatus(`Conectado a #${canal}`, 'info');
-            };
+            });
 
-            socket.onmessage = (event) => {
+            socket.addEventListener('message', (event) => {
                 const data = event.data;
+                console.debug('Twitch IRC:', data);
+
                 if (data.startsWith('PING')) {
-                    socket.send('PONG');
+                    socket.send(data.replace('PING', 'PONG'));
+                    console.debug('Respondido PONG');
                     return;
                 }
 
@@ -155,17 +174,17 @@
                 div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
                 contenedor.appendChild(div);
                 setTimeout(() => div.remove(), 10000);
-            };
+            });
 
-            socket.onerror = (err) => {
+            socket.addEventListener('error', (err) => {
                 console.error('Error WebSocket:', err);
                 setStatus(`Error de conexión en #${canal}`, 'error');
-            };
+            });
 
-            socket.onclose = () => {
-                console.warn('Socket cerrado para', canal);
-                setStatus(`Desconectado de #${canal}`, 'warning');
-            };
+            socket.addEventListener('close', (event) => {
+                console.warn('Socket cerrado para', canal, 'code=', event.code, 'reason=', event.reason);
+                setStatus(`Desconectado de #${canal} (${event.code})`, 'warning');
+            });
         }
 
         if (!canalSolicitado) {
