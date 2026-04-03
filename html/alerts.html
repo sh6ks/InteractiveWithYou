@@ -65,6 +65,21 @@
             box-sizing: border-box;
         }
 
+        input[type="file"]::file-selector-button {
+            background: #9147ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background 0.2s ease;
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background: #772ce8;
+        }
+
         textarea {
             min-height: 90px;
             resize: vertical;
@@ -144,6 +159,10 @@
                 <label>URL del asset</label>
                 <input id="assetUrl" placeholder="https://.../alert.mp3" />
 
+                <label>O sube un archivo local (máx. 25 MB)</label>
+                <input id="assetFile" type="file" accept="image/*,video/*,audio/*" />
+                <small id="fileInfo" style="color: #999; display: none; margin-top: 4px;"></small>
+
                 <label>Texto de la alerta</label>
                 <textarea id="alertText" placeholder="Texto para mostrar en la alerta"></textarea>
 
@@ -181,6 +200,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -194,10 +214,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        const storage = getStorage(app);
 
         const canalInput = document.getElementById('canal');
         const tipoSelect = document.getElementById('tipo');
         const assetInput = document.getElementById('assetUrl');
+        const assetFileInput = document.getElementById('assetFile');
+        const fileInfoSpan = document.getElementById('fileInfo');
         const textInput = document.getElementById('alertText');
         const durationInput = document.getElementById('duration');
         const overlayLinkInput = document.getElementById('overlayLink');
@@ -213,6 +236,18 @@
             image: 'https://placekitten.com/900/500',
             video: 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
             sound: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+        };
+
+        // Límite de tamaño: 25 MB
+        const MAX_FILE_SIZE = 25 * 1024 * 1024;
+        let uploadedFileUrl = '';
+
+        const formatFileSize = (bytes) => {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         };
 
         const getTwitchChannel = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
@@ -243,6 +278,56 @@
             statusBox.style.borderColor = success ? 'rgba(0,255,153,0.3)' : 'rgba(255,99,132,0.3)';
             statusBox.innerText = message;
         };
+
+        // Maneja la subida de archivos a Firebase Storage.
+        const handleFileUpload = async (file) => {
+            if (!file) {
+                fileInfoSpan.style.display = 'none';
+                uploadedFileUrl = '';
+                assetInput.value = '';
+                return;
+            }
+
+            // Validar tamaño
+            if (file.size > MAX_FILE_SIZE) {
+                fileInfoSpan.style.color = '#ff6464';
+                fileInfoSpan.textContent = `❌ Archivo muy grande: ${formatFileSize(file.size)} (máximo: ${formatFileSize(MAX_FILE_SIZE)})`;
+                fileInfoSpan.style.display = 'block';
+                assetFileInput.value = '';
+                uploadedFileUrl = '';
+                assetInput.value = '';
+                return;
+            }
+
+            fileInfoSpan.style.color = '#fbbf24';
+            fileInfoSpan.textContent = `⏳ Subiendo: ${file.name} (${formatFileSize(file.size)})...`;
+            fileInfoSpan.style.display = 'block';
+
+            try {
+                const sessionName = auth.currentUser?.uid || getTwitchChannel();
+                const timestamp = Date.now();
+                const fileName = `${sessionName}-${timestamp}-${file.name}`;
+                const storageRef = ref(storage, `alerts/${fileName}`);
+
+                await uploadBytes(storageRef, file);
+                uploadedFileUrl = await getDownloadURL(storageRef);
+
+                assetInput.value = uploadedFileUrl;
+                fileInfoSpan.style.color = '#4ade80';
+                fileInfoSpan.textContent = `✅ File subido: ${file.name} (${formatFileSize(file.size)})`;
+            } catch (error) {
+                console.error('Error al subir archivo:', error);
+                fileInfoSpan.style.color = '#ff6464';
+                fileInfoSpan.textContent = `❌ Error al subir: ${error.message}`;
+                uploadedFileUrl = '';
+                assetInput.value = '';
+            }
+        };
+
+        // Listener para cambios en el input file
+        assetFileInput.addEventListener('change', (e) => {
+            handleFileUpload(e.target.files[0]);
+        });
 
         // Inserta una alerta pendiente en Firestore para que el overlay la muestre.
         const createAlert = async (type, assetUrl, text) => {
@@ -326,6 +411,15 @@
             assetInput.value = sampleAssets.sound;
             textInput.value = 'Prueba de sonido';
             createAlert('sound', sampleAssets.sound, 'Prueba de sonido');
+        });
+
+        createButton.addEventListener('click', async () => {
+            const type = tipoSelect.value;
+            await createAlert(type);
+            // Limpiar archivo subido después de crear la alerta
+            assetFileInput.value = '';
+            fileInfoSpan.style.display = 'none';
+            uploadedFileUrl = '';
         });
     </script>
 </body>
