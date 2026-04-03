@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
-<!--
-  alerts.html
-  Formulario para crear alertas en vivo y generar el enlace del overlay de OBS.
--->
 <head>
     <meta charset="UTF-8">
     <title>Alertas en vivo - InteractiveWithYou</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
     <style>
+        * { box-sizing: border-box; }
+        
         body {
             margin: 0;
             min-height: 100vh;
@@ -21,59 +22,58 @@
         }
 
         .card {
-            width: min(760px, 100%);
+            width: min(1400px, 100%);
             background: #161529;
             border: none;
             border-radius: 20px;
             padding: 28px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         
-        .card:hover {
-            transform: scale(1.01);
-            box-shadow: 0 24px 68px rgba(0,0,0,0.45);
-        }
+        h1 { margin: 0 0 18px; font-size: 2rem; color: #d9d7ff; }
+        p { color: #adadb8; font-size: 0.9rem; margin-top: 0; }
 
-        h1 {
-            margin: 0 0 18px;
-            font-size: 2rem;
-            color: #d9d7ff;
-        }
-
-        .row {
+        .container-main {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 18px;
+            gap: 24px;
+            margin-top: 20px;
         }
 
         label {
             display: block;
-            margin: 16px 0 8px;
+            margin: 14px 0 6px;
             color: #bdb9ff;
             font-weight: 600;
+            font-size: 0.85rem;
         }
 
         input, select, textarea {
             width: 100%;
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid #3b3660;
             background: #120f25;
             color: #eef2ff;
-            padding: 12px 14px;
+            padding: 10px 12px;
             box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            padding: 0;
+            height: 4px;
         }
 
         input[type="file"]::file-selector-button {
             background: #9147ff;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
             cursor: pointer;
-            margin-right: 10px;
-            transition: background 0.2s ease;
+            margin-right: 8px;
+            font-size: 0.85rem;
+            transition: background 0.2s;
         }
 
         input[type="file"]::file-selector-button:hover {
@@ -81,123 +81,266 @@
         }
 
         textarea {
-            min-height: 90px;
+            min-height: 80px;
             resize: vertical;
         }
 
         button {
-            margin-top: 18px;
             width: 100%;
-            padding: 14px 18px;
+            padding: 12px 16px;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
             font-weight: 700;
-            letter-spacing: 0.5px;
-            transition: transform 0.2s ease, background 0.2s ease;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            margin-top: 12px;
         }
 
-        button:hover {
-            transform: translateY(-1px);
+        button:hover { transform: translateY(-2px); }
+
+        .btn-primary { background: #9147ff; color: white; }
+        .btn-secondary { background: #27223d; color: #dcd7ff; }
+
+        .field-group { display: flex; flex-direction: column; gap: 8px; }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
         }
 
-        .primary { background: #9147ff; color: white; }
-        .secondary { background: #27223d; color: #dcd7ff; }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            background: rgba(145, 71, 255, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(145, 71, 255, 0.3);
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .checkbox-item input {
+            width: auto;
+            margin: 0;
+        }
+
+        .range-value {
+            display: inline-block;
+            margin-left: 8px;
+            color: #a970ff;
+            font-size: 0.85rem;
+        }
 
         .info-box {
-            margin-top: 20px;
             background: rgba(145, 71, 255, 0.1);
-            padding: 18px;
-            border-radius: 14px;
+            padding: 14px;
+            border-radius: 10px;
             border: 1px solid rgba(145, 71, 255, 0.2);
+            font-size: 0.9rem;
+            margin-top: 14px;
         }
 
-        .field-group {
-            display: grid;
-            gap: 14px;
+        .info-box ol {
+            padding-left: 18px;
+            margin: 8px 0 0;
+            color: #cfc9ff;
         }
 
-        .full-width {
-            grid-column: 1 / -1;
+        small {
+            color: #999;
+            display: block;
+            margin-top: 4px;
         }
 
-        @media (max-width: 1024px) {
-            body { padding: 20px; }
-            .card { padding: 24px; }
-            .row { gap: 14px; }
+        /* Preview */
+        #alertPreview {
+            background: linear-gradient(135deg, #1e1b3d 0%, #2d2851 100%);
+            border-radius: 16px;
+            padding: 30px;
+            min-height: 450px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(145, 71, 255, 0.3);
+        }
+
+        .alert-content {
+            text-align: center;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .alert-media {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            object-fit: contain;
+        }
+
+        .alert-text {
+            margin: 0;
+            word-wrap: break-word;
+            font-weight: bold;
+        }
+
+        @keyframes vibrate {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-35px); }
+        }
+
+        @keyframes zoomAnim {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.35); }
+        }
+
+        .effect-vibrate { animation: vibrate 0.4s infinite; }
+        .effect-bounce { animation: bounce 0.7s infinite; }
+        .effect-zoom { animation: zoomAnim 0.9s infinite; }
+
+        @media (max-width: 1200px) {
+            .container-main { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 720px) {
-            body { align-items: stretch; padding: 16px; }
-            .card { width: 100%; padding: 20px; box-shadow: none; }
-            .row { grid-template-columns: 1fr; }
-            .info-box { padding: 16px; }
-            button { padding: 14px; }
-            .field-group { gap: 12px; }
-            .full-width { grid-column: 1 / -1; }
+            body { padding: 16px; }
+            .card { padding: 16px; }
+            #alertPreview { min-height: 300px; padding: 20px; }
         }
     </style>
 </head>
 <body>
-<!-- Contenedor principal de alertas con formulario, botones de prueba y estado -->
     <div class="card">
         <h1>Alertas en vivo</h1>
-        <p>Esta sección te permite crear alertas para el overlay de OBS usando Firestore. El overlay recibirá alertas y las mostrará automáticamente.</p>
+        <p>Diseña alertas personalizadas con fuentes, efectos y sonidos</p>
 
-        <div class="row">
-            <div class="field-group">
-                <label>Nombre de canal</label>
-                <input id="canal" placeholder="ej: shekssink" />
+        <div class="container-main">
+            <!-- Formulario -->
+            <div>
+                <div class="field-group">
+                    <label>Nombre de canal</label>
+                    <input id="canal" placeholder="ej: shekssink" />
+                </div>
 
-                <label>Tipo de alerta</label>
-                <select id="tipo">
-                    <option value="image">Imagen</option>
-                    <option value="video">Video</option>
-                    <option value="sound">Sonido</option>
-                </select>
+                <div class="field-group">
+                    <label>Tipo de alerta</label>
+                    <select id="tipo">
+                        <option value="image">Imagen</option>
+                        <option value="video">Video</option>
+                        <option value="sound">Sonido</option>
+                    </select>
+                </div>
 
-                <label>URL del asset</label>
-                <input id="assetUrl" placeholder="https://.../alert.mp3" />
+                <div class="field-group">
+                    <label>URL del asset</label>
+                    <input id="assetUrl" placeholder="https://.../alert.mp3" />
+                </div>
 
-                <label>O sube un archivo local (máx. 25 MB)</label>
-                <input id="assetFile" type="file" accept="image/*,video/*,audio/*" />
-                <small id="fileInfo" style="color: #999; display: none; margin-top: 4px;"></small>
+                <div class="field-group">
+                    <label>O sube un archivo (máx. 25 MB)</label>
+                    <input id="assetFile" type="file" accept="image/*,video/*,audio/*" />
+                    <small id="fileInfo" style="display: none;"></small>
+                </div>
 
-                <label>Texto de la alerta</label>
-                <textarea id="alertText" placeholder="Texto para mostrar en la alerta"></textarea>
+                <div class="field-group">
+                    <label>Sonido adicional (opcional)</label>
+                    <input id="soundFile" type="file" accept="audio/*" />
+                    <small id="soundInfo" style="display: none;"></small>
+                </div>
 
-                <label>Duración (segundos)</label>
-                <input id="duration" type="number" value="8" min="2" />
+                <div class="field-group">
+                    <label>Texto de la alerta</label>
+                    <textarea id="alertText" placeholder="Texto para mostrar en la alerta"></textarea>
+                </div>
+
+                <div class="field-group">
+                    <label>Tipo de letra</label>
+                    <select id="fuente"></select>
+                </div>
+
+                <div class="field-group">
+                    <label>Tamaño de texto <span class="range-value" id="sizeValue">32px</span></label>
+                    <input id="fontSize" type="range" min="16" max="72" value="32" />
+                </div>
+
+                <div class="field-group">
+                    <label>Color del texto</label>
+                    <input id="textColor" type="color" value="#d9d7ff" />
+                </div>
+
+                <div class="field-group">
+                    <label>Efectos</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input id="effectVibrate" type="checkbox" />
+                            <label for="effectVibrate">Vibrar</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input id="effectBounce" type="checkbox" />
+                            <label for="effectBounce">Rebotar</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input id="effectZoom" type="checkbox" />
+                            <label for="effectZoom">Zoom</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label>Duración (segundos)</label>
+                    <input id="duration" type="number" value="8" min="2" />
+                </div>
+
+                <button class="btn-primary" id="createButton">Crear alerta</button>
+                <button class="btn-secondary" id="sampleImage">Prueba: Imagen</button>
+                <button class="btn-secondary" id="sampleVideo">Prueba: Video</button>
             </div>
 
-            <div class="field-group">
+            <!-- Preview -->
+            <div>
+                <label style="margin-top: 0;">Vista previa de la alerta</label>
+                <div id="alertPreview">
+                    <div class="alert-content">
+                        <img id="previewMedia" class="alert-media" src="" style="display: none;" />
+                        <video id="previewVideo" class="alert-media" style="display: none;" controls></video>
+                        <p class="alert-text" id="previewText">Texto de la alerta</p>
+                    </div>
+                </div>
+
                 <div class="info-box">
-                    <strong>Pasos:</strong>
-                    <ol style="padding-left:18px; margin:10px 0 0; color:#cfc9ff;">
-                        <li>Iniciá sesión con Google o Twitch.</li>
-                        <li>Completá tu canal y la URL del asset.</li>
-                        <li>Presioná <strong>Crear alerta</strong>.</li>
-                        <li>Abre <strong>overlay.html</strong> en OBS.</li>
+                    <strong>Instrucciones:</strong>
+                    <ol>
+                        <li>Configura los parámetros de tu alerta</li>
+                        <li>Ve el preview en tiempo real</li>
+                        <li>Presiona "Crear alerta"</li>
+                        <li>El overlay la mostrará automáticamente</li>
                     </ol>
                 </div>
 
-                <button id="createButton" class="primary">Crear alerta</button>
-                <button id="openOverlay" class="secondary">Abrir overlay</button>
-                <label>Link del overlay</label>
-                <input id="overlayLink" readonly />
-                <button id="copyOverlay" class="secondary">Copiar link del overlay</button>
-                <button id="sampleImage" class="secondary">Prueba: Imagen</button>
-                <button id="sampleVideo" class="secondary">Prueba: Video</button>
-                <button id="sampleSound" class="secondary">Prueba: Sonido</button>
+                <div class="field-group">
+                    <label>Link del overlay</label>
+                    <input id="overlayLink" readonly />
+                    <button class="btn-secondary" id="copyOverlay">Copiar link</button>
+                    <button class="btn-secondary" id="openOverlay">Abrir overlay</button>
+                </div>
+
+                <div id="status" class="info-box" style="display: none;"></div>
             </div>
         </div>
-
-        <div id="status" class="info-box" style="display:none;"></div>
     </div>
 
     <script type="module">
-        // Script de alertas: crea alertas en vivo y guarda datos en Firestore.
-        // Archivos se suben a Cloudinary.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -215,35 +358,49 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Configuración de Cloudinary
         const CLOUDINARY_CLOUD_NAME = 'dbzcmpwrn';
         const CLOUDINARY_UPLOAD_PRESET = 'alerts_preset';
+        const MAX_FILE_SIZE = 25 * 1024 * 1024;
+        const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE';
 
+        let uploadedFileUrl = '';
+        let uploadedSoundUrl = '';
+
+        // DOM
         const canalInput = document.getElementById('canal');
         const tipoSelect = document.getElementById('tipo');
         const assetInput = document.getElementById('assetUrl');
         const assetFileInput = document.getElementById('assetFile');
+        const soundFileInput = document.getElementById('soundFile');
         const fileInfoSpan = document.getElementById('fileInfo');
+        const soundInfoSpan = document.getElementById('soundInfo');
         const textInput = document.getElementById('alertText');
+        const fuenteSelect = document.getElementById('fuente');
+        const fontSizeInput = document.getElementById('fontSize');
+        const sizeValue = document.getElementById('sizeValue');
+        const textColorInput = document.getElementById('textColor');
+        const effectVibrate = document.getElementById('effectVibrate');
+        const effectBounce = document.getElementById('effectBounce');
+        const effectZoom = document.getElementById('effectZoom');
         const durationInput = document.getElementById('duration');
-        const overlayLinkInput = document.getElementById('overlayLink');
-        const statusBox = document.getElementById('status');
         const createButton = document.getElementById('createButton');
-        const openOverlay = document.getElementById('openOverlay');
+        const statusBox = document.getElementById('status');
+        const overlayLinkInput = document.getElementById('overlayLink');
         const copyOverlay = document.getElementById('copyOverlay');
+        const openOverlay = document.getElementById('openOverlay');
         const sampleImage = document.getElementById('sampleImage');
         const sampleVideo = document.getElementById('sampleVideo');
-        const sampleSound = document.getElementById('sampleSound');
+
+        // Preview
+        const alertPreview = document.getElementById('alertPreview');
+        const previewText = document.getElementById('previewText');
+        const previewMedia = document.getElementById('previewMedia');
+        const previewVideo = document.getElementById('previewVideo');
 
         const sampleAssets = {
             image: 'https://placekitten.com/900/500',
             video: 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
-            sound: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
         };
-
-        // Límite de tamaño: 25 MB
-        const MAX_FILE_SIZE = 25 * 1024 * 1024;
-        let uploadedFileUrl = '';
 
         const formatFileSize = (bytes) => {
             if (bytes === 0) return '0 Bytes';
@@ -255,56 +412,72 @@
 
         const getTwitchChannel = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
 
-        const getSessionName = () => {
-            const user = auth.currentUser;
-            if (user) return user.displayName?.toLowerCase() || user.email?.split('@')[0] || 'streamer';
-            return getTwitchChannel();
-        };
-
-        const requireSession = () => {
-            if (!auth.currentUser && !getTwitchChannel()) {
-                alert('Tenés que iniciar sesión con Google o Twitch para usar Alertas en vivo.');
-                window.parent.location.href = '/index.html';
-                return false;
-            }
-            return true;
-        };
-
-        const setCanalReadonly = (readonly) => {
-            canalInput.readOnly = readonly;
-            canalInput.style.background = readonly ? '#2a273f' : '#11101d';
-            canalInput.style.cursor = readonly ? 'not-allowed' : 'text';
-        };
-
         const setStatus = (message, success = true) => {
             statusBox.style.display = 'block';
             statusBox.style.borderColor = success ? 'rgba(0,255,153,0.3)' : 'rgba(255,99,132,0.3)';
             statusBox.innerText = message;
         };
 
-        // Maneja la subida de archivos a Cloudinary.
-        const handleFileUpload = async (file) => {
+        // Cargar Google Fonts
+        async function cargarFuentesDeGoogle() {
+            try {
+                const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${API_KEY}`);
+                const data = await response.json();
+
+                if (data.items) {
+                    const fontesParaCargar = data.items.slice(0, 150);
+                    const familias = fontesParaCargar.map(font => font.family);
+                    
+                    WebFont.load({ google: { families: familias } });
+
+                    fuenteSelect.innerHTML = '';
+                    fontesParaCargar.forEach(font => {
+                        const option = document.createElement('option');
+                        option.value = font.family;
+                        option.textContent = font.family;
+                        option.style.fontFamily = `'${font.family}', sans-serif`;
+                        fuenteSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error("Error al cargar fuentes:", error);
+            }
+        }
+
+        // Actualizar preview
+        const updatePreview = () => {
+            const effects = [];
+            if (effectVibrate.checked) effects.push('effect-vibrate');
+            if (effectBounce.checked) effects.push('effect-bounce');
+            if (effectZoom.checked) effects.push('effect-zoom');
+
+            alertPreview.className = effects.join(' ');
+            previewText.textContent = textInput.value || 'Texto de la alerta';
+            previewText.style.fontSize = fontSizeInput.value + 'px';
+            previewText.style.fontFamily = `'${fuenteSelect.value}', sans-serif`;
+            previewText.style.color = textColorInput.value;
+        };
+
+        // Subir archivo a Cloudinary
+        const handleFileUpload = async (file, isSound = false) => {
             if (!file) {
-                fileInfoSpan.style.display = 'none';
-                uploadedFileUrl = '';
-                assetInput.value = '';
+                if (isSound) uploadedSoundUrl = '';
+                else uploadedFileUrl = '';
                 return;
             }
 
-            // Validar tamaño
             if (file.size > MAX_FILE_SIZE) {
-                fileInfoSpan.style.color = '#ff6464';
-                fileInfoSpan.textContent = `❌ Archivo muy grande: ${formatFileSize(file.size)} (máximo: ${formatFileSize(MAX_FILE_SIZE)})`;
-                fileInfoSpan.style.display = 'block';
-                assetFileInput.value = '';
-                uploadedFileUrl = '';
-                assetInput.value = '';
+                const span = isSound ? soundInfoSpan : fileInfoSpan;
+                span.style.color = '#ff6464';
+                span.textContent = `❌ Archivo muy grande: ${formatFileSize(file.size)}`;
+                span.style.display = 'block';
                 return;
             }
 
-            fileInfoSpan.style.color = '#fbbf24';
-            fileInfoSpan.textContent = `⏳ Subiendo: ${file.name} (${formatFileSize(file.size)})...`;
-            fileInfoSpan.style.display = 'block';
+            const span = isSound ? soundInfoSpan : fileInfoSpan;
+            span.style.color = '#fbbf24';
+            span.textContent = `⏳ Subiendo: ${file.name}...`;
+            span.style.display = 'block';
 
             try {
                 const formData = new FormData();
@@ -317,122 +490,147 @@
                     { method: 'POST', body: formData }
                 );
 
-                if (!response.ok) {
-                    throw new Error(`Error Cloudinary: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
                 const data = await response.json();
-                uploadedFileUrl = data.secure_url;
+                const url = data.secure_url;
 
-                assetInput.value = uploadedFileUrl;
-                fileInfoSpan.style.color = '#4ade80';
-                fileInfoSpan.textContent = `✅ Archivo subido: ${file.name} (${formatFileSize(file.size)})`;
+                if (isSound) {
+                    uploadedSoundUrl = url;
+                    soundInfoSpan.style.color = '#4ade80';
+                    soundInfoSpan.textContent = `✅ Sonido subido`;
+                } else {
+                    uploadedFileUrl = url;
+                    assetInput.value = url;
+                    fileInfoSpan.style.color = '#4ade80';
+                    fileInfoSpan.textContent = `✅ Archivo subido`;
+                    previewMedia.src = url;
+                    previewVideo.src = url;
+                    updateMediaPreview();
+                }
             } catch (error) {
-                console.error('Error al subir archivo:', error);
-                fileInfoSpan.style.color = '#ff6464';
-                fileInfoSpan.textContent = `❌ Error al subir: ${error.message}`;
-                uploadedFileUrl = '';
-                assetInput.value = '';
+                console.error('Error:', error);
+                span.style.color = '#ff6464';
+                span.textContent = `❌ Error: ${error.message}`;
             }
         };
 
-        // Listener para cambios en el input file
-        assetFileInput.addEventListener('change', (e) => {
-            handleFileUpload(e.target.files[0]);
+        const updateMediaPreview = () => {
+            const tipo = tipoSelect.value;
+            previewMedia.style.display = 'none';
+            previewVideo.style.display = 'none';
+            const url = assetInput.value;
+            if (!url) return;
+            
+            if (tipo === 'video') {
+                previewVideo.src = url;
+                previewVideo.style.display = 'block';
+            } else {
+                previewMedia.src = url;
+                previewMedia.style.display = 'block';
+            }
+        };
+
+        // Listeners
+        assetFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], false));
+        soundFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], true));
+        fontSizeInput.addEventListener('input', () => {
+            sizeValue.textContent = fontSizeInput.value + 'px';
+            updatePreview();
         });
+        fuenteSelect.addEventListener('change', updatePreview);
+        textColorInput.addEventListener('input', updatePreview);
+        textInput.addEventListener('input', updatePreview);
+        effectVibrate.addEventListener('change', updatePreview);
+        effectBounce.addEventListener('change', updatePreview);
+        effectZoom.addEventListener('change', updatePreview);
+        tipoSelect.addEventListener('change', updateMediaPreview);
+        assetInput.addEventListener('input', updateMediaPreview);
 
-        // Inserta una alerta pendiente en Firestore para que el overlay la muestre.
+        // Crear alerta
         const createAlert = async (type, assetUrl, text) => {
-            if (!requireSession()) return;
-            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
-            const url = assetUrl || assetInput.value.trim();
-            const alertText = text || textInput.value.trim() || '¡Alerta en vivo!';
-            const duration = Number(durationInput.value) || 8;
-
-            if (!canal) {
-                return setStatus('Debes ingresar el nombre de tu canal o iniciar sesión con Twitch.', false);
+            if (!auth.currentUser && !getTwitchChannel()) {
+                alert('Tenés que iniciar sesión');
+                window.parent.location.href = '/index.html';
+                return;
             }
 
-            if (!url) {
-                return setStatus('Debes ingresar la URL del asset o usar una prueba.', false);
+            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
+            const url = assetUrl || assetInput.value.trim();
+            const alertText = text || textInput.value.trim();
+            const soundUrl = uploadedSoundUrl || '';
+
+            if (!canal || !url) {
+                setStatus('Completa todos los campos', false);
+                return;
             }
 
             try {
                 await addDoc(collection(db, 'liveAlerts'), {
-                    canal: canal,
-                    type: type,
-                    assetUrl: url,
-                    text: alertText,
-                    duration: duration,
+                    canal, type, assetUrl: url, soundUrl, text: alertText,
+                    fuente: fuenteSelect.value,
+                    fontSize: parseInt(fontSizeInput.value),
+                    textColor: textColorInput.value,
+                    effects: {
+                        vibrate: effectVibrate.checked,
+                        bounce: effectBounce.checked,
+                        zoom: effectZoom.checked
+                    },
+                    duration: parseInt(durationInput.value),
                     status: 'pending',
                     createdAt: serverTimestamp()
                 });
-                setStatus(`Alerta creada. El overlay la mostrará en breve.`);
+                setStatus('✅ Alerta creada');
+                assetFileInput.value = '';
+                soundFileInput.value = '';
+                fileInfoSpan.style.display = 'none';
+                soundInfoSpan.style.display = 'none';
             } catch (error) {
-                console.error(error);
-                setStatus('Error al crear la alerta. Revisa la consola.', false);
+                setStatus('Error: ' + error.message, false);
             }
         };
 
-        // Genera y actualiza el link del overlay que se usa en OBS.
         const updateOverlayLink = () => {
             const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
             const url = canal ? `${window.location.origin}/html/overlay.html?canal=${canal}` : `${window.location.origin}/html/overlay.html`;
             overlayLinkInput.value = url;
-            return url;
         };
 
         onAuthStateChanged(auth, (user) => {
-            const twitchChannel = getTwitchChannel();
-
-            if (twitchChannel) {
-                canalInput.value = twitchChannel;
-                setCanalReadonly(true);
-            } else {
-                canalInput.value = '';
-                setCanalReadonly(false);
+            if (getTwitchChannel()) {
+                canalInput.value = getTwitchChannel();
+                canalInput.readOnly = true;
             }
-
             updateOverlayLink();
         });
 
-        canalInput.addEventListener('input', updateOverlayLink);
-        openOverlay.addEventListener('click', () => window.open(updateOverlayLink(), '_blank'));
+        createButton.addEventListener('click', () => createAlert(tipoSelect.value));
         copyOverlay.addEventListener('click', () => {
             overlayLinkInput.select();
             document.execCommand('copy');
-            setStatus('Link del overlay copiado al portapapeles.');
+            setStatus('Link copiado');
         });
-
+        openOverlay.addEventListener('click', () => window.open(updateOverlayLink(), '_blank'));
         sampleImage.addEventListener('click', () => {
             tipoSelect.value = 'image';
             assetInput.value = sampleAssets.image;
             textInput.value = 'Prueba de imagen';
-            createAlert('image', sampleAssets.image, 'Prueba de imagen');
+            updatePreview();
+            updateMediaPreview();
+            createAlert('image', sampleAssets.image, 'Prueba');
         });
-
         sampleVideo.addEventListener('click', () => {
             tipoSelect.value = 'video';
             assetInput.value = sampleAssets.video;
             textInput.value = 'Prueba de video';
-            createAlert('video', sampleAssets.video, 'Prueba de video');
+            updatePreview();
+            updateMediaPreview();
+            createAlert('video', sampleAssets.video, 'Prueba');
         });
+        canalInput.addEventListener('input', updateOverlayLink);
 
-        sampleSound.addEventListener('click', () => {
-            tipoSelect.value = 'sound';
-            assetInput.value = sampleAssets.sound;
-            textInput.value = 'Prueba de sonido';
-            createAlert('sound', sampleAssets.sound, 'Prueba de sonido');
-        });
-
-        createButton.addEventListener('click', async () => {
-            const type = tipoSelect.value;
-            await createAlert(type);
-            // Limpiar archivo subido después de crear la alerta
-            assetFileInput.value = '';
-            fileInfoSpan.style.display = 'none';
-            uploadedFileUrl = '';
-        });
+        cargarFuentesDeGoogle();
+        updatePreview();
     </script>
 </body>
 </html>
