@@ -417,6 +417,21 @@
         if (twitchChannel) {
             canalInput.value = twitchChannel;
             setCanalReadonly(true);
+            // Carga configuración guardada para este canal Twitch
+            try {
+                const docRef = doc(db, 'usuarios', twitchChannel);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    inputColor.value = data.color || '#9147ff';
+                    selectFuente.value = data.fuente || 'Poppins';
+                    animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
+                    animacionEstiloSelect.value = data.animacionEstilo || 'slide';
+                }
+            } catch (e) {
+                console.warn('No se pudo cargar config de canal Twitch:', e);
+            }
+            loadFont(selectFuente.value);
             renderPreview();
             return;
         }
@@ -443,6 +458,16 @@
                 await setDoc(doc(db, 'usuarios', usuarioActual.uid), {
                     uid: usuarioActual.uid,
                     email: usuarioActual.email || '',
+                    canal,
+                    color,
+                    fuente,
+                    animacionDireccion: animacionDireccionSelect.value,
+                    animacionEstilo: animacionEstiloSelect.value,
+                    ultima_actualizacion: new Date()
+                });
+            } else if (canal) {
+                // Usuario logueado con Twitch: guarda con el canal como ID del doc
+                await setDoc(doc(db, 'usuarios', canal), {
                     canal,
                     color,
                     fuente,
