@@ -127,6 +127,50 @@
             margin: 0;
         }
 
+        .effects-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .effect-btn {
+            padding: 8px 14px;
+            border: 2px solid rgba(145, 71, 255, 0.4);
+            border-radius: 8px;
+            background: #120f25;
+            color: #bdb9ff;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .effect-btn span {
+            display: inline-block;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .effect-btn:hover {
+            border-color: #9147ff;
+            background: rgba(145, 71, 255, 0.1);
+        }
+
+        .effect-btn.active {
+            background: #9147ff;
+            color: white;
+            border-color: #9147ff;
+            box-shadow: 0 0 12px rgba(145, 71, 255, 0.5);
+        }
+
+        .effect-btn.active span {
+            opacity: 1;
+        }
+
         .range-value {
             display: inline-block;
             margin-left: 8px;
@@ -173,6 +217,30 @@
             text-align: center;
             max-width: 100%;
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-content.position-top {
+            flex-direction: column;
+        }
+
+        .alert-content.position-center {
+            flex-direction: column;
+        }
+
+        .alert-content.position-bottom {
+            flex-direction: column-reverse;
+        }
+
+        .alert-content.position-left {
+            flex-direction: row;
+        }
+
+        .alert-content.position-right {
+            flex-direction: row-reverse;
         }
 
         .alert-media {
@@ -280,21 +348,29 @@
                 </div>
 
                 <div class="field-group">
-                    <label>Efectos</label>
-                    <div class="checkbox-group">
-                        <div class="checkbox-item">
-                            <input id="effectVibrate" type="checkbox" />
-                            <label for="effectVibrate">Vibrar</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input id="effectBounce" type="checkbox" />
-                            <label for="effectBounce">Rebotar</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input id="effectZoom" type="checkbox" />
-                            <label for="effectZoom">Zoom</label>
-                        </div>
+                    <label>Efectos (selecciona múltiples)</label>
+                    <div class="effects-buttons">
+                        <button type="button" class="effect-btn" data-effect="vibrate">
+                            <span>✓</span> Vibrar
+                        </button>
+                        <button type="button" class="effect-btn" data-effect="bounce">
+                            <span>✓</span> Rebotar
+                        </button>
+                        <button type="button" class="effect-btn" data-effect="zoom">
+                            <span>✓</span> Zoom
+                        </button>
                     </div>
+                </div>
+
+                <div class="field-group">
+                    <label>Posición de la imagen</label>
+                    <select id="mediaPosition">
+                        <option value="top">Arriba</option>
+                        <option value="center" selected>Centro</option>
+                        <option value="bottom">Abajo</option>
+                        <option value="left">Izquierda</option>
+                        <option value="right">Derecha</option>
+                    </select>
                 </div>
 
                 <div class="field-group">
@@ -365,6 +441,11 @@
 
         let uploadedFileUrl = '';
         let uploadedSoundUrl = '';
+        let activeEffects = {
+            vibrate: false,
+            bounce: false,
+            zoom: false
+        };
 
         // DOM
         const canalInput = document.getElementById('canal');
@@ -379,10 +460,9 @@
         const fontSizeInput = document.getElementById('fontSize');
         const sizeValue = document.getElementById('sizeValue');
         const textColorInput = document.getElementById('textColor');
-        const effectVibrate = document.getElementById('effectVibrate');
-        const effectBounce = document.getElementById('effectBounce');
-        const effectZoom = document.getElementById('effectZoom');
         const durationInput = document.getElementById('duration');
+        const mediaPositionSelect = document.getElementById('mediaPosition');
+        const effectBtns = document.querySelectorAll('.effect-btn');
         const createButton = document.getElementById('createButton');
         const statusBox = document.getElementById('status');
         const overlayLinkInput = document.getElementById('overlayLink');
@@ -447,11 +527,13 @@
         // Actualizar preview
         const updatePreview = () => {
             const effects = [];
-            if (effectVibrate.checked) effects.push('effect-vibrate');
-            if (effectBounce.checked) effects.push('effect-bounce');
-            if (effectZoom.checked) effects.push('effect-zoom');
+            if (activeEffects.vibrate) effects.push('effect-vibrate');
+            if (activeEffects.bounce) effects.push('effect-bounce');
+            if (activeEffects.zoom) effects.push('effect-zoom');
 
+            const position = mediaPositionSelect.value;
             alertPreview.className = effects.join(' ');
+            alertPreview.querySelector('.alert-content').className = `alert-content position-${position}`;
             previewText.textContent = textInput.value || 'Texto de la alerta';
             previewText.style.fontSize = fontSizeInput.value + 'px';
             previewText.style.fontFamily = `'${fuenteSelect.value}', sans-serif`;
@@ -534,6 +616,17 @@
         // Listeners
         assetFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], false));
         soundFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], true));
+        // Listeners para efectos (botones)
+        effectBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const effect = btn.dataset.effect;
+                activeEffects[effect] = !activeEffects[effect];
+                btn.classList.toggle('active');
+                updatePreview();
+            });
+        });
+
         fontSizeInput.addEventListener('input', () => {
             sizeValue.textContent = fontSizeInput.value + 'px';
             updatePreview();
@@ -541,9 +634,7 @@
         fuenteSelect.addEventListener('change', updatePreview);
         textColorInput.addEventListener('input', updatePreview);
         textInput.addEventListener('input', updatePreview);
-        effectVibrate.addEventListener('change', updatePreview);
-        effectBounce.addEventListener('change', updatePreview);
-        effectZoom.addEventListener('change', updatePreview);
+        mediaPositionSelect.addEventListener('change', updatePreview);
         tipoSelect.addEventListener('change', updateMediaPreview);
         assetInput.addEventListener('input', updateMediaPreview);
 
@@ -571,10 +662,11 @@
                     fuente: fuenteSelect.value,
                     fontSize: parseInt(fontSizeInput.value),
                     textColor: textColorInput.value,
+                    mediaPosition: mediaPositionSelect.value,
                     effects: {
-                        vibrate: effectVibrate.checked,
-                        bounce: effectBounce.checked,
-                        zoom: effectZoom.checked
+                        vibrate: activeEffects.vibrate,
+                        bounce: activeEffects.bounce,
+                        zoom: activeEffects.zoom
                     },
                     duration: parseInt(durationInput.value),
                     status: 'pending',
