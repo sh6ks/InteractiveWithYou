@@ -140,44 +140,49 @@
 
             socket.addEventListener('message', (event) => {
                 const data = event.data;
-                console.debug('Twitch IRC:', data);
+                console.debug('Twitch IRC chunk:', data);
 
-                if (data.startsWith('PING')) {
-                    socket.send(data.replace('PING', 'PONG'));
-                    console.debug('Respondido PONG');
-                    return;
-                }
+                const lines = data.split(/\r?\n/).filter(line => line.trim().length > 0);
+                lines.forEach((line) => {
+                    console.debug('Twitch IRC line:', line);
 
-                const messageMatch = data.match(/^(?:@([^ ]+) )?:([^ ]+) PRIVMSG #[^ ]+ :(.*)$/);
-                if (!messageMatch) return;
+                    if (line.startsWith('PING')) {
+                        socket.send(line.replace('PING', 'PONG'));
+                        console.debug('Respondido PONG');
+                        return;
+                    }
 
-                if (firstRealMessage) {
-                    document.querySelectorAll('.ejemplo').forEach(el => el.remove());
-                    firstRealMessage = false;
-                    setStatus(`Recibiendo chat real de #${canal}`, 'info');
-                }
+                    const messageMatch = line.match(/^(?:@([^ ]+) )?:([^ ]+) PRIVMSG #[^ ]+ :(.*)$/);
+                    if (!messageMatch) return;
 
-                const rawTags = messageMatch[1] || '';
-                const userPrefix = messageMatch[2] || '';
-                const mensajeRaw = messageMatch[3] || '';
+                    if (firstRealMessage) {
+                        document.querySelectorAll('.ejemplo').forEach(el => el.remove());
+                        firstRealMessage = false;
+                        setStatus(`Recibiendo chat real de #${canal}`, 'info');
+                    }
 
-                const tags = rawTags.split(';').reduce((acc, part) => {
-                    const [key, value] = part.split('=');
-                    if (key) acc[key] = value || '';
-                    return acc;
-                }, {});
+                    const rawTags = messageMatch[1] || '';
+                    const userPrefix = messageMatch[2] || '';
+                    const mensajeRaw = messageMatch[3] || '';
 
-                const usuario = tags['display-name'] || tags['login'] || userPrefix.split('!')[0] || 'anon';
-                const colorTwitch = tags['color'] || colorBorde;
-                const contenedor = document.getElementById('chat');
-                const div = document.createElement('div');
-                const direction = animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
-                const estilo = animacionEstilo || 'slide';
-                div.className = `mensaje ${direction} ${estilo}`;
-                div.style.borderLeft = `5px solid ${colorBorde}`;
-                div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
-                contenedor.appendChild(div);
-                setTimeout(() => div.remove(), 10000);
+                    const tags = rawTags.split(';').reduce((acc, part) => {
+                        const [key, value] = part.split('=');
+                        if (key) acc[key] = value || '';
+                        return acc;
+                    }, {});
+
+                    const usuario = tags['display-name'] || tags['login'] || userPrefix.split('!')[0] || 'anon';
+                    const colorTwitch = tags['color'] || colorBorde;
+                    const contenedor = document.getElementById('chat');
+                    const div = document.createElement('div');
+                    const direction = animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
+                    const estilo = animacionEstilo || 'slide';
+                    div.className = `mensaje ${direction} ${estilo}`;
+                    div.style.borderLeft = `5px solid ${colorBorde}`;
+                    div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
+                    contenedor.appendChild(div);
+                    setTimeout(() => div.remove(), 10000);
+                });
             });
 
             socket.addEventListener('error', (err) => {
