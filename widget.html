@@ -12,7 +12,16 @@
     <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
 </head>
 <body>
-    <div id="chat"></div>
+    <div id="widget-shell">
+        <div class="widget-header">
+            <div>
+                <span class="widget-title">Chat de Twitch</span>
+                <span class="widget-note">Vista previa y mensajes reales</span>
+            </div>
+            <span id="chat-status" class="chat-status">Cargando preview...</span>
+        </div>
+        <div id="chat"></div>
+    </div>
 
     <script type="module">
         // Script del widget: carga configuración desde Firestore y se conecta al chat de Twitch.
@@ -68,6 +77,35 @@
             }); // <-- Aquí cerramos WebFont correctamente
         }
 
+        const previewSamples = [
+            { usuario: 'StreamBot', mensaje: '¡Bienvenidos al live!', color: '#55c2ff' },
+            { usuario: 'Gamer123', mensaje: '¿Listos para el desafío?', color: '#ffbe59' },
+            { usuario: 'ViewerGirl', mensaje: 'Me encanta ese overlay ✨', color: '#62ff8a' },
+            { usuario: 'Mod', mensaje: 'No olviden seguir y activar campana.', color: '#ff7b9a' }
+        ];
+
+        const statusElement = document.getElementById('chat-status');
+        let firstRealMessage = true;
+
+        function mostrarEjemplos(texto) {
+            const contenedor = document.getElementById('chat');
+            const now = Date.now();
+            contenedor.innerHTML = '';
+            statusElement.innerText = texto;
+
+            previewSamples.forEach((item, index) => {
+                const div = document.createElement('div');
+                const effect = ['from-top', 'from-bottom', 'from-left'][index % 3];
+                div.className = `mensaje ${effect} ejemplo`;
+                div.style.borderLeft = `5px solid ${item.color}`;
+                div.innerHTML = `<span style="color:${item.color}; font-weight:bold;">${item.usuario}:</span> ${item.mensaje}`;
+                contenedor.appendChild(div);
+                setTimeout(() => {
+                    if (div.parentElement) div.remove();
+                }, 9000 + index * 700);
+            });
+        }
+
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
         function conectarTwitch(canal, colorBorde) {
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
@@ -77,21 +115,25 @@
                 socket.send('NICK justinfan' + Math.floor(Math.random() * 10000));
                 socket.send('JOIN #' + canal);
                 console.log("Conectado al chat de:", canal);
+                statusElement.innerText = `Conectado a #${canal}`;
             };
 
             socket.onmessage = (event) => {
                 const data = event.data;
                 if (data.includes('PRIVMSG')) {
+                    if (firstRealMessage) {
+                        document.querySelectorAll('.ejemplo').forEach(el => el.remove());
+                        firstRealMessage = false;
+                    }
                     const usuario = data.split('display-name=')[1].split(';')[0];
                     const colorTwitch = data.split('color=')[1].split(';')[0] || colorBorde;
                     const mensajeRaw = data.split(`PRIVMSG #${canal} :`)[1];
-                    
                     const contenedor = document.getElementById('chat');
                     const div = document.createElement('div');
-                    div.className = 'mensaje';
+                    const effect = ['from-top', 'from-bottom', 'from-left'][Math.floor(Math.random() * 3)];
+                    div.className = `mensaje ${effect}`;
                     div.style.borderLeft = `5px solid ${colorBorde}`;
                     div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
-                    
                     contenedor.appendChild(div);
                     setTimeout(() => div.remove(), 10000);
                 }
@@ -99,7 +141,13 @@
             };
         }
 
-        iniciarWidget();
+        if (!canalSolicitado) {
+            mostrarEjemplos('Vista previa del widget. Agrega ?canal=tuCanal');
+        } else {
+            mostrarEjemplos(`Conectando al chat de ${canalSolicitado}...`);
+            iniciarWidget();
+        }
+        
     </script>
 </body>
 </html>

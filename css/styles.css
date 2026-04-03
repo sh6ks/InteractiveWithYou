@@ -38,6 +38,18 @@ body {
     word-wrap: break-word; 
 }
 
+.mensaje.from-top {
+    animation-name: aparecerDesdeArriba;
+}
+
+.mensaje.from-bottom {
+    animation-name: aparecerDesdeAbajo;
+}
+
+.mensaje.from-left {
+    animation-name: aparecerDesdeIzquierda;
+}
+
 @keyframes aparecer {
     from { 
         opacity: 0; 
@@ -46,5 +58,38 @@ body {
     to { 
         opacity: 1; 
         transform: translateX(0); 
+    }
+}
+
+@keyframes aparecerDesdeArriba {
+    from {
+        opacity: 0;
+        transform: translateY(-24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes aparecerDesdeAbajo {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes aparecerDesdeIzquierda {
+    from {
+        opacity: 0;
+        transform: translateX(-28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
     }
 }

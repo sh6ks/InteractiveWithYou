@@ -89,6 +89,101 @@
         animation: fadeIn 0.5s ease;
     }
 
+    .layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 430px) minmax(320px, 1fr);
+        gap: 30px;
+        width: min(100%, 1120px);
+        margin: 0 auto;
+        align-items: start;
+    }
+
+    .preview-card {
+        background: #1d1b31;
+        padding: 30px;
+        border-radius: 15px;
+        border: 1px solid #333;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+        border-left: 5px solid #9147ff;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .preview-header h3 {
+        margin: 0 0 6px;
+        color: #a970ff;
+    }
+
+    .preview-header p {
+        margin: 0;
+        color: #adadb8;
+        font-size: 0.95rem;
+    }
+
+    .preview-chat {
+        background: rgba(255,255,255,0.04);
+        border-radius: 18px;
+        min-height: 340px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 14px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .preview-chat::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 35%);
+        pointer-events: none;
+    }
+
+    .preview-message {
+        position: relative;
+        background: rgba(0, 0, 0, 0.75);
+        border-left: 5px solid #9147ff;
+        padding: 14px 18px;
+        border-radius: 0 18px 18px 0;
+        color: #fff;
+        font-size: 0.95rem;
+        line-height: 1.35;
+        box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+        opacity: 0;
+        animation: apareceDesdeAbajo 0.6s ease forwards;
+    }
+
+    .preview-message.from-top { animation-name: apareceDesdeArriba; }
+    .preview-message.from-bottom { animation-name: apareceDesdeAbajo; }
+    .preview-message.from-left { animation-name: apareceDesdeIzquierda; }
+
+    .preview-footer {
+        color: #c9c9d0;
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    @keyframes apareceDesdeArriba {
+        from { opacity: 0; transform: translateY(-24px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes apareceDesdeAbajo {
+        from { opacity: 0; transform: translateY(24px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes apareceDesdeIzquierda {
+        from { opacity: 0; transform: translateX(-28px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    @media (max-width: 900px) {
+        body { padding: 30px; }
+        .layout { grid-template-columns: 1fr; }
+    }
+
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -98,7 +193,8 @@
 <body>
 <!-- Formulario de configuración del widget y resultado del enlace generado -->
 
-<div class="card">
+<div class="layout">
+    <div class="card">
     <h2>InteractiveWithYou</h2>
     <p>Configurá tu widget de chat</p>
     
@@ -121,6 +217,16 @@
         Copiar Link
     </button>
 </div>
+</div>
+
+    <div class="preview-card">
+        <div class="preview-header">
+            <h3>Vista previa del chat</h3>
+            <p>Así se verá tu widget cuando se conecte al canal.</p>
+        </div>
+        <div class="preview-chat" id="chatPreview"></div>
+        <div class="preview-footer">Los mensajes aparecen con efectos deslizantes desde arriba, abajo o desde la izquierda.</div>
+    </div>
 </div>
 
 <script type="module">
@@ -283,6 +389,40 @@
         document.getElementById('resultado').style.display = 'none';
         // Aplicar la fuente también al select para ver el preview
         selectFuente.style.fontFamily = `'${selectFuente.value}', sans-serif`;
+        renderPreview();
+    });
+
+    const previewChat = document.getElementById('chatPreview');
+    const sampleMessages = [
+        { usuario: 'StreamBot', mensaje: '¡Bienvenidos al stream!', color: '#55c2ff' },
+        { usuario: 'Gamer123', mensaje: '¿Qué vamos a hacer hoy?', color: '#ffb300' },
+        { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86' },
+        { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d' }
+    ];
+
+    function renderPreview() {
+        const color = document.getElementById('color').value;
+        const fuente = document.getElementById('fuente').value || 'Poppins';
+        previewChat.innerHTML = '';
+        previewChat.style.fontFamily = `'${fuente}', sans-serif`;
+
+        sampleMessages.forEach((item, index) => {
+            const div = document.createElement('div');
+            const effect = ['from-top', 'from-bottom', 'from-left'][index % 3];
+            div.className = `preview-message ${effect}`;
+            div.style.borderLeftColor = color;
+            div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
+            previewChat.appendChild(div);
+        });
+    }
+
+    renderPreview();
+
+    [document.getElementById('canal'), inputColor, selectFuente].forEach(el => {
+        el.addEventListener('input', () => {
+            document.getElementById('resultado').style.display = 'none';
+            renderPreview();
+        });
     });
 </script>
 
