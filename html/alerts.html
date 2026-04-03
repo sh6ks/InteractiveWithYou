@@ -197,10 +197,10 @@
 
     <script type="module">
         // Script de alertas: crea alertas en vivo y guarda datos en Firestore.
+        // Archivos se suben a Cloudinary.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -214,7 +214,10 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const storage = getStorage(app);
+
+        // Configuración de Cloudinary
+        const CLOUDINARY_CLOUD_NAME = 'dbzcmpwrn';
+        const CLOUDINARY_UPLOAD_PRESET = 'alerts_preset';
 
         const canalInput = document.getElementById('canal');
         const tipoSelect = document.getElementById('tipo');
@@ -279,7 +282,7 @@
             statusBox.innerText = message;
         };
 
-        // Maneja la subida de archivos a Firebase Storage.
+        // Maneja la subida de archivos a Cloudinary.
         const handleFileUpload = async (file) => {
             if (!file) {
                 fileInfoSpan.style.display = 'none';
@@ -304,17 +307,26 @@
             fileInfoSpan.style.display = 'block';
 
             try {
-                const sessionName = auth.currentUser?.uid || getTwitchChannel();
-                const timestamp = Date.now();
-                const fileName = `${sessionName}-${timestamp}-${file.name}`;
-                const storageRef = ref(storage, `alerts/${fileName}`);
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+                formData.append('public_id', `alerts/${Date.now()}-${file.name}`);
 
-                await uploadBytes(storageRef, file);
-                uploadedFileUrl = await getDownloadURL(storageRef);
+                const response = await fetch(
+                    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+                    { method: 'POST', body: formData }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`Error Cloudinary: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                uploadedFileUrl = data.secure_url;
 
                 assetInput.value = uploadedFileUrl;
                 fileInfoSpan.style.color = '#4ade80';
-                fileInfoSpan.textContent = `✅ File subido: ${file.name} (${formatFileSize(file.size)})`;
+                fileInfoSpan.textContent = `✅ Archivo subido: ${file.name} (${formatFileSize(file.size)})`;
             } catch (error) {
                 console.error('Error al subir archivo:', error);
                 fileInfoSpan.style.color = '#ff6464';
