@@ -61,6 +61,17 @@
                     setStatus(`Sin config personalizada para #${canalSolicitado}, usando valores por defecto`, 'warning');
                 }
 
+                const twitchClientId = config.twitchClientId || urlParams.get('client_id') || '9cac6zpfterkbzigfr28hpil7se9y3';
+                const twitchAccessToken = config.twitchAccessToken || urlParams.get('access_token') || 'j09j0n1xcu9m7d7wf4p136amhp2u67';
+                let twitchAssets = null;
+                if (twitchClientId && twitchAccessToken) {
+                    try {
+                        twitchAssets = await fetchTwitchChannelAssets(canalSolicitado, twitchClientId, twitchAccessToken);
+                    } catch (err) {
+                        console.warn('No se pudieron cargar assets de Twitch API:', err);
+                    }
+                }
+
                 // Cargamos la fuente y RECIÉN AHÍ conectamos al chat
                 WebFont.load({
                     google: {
@@ -69,12 +80,12 @@
                     active: function() {
                         console.log("Fuente cargada con éxito:", config.fuente);
                         document.body.style.fontFamily = config.fuente;
-                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
+                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, twitchAssets);
                     },
                     inactive: function() {
                         console.log("No se pudo cargar la fuente, usando fallback.");
                         document.body.style.fontFamily = "sans-serif";
-                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
+                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, twitchAssets);
                     }
                 });
             } catch (error) {
@@ -97,26 +108,81 @@
             // Placeholder para mantener compatibilidad con el código anterior.
         }
 
-        function buildBadgeIcons(tags) {
-            const badgeMap = {
-                broadcaster: '📣',
-                moderator: '🛡️',
-                vip: '💎',
-                subscriber: '⭐',
-                founder: '👑',
-                premium: '💎',
-                staff: '🏳️',
-                admin: '🧑‍💼',
-                global_mod: '🌍',
-                turbo: '⚡',
-                bits: '✨'
+        function getTwitchHeaders(clientId, token) {
+            return {
+                'Client-ID': clientId,
+                'Authorization': `Bearer ${token}`
             };
+        }
+
+        async function fetchTwitchChannelAssets(canal, clientId, token) {
+            const headers = getTwitchHeaders(clientId, token);
+            const userResponse = await fetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(canal)}`, { headers });
+            if (!userResponse.ok) {
+                throw new Error(`Error al obtener usuario Twitch: ${userResponse.status}`);
+            }
+            const userData = await userResponse.json();
+            const user = userData.data?.[0];
+            if (!user) {
+                throw new Error('Usuario Twitch no encontrado');
+            }
+
+            const badgeResponse = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${user.id}`, { headers });
+            if (!badgeResponse.ok) {
+                throw new Error(`Error al obtener badges Twitch: ${badgeResponse.status}`);
+            }
+            const badgeData = await badgeResponse.json();
+            const badgeSets = {};
+            badgeData.data?.forEach(set => {
+                badgeSets[set.set_id] = set.versions || {};
+            });
+
+            return {
+                profileImageUrl: user.profile_image_url,
+                displayName: user.display_name,
+                badgeSets
+            };
+        }
+
+        function isBotUser(login) {
+            const normalized = (login || '').toLowerCase();
+            const botNames = [
+                'nightbot', 'moobot', 'streamelements', 'streamlabs', 'deepbot', 'phantombot',
+                'ankhbot', 'wizebot', 'bouncer', 'streamlabsbot', 'nightbottt', 'moobottt'
+            ];
+            return botNames.includes(normalized) || normalized.endsWith('bot');
+        }
+
+        function buildChannelAvatar(twitchAssets) {
+            if (!twitchAssets?.profileImageUrl) return '';
+            return `<span class="message-avatar"><img src="${twitchAssets.profileImageUrl}" alt="Channel avatar" loading="lazy"></span>`;
+        }
+
+        function buildBadgeIcons(tags, badgeSets) {
             const badgeString = tags['badges'] || tags['badge-info'] || tags['badges-raw'] || '';
             if (!badgeString) return '';
+
             return badgeString.split(',').map(entry => {
-                const [key, value] = entry.split('/');
+                const [key, version] = entry.split('/');
+                const badgeVersion = badgeSets?.[key]?.[version];
+                if (badgeVersion && badgeVersion.image_url_1x) {
+                    return `<span class="badge-icon badge-${key}" title="${key} ${version}"><img src="${badgeVersion.image_url_1x}" alt="${key}" loading="lazy"></span>`;
+                }
+                const badgeMap = {
+                    broadcaster: '📣',
+                    moderator: '🛡️',
+                    vip: '💎',
+                    subscriber: 'SUB',
+                    founder: '👑',
+                    premium: '💎',
+                    staff: '🏳️',
+                    admin: '🧑‍💼',
+                    global_mod: '🌍',
+                    turbo: '⚡',
+                    bits: '✨'
+                };
                 const icon = badgeMap[key] || '🔰';
-                return `<span class="badge-icon" title="${key}${value ? ` ${value}` : ''}">${icon}</span>`;
+                return `<span class="badge-icon badge-${key}" title="${key}${version ? ` ${version}` : ''}">${icon}</span>`;
             }).join(' ');
         }
 
@@ -138,7 +204,7 @@
         }
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
-        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide') {
+        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', twitchAssets = null) {
             setStatus(`Conectando al chat de #${canal}...`, 'info');
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
 
@@ -184,16 +250,20 @@
                         return acc;
                     }, {});
 
-                    const usuario = tags['display-name'] || tags['login'] || userPrefix.split('!')[0] || 'anon';
+                    const login = tags['login'] || userPrefix.split('!')[0] || 'anon';
+                    if (isBotUser(login)) return;
+
+                    const usuario = tags['display-name'] || login;
                     const colorTwitch = tags['color'] || colorBorde;
-                    const badgesHtml = buildBadgeIcons(tags);
+                    const avatarHtml = buildChannelAvatar(twitchAssets);
+                    const badgesHtml = buildBadgeIcons(tags, twitchAssets?.badgeSets);
                     const contenedor = document.getElementById('chat');
                     const div = document.createElement('div');
                     const direction = animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
                     const estilo = animacionEstilo || 'slide';
                     div.className = `mensaje ${direction} ${estilo}`;
                     div.style.borderLeft = `5px solid ${colorBorde}`;
-                    div.innerHTML = `${badgesHtml}<span style="color:${colorTwitch}; font-weight:bold;"> ${usuario}:</span> ${mensajeRaw}`;
+                    div.innerHTML = `${avatarHtml}${badgesHtml}<span style="color:${colorTwitch}; font-weight:bold;"> ${usuario}:</span> ${mensajeRaw}`;
                     contenedor.appendChild(div);
                     setTimeout(() => div.remove(), 10000);
                 });
