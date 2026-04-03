@@ -33,6 +33,129 @@
         h1 { margin: 0 0 18px; font-size: 2rem; color: #d9d7ff; }
         p { color: #adadb8; font-size: 0.9rem; margin-top: 0; }
 
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(145, 71, 255, 0.2);
+        }
+
+        .tab-btn {
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #bdb9ff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: #d9d7ff;
+        }
+
+        .tab-btn.active {
+            color: #9147ff;
+            border-bottom-color: #9147ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .alerts-list {
+            display: grid;
+            gap: 12px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            background: rgba(145, 71, 255, 0.05);
+            border: 1px solid rgba(145, 71, 255, 0.2);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .alert-item:hover {
+            background: rgba(145, 71, 255, 0.1);
+            border-color: rgba(145, 71, 255, 0.4);
+        }
+
+        .alert-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .alert-item-title {
+            font-weight: 600;
+            color: #d9d7ff;
+            word-break: break-word;
+            font-size: 0.95rem;
+        }
+
+        .alert-item-meta {
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .alert-item-actions {
+            display: flex;
+            gap: 6px;
+            margin-left: 12px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            background: #9147ff;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #772ce8;
+        }
+
+        .btn-delete {
+            background: #e63946;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #d62828;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
         .container-main {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -293,7 +416,13 @@
         <h1>Alertas en vivo</h1>
         <p>Diseña alertas personalizadas con fuentes, efectos y sonidos</p>
 
-        <div class="container-main">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="crear">Crear alerta</button>
+            <button class="tab-btn" data-tab="mis-alertas">Mis alertas</button>
+        </div>
+
+        <!-- TAB: Crear alerta -->
+        <div id="crear" class="tab-content active">
             <!-- Formulario -->
             <div>
                 <div class="field-group">
@@ -379,6 +508,7 @@
                 </div>
 
                 <button class="btn-primary" id="createButton">Crear alerta</button>
+                <button class="btn-secondary" id="newAlertButton" style="display: none;">Nueva alerta</button>
                 <button class="btn-secondary" id="sampleImage">Prueba: Imagen</button>
                 <button class="btn-secondary" id="sampleVideo">Prueba: Video</button>
             </div>
@@ -414,11 +544,24 @@
                 <div id="status" class="info-box" style="display: none;"></div>
             </div>
         </div>
+        </div>
+        <!-- FIN TAB: Crear alerta -->
+
+        <!-- TAB: Mis alertas -->
+        <div id="mis-alertas" class="tab-content">
+            <div id="alertsContainer" class="alerts-list">
+                <div class="empty-state">
+                    <p>No tienes alertas guardadas</p>
+                    <p style="font-size: 0.85rem;">Crea una nueva alerta para que aparezca aquí</p>
+                </div>
+            </div>
+        </div>
+        <!-- FIN TAB: Mis alertas -->
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -470,6 +613,7 @@
         const openOverlay = document.getElementById('openOverlay');
         const sampleImage = document.getElementById('sampleImage');
         const sampleVideo = document.getElementById('sampleVideo');
+        const newAlertButton = document.getElementById('newAlertButton');
 
         // Preview
         const alertPreview = document.getElementById('alertPreview');
@@ -496,6 +640,133 @@
             statusBox.style.display = 'block';
             statusBox.style.borderColor = success ? 'rgba(0,255,153,0.3)' : 'rgba(255,99,132,0.3)';
             statusBox.innerText = message;
+        };
+
+        // Variables globales para alertas guardadas
+        let currentEditingAlertId = null;
+        const alertsContainer = document.getElementById('alertsContainer');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // Sistema de tabs
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
+                
+                if (tabName === 'mis-alertas') {
+                    loadMyAlerts();
+                }
+            });
+        });
+
+        // Cargar mis alertas
+        async function loadMyAlerts() {
+            const user = auth.currentUser;
+            if (!user && !getTwitchChannel()) {
+                alertsContainer.innerHTML = '<div class="empty-state"><p>Inicia sesión para ver tus alertas</p></div>';
+                return;
+            }
+
+            const canal = getTwitchChannel() || user?.displayName?.toLowerCase();
+            
+            try {
+                const q = query(collection(db, 'liveAlerts'), where('canal', '==', canal));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    alertsContainer.innerHTML = '<div class="empty-state"><p>No tienes alertas guardadas</p><p style="font-size: 0.85rem;">Crea una nueva alerta para que aparezca aquí</p></div>';
+                    return;
+                }
+
+                alertsContainer.innerHTML = '';
+                querySnapshot.forEach(docSnap => {
+                    const alert = docSnap.data();
+                    const alertId = docSnap.id;
+                    const alertEl = document.createElement('div');
+                    alertEl.className = 'alert-item';
+                    alertEl.innerHTML = `
+                        <div class="alert-item-info">
+                            <div class="alert-item-title">${alert.text || 'Alerta sin título'}</div>
+                            <div class="alert-item-meta">Tipo: ${alert.type} | Duración: ${alert.duration}s | Fuente: ${alert.fuente || 'Por defecto'}</div>
+                        </div>
+                        <div class="alert-item-actions">
+                            <button class="btn-small btn-edit" onclick="editAlert('${alertId}')">Editar</button>
+                            <button class="btn-small btn-delete" onclick="deleteAlert('${alertId}')">Eliminar</button>
+                        </div>
+                    `;
+                    alertsContainer.appendChild(alertEl);
+                });
+            } catch (error) {
+                console.error('Error al cargar alertas:', error);
+                alertsContainer.innerHTML = '<div class="empty-state"><p>Error al cargar alertas</p></div>';
+            }
+        }
+
+        // Editar alerta
+        window.editAlert = async (alertId) => {
+            try {
+                const docSnap = await getDocs(collection(db, 'liveAlerts'));
+                let alertData;
+                docSnap.forEach(doc => {
+                    if (doc.id === alertId) alertData = { ...doc.data(), id: doc.id };
+                });
+
+                if (!alertData) return;
+
+                currentEditingAlertId = alertId;
+                canalInput.value = alertData.canal;
+                tipoSelect.value = alertData.type;
+                assetInput.value = alertData.assetUrl;
+                textInput.value = alertData.text;
+                fuenteSelect.value = alertData.fuente || 'Roboto';
+                fontSizeInput.value = alertData.fontSize || 32;
+                sizeValue.textContent = (alertData.fontSize || 32) + 'px';
+                textColorInput.value = alertData.textColor || '#d9d7ff';
+                durationInput.value = alertData.duration || 8;
+                mediaPositionSelect.value = alertData.mediaPosition || 'center';
+
+                if (alertData.effects) {
+                    activeEffects = alertData.effects;
+                    effectBtns.forEach(btn => {
+                        const effect = btn.dataset.effect;
+                        if (activeEffects[effect]) {
+                            btn.classList.add('active');
+                        } else {
+                            btn.classList.remove('active');
+                        }
+                    });
+                }
+
+                previewMedia.src = alertData.assetUrl;
+                previewVideo.src = alertData.assetUrl;
+                updateMediaPreview();
+                updatePreview();
+
+                tabBtns[0].click();
+                createButton.textContent = 'Actualizar alerta';
+                newAlertButton.style.display = 'block';
+                setStatus('Alerta cargada para editar');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        };
+
+        // Eliminar alerta
+        window.deleteAlert = async (alertId) => {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta alerta?')) return;
+
+            try {
+                await deleteDoc(doc(db, 'liveAlerts', alertId));
+                setStatus('✅ Alerta eliminada');
+                loadMyAlerts();
+            } catch (error) {
+                console.error('Error:', error);
+                setStatus('Error al eliminar: ' + error.message, false);
+            }
         };
 
         // Cargar Google Fonts
@@ -638,7 +909,7 @@
         tipoSelect.addEventListener('change', updateMediaPreview);
         assetInput.addEventListener('input', updateMediaPreview);
 
-        // Crear alerta
+        // Crear o actualizar alerta
         const createAlert = async (type, assetUrl, text) => {
             if (!auth.currentUser && !getTwitchChannel()) {
                 alert('Tenés que iniciar sesión');
@@ -657,7 +928,7 @@
             }
 
             try {
-                await addDoc(collection(db, 'liveAlerts'), {
+                const alertData = {
                     canal, type, assetUrl: url, soundUrl, text: alertText,
                     fuente: fuenteSelect.value,
                     fontSize: parseInt(fontSizeInput.value),
@@ -670,13 +941,28 @@
                     },
                     duration: parseInt(durationInput.value),
                     status: 'pending',
-                    createdAt: serverTimestamp()
-                });
-                setStatus('✅ Alerta creada');
+                    updatedAt: serverTimestamp()
+                };
+
+                if (currentEditingAlertId) {
+                    // Actualizar alerta existente
+                    await updateDoc(doc(db, 'liveAlerts', currentEditingAlertId), alertData);
+                    setStatus('✅ Alerta actualizada');
+                    currentEditingAlertId = null;
+                    createButton.textContent = 'Crear alerta';
+                } else {
+                    // Crear nueva alerta
+                    alertData.createdAt = serverTimestamp();
+                    await addDoc(collection(db, 'liveAlerts'), alertData);
+                    setStatus('✅ Alerta creada');
+                }
+
                 assetFileInput.value = '';
                 soundFileInput.value = '';
                 fileInfoSpan.style.display = 'none';
                 soundInfoSpan.style.display = 'none';
+                uploadedFileUrl = '';
+                uploadedSoundUrl = '';
             } catch (error) {
                 setStatus('Error: ' + error.message, false);
             }
@@ -697,6 +983,33 @@
         });
 
         createButton.addEventListener('click', () => createAlert(tipoSelect.value));
+        newAlertButton.addEventListener('click', () => {
+            currentEditingAlertId = null;
+            createButton.textContent = 'Crear alerta';
+            newAlertButton.style.display = 'none';
+            canalInput.value = getTwitchChannel() || '';
+            tipoSelect.value = 'image';
+            assetInput.value = '';
+            assetFileInput.value = '';
+            soundFileInput.value = '';
+            textInput.value = '';
+            fuenteSelect.value = 'Roboto';
+            fontSizeInput.value = '32';
+            sizeValue.textContent = '32px';
+            textColorInput.value = '#d9d7ff';
+            durationInput.value = '8';
+            mediaPositionSelect.value = 'center';
+            activeEffects = { vibrate: false, bounce: false, zoom: false };
+            effectBtns.forEach(btn => btn.classList.remove('active'));
+            fileInfoSpan.style.display = 'none';
+            soundInfoSpan.style.display = 'none';
+            previewMedia.style.display = 'none';
+            previewVideo.style.display = 'none';
+            uploadedFileUrl = '';
+            uploadedSoundUrl = '';
+            updatePreview();
+            setStatus('Formulario limpiado');
+        });
         copyOverlay.addEventListener('click', () => {
             overlayLinkInput.select();
             document.execCommand('copy');
