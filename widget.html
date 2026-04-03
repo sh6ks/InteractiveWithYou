@@ -67,12 +67,12 @@
                 active: function() {
                     console.log("Fuente cargada con éxito:", config.fuente);
                     document.body.style.fontFamily = config.fuente;
-                    conectarTwitch(canalSolicitado, config.color);
+                    conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
                 },
                 inactive: function() {
                     console.log("No se pudo cargar la fuente, usando fallback.");
                     document.body.style.fontFamily = "sans-serif";
-                    conectarTwitch(canalSolicitado, config.color);
+                    conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo);
                 }
             }); // <-- Aquí cerramos WebFont correctamente
         }
@@ -87,11 +87,15 @@
         const statusElement = document.getElementById('chat-status');
         let firstRealMessage = true;
 
+        function setStatus(texto, tipo = 'info') {
+            statusElement.innerText = texto;
+            statusElement.className = `chat-status ${tipo}`;
+        }
+
         function mostrarEjemplos(texto) {
             const contenedor = document.getElementById('chat');
-            const now = Date.now();
             contenedor.innerHTML = '';
-            statusElement.innerText = texto;
+            setStatus(texto, 'info');
 
             previewSamples.forEach((item, index) => {
                 const div = document.createElement('div');
@@ -107,38 +111,60 @@
         }
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
-        function conectarTwitch(canal, colorBorde) {
+        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide') {
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
             socket.onopen = () => {
                 socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-                socket.send('PASS oauth:mypassword');
+                socket.send('PASS oauth:anonymous');
                 socket.send('NICK justinfan' + Math.floor(Math.random() * 10000));
                 socket.send('JOIN #' + canal);
                 console.log("Conectado al chat de:", canal);
-                statusElement.innerText = `Conectado a #${canal}`;
+                setStatus(`Conectado a #${canal}`, 'info');
             };
 
             socket.onmessage = (event) => {
                 const data = event.data;
-                if (data.includes('PRIVMSG')) {
-                    if (firstRealMessage) {
-                        document.querySelectorAll('.ejemplo').forEach(el => el.remove());
-                        firstRealMessage = false;
-                    }
-                    const usuario = data.split('display-name=')[1].split(';')[0];
-                    const colorTwitch = data.split('color=')[1].split(';')[0] || colorBorde;
-                    const mensajeRaw = data.split(`PRIVMSG #${canal} :`)[1];
-                    const contenedor = document.getElementById('chat');
-                    const div = document.createElement('div');
-                    const direction = config.animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
-                    const estilo = config.animacionEstilo || 'slide';
-                    div.className = `mensaje ${direction} ${estilo}`;
-                    div.style.borderLeft = `5px solid ${colorBorde}`;
-                    div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
-                    contenedor.appendChild(div);
-                    setTimeout(() => div.remove(), 10000);
+                if (data.startsWith('PING')) {
+                    socket.send('PONG');
+                    return;
                 }
-                if (data.startsWith('PING')) socket.send('PONG');
+
+                const messageMatch = data.match(/^@([^ ]+) PRIVMSG #[^ ]+ :(.*)$/);
+                if (!messageMatch) return;
+
+                if (firstRealMessage) {
+                    document.querySelectorAll('.ejemplo').forEach(el => el.remove());
+                    firstRealMessage = false;
+                }
+
+                const tags = messageMatch[1].split(';').reduce((acc, part) => {
+                    const [key, value] = part.split('=');
+                    acc[key] = value || '';
+                    return acc;
+                }, {});
+
+                const usuario = tags['display-name'] || tags['login'] || 'anon';
+                const colorTwitch = tags['color'] || colorBorde;
+                const mensajeRaw = messageMatch[2] || '';
+                const contenedor = document.getElementById('chat');
+                const div = document.createElement('div');
+                const direction = animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
+                const estilo = animacionEstilo || 'slide';
+                div.className = `mensaje ${direction} ${estilo}`;
+                div.style.borderLeft = `5px solid ${colorBorde}`;
+                div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
+                contenedor.appendChild(div);
+                setTimeout(() => div.remove(), 10000);
+            };
+
+            socket.onerror = (err) => {
+                console.error('Error WebSocket:', err);
+                setStatus(`Error de conexión en #${canal}`, 'error');
+            };
+
+            socket.onclose = () => {
+                console.warn('Socket cerrado para', canal);
+                setStatus(`Desconectado de #${canal}`, 'warning');
             };
         }
 

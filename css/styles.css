@@ -142,3 +142,28 @@ body {
         transform: translateY(0);
     }
 }
+
+.chat-status {
+    display: inline-block;
+    margin-left: 12px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    opacity: 0.9;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.chat-status.info {
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+}
+
+.chat-status.warning {
+    background: rgba(255, 176, 0, 0.18);
+    color: #ffdc73;
+}
+
+.chat-status.error {
+    background: rgba(255, 80, 80, 0.18);
+    color: #ffb3b3;
+}
