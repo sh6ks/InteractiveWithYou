@@ -133,9 +133,22 @@
             }
             const badgeData = await badgeResponse.json();
             const badgeSets = {};
-            badgeData.data?.forEach(set => {
-                badgeSets[set.set_id] = set.versions || {};
-            });
+            function indexVersions(sets) {
+                sets?.forEach(set => {
+                    const versions = {};
+                    (set.versions || []).forEach(v => { versions[v.id] = v; });
+                    badgeSets[set.set_id] = versions;
+                });
+            }
+
+            // Global badges como fallback
+            const globalBadgeResponse = await fetch('https://api.twitch.tv/helix/chat/badges/global', { headers });
+            if (globalBadgeResponse.ok) {
+                const globalData = await globalBadgeResponse.json();
+                indexVersions(globalData.data);
+            }
+            // Channel badges sobreescriben los globales
+            indexVersions(badgeData.data);
 
             return {
                 profileImageUrl: user.profile_image_url,
@@ -231,8 +244,12 @@
                         return;
                     }
 
-                    const messageMatch = line.match(/^(?:@([^ ]+) )?:([^ ]+) PRIVMSG #[^ ]+ :(.*)$/);
+                    const messageMatch = line.match(/^(?:@([^ ]+) )?:([^ ]+) PRIVMSG #([^ ]+) :(.*)$/);
                     if (!messageMatch) return;
+
+                    // Solo mostrar mensajes del canal propio, ignorar otros (streams compartidos)
+                    const canalDelMensaje = messageMatch[3].toLowerCase();
+                    if (canalDelMensaje !== canal.toLowerCase()) return;
 
                     if (firstRealMessage) {
                         document.querySelectorAll('.ejemplo').forEach(el => el.remove());
@@ -242,7 +259,7 @@
 
                     const rawTags = messageMatch[1] || '';
                     const userPrefix = messageMatch[2] || '';
-                    const mensajeRaw = messageMatch[3] || '';
+                    const mensajeRaw = messageMatch[4] || '';
 
                     const tags = rawTags.split(';').reduce((acc, part) => {
                         const [key, value] = part.split('=');
