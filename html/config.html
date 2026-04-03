@@ -26,7 +26,8 @@
         border-radius: 15px; 
         border: 1px solid #333;
         box-shadow: 0 10px 40px rgba(0,0,0,0.7); 
-        width: 450px; 
+        width: 100%; 
+        max-width: 480px;
         border-left: 5px solid #9147ff; 
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
@@ -108,6 +109,7 @@
         display: flex;
         flex-direction: column;
         gap: 18px;
+        min-height: 440px;
     }
 
     .preview-header h3 {
@@ -153,12 +155,18 @@
         line-height: 1.35;
         box-shadow: 0 12px 24px rgba(0,0,0,0.25);
         opacity: 0;
-        animation: apareceDesdeAbajo 0.6s ease forwards;
+        animation-duration: 0.6s;
+        animation-fill-mode: forwards;
     }
 
     .preview-message.from-top { animation-name: apareceDesdeArriba; }
     .preview-message.from-bottom { animation-name: apareceDesdeAbajo; }
     .preview-message.from-left { animation-name: apareceDesdeIzquierda; }
+    .preview-message.from-right { animation-name: apareceDesdeDerecha; }
+
+    .preview-message.slide { animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+    .preview-message.appear { animation-name: apareceConFade; }
+    .preview-message.fade { animation-name: aparecerSoloFade; }
 
     .preview-footer {
         color: #c9c9d0;
@@ -177,6 +185,21 @@
     @keyframes apareceDesdeIzquierda {
         from { opacity: 0; transform: translateX(-28px); }
         to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes apareceDesdeDerecha {
+        from { opacity: 0; transform: translateX(28px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes apareceConFade {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes aparecerSoloFade {
+        from { opacity: 0; transform: translateY(0); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     @media (max-width: 900px) {
@@ -206,6 +229,21 @@
 
     <label>Fuente:</label>
     <select id="fuente">
+    </select>
+
+    <label>Animación de ingreso:</label>
+    <select id="animacionDireccion">
+        <option value="from-top">Desde arriba</option>
+        <option value="from-bottom">Desde abajo</option>
+        <option value="from-left">Desde la izquierda</option>
+        <option value="from-right">Desde la derecha</option>
+    </select>
+
+    <label>Estilo de aparición:</label>
+    <select id="animacionEstilo">
+        <option value="slide">Deslizar</option>
+        <option value="appear">Aparecer</option>
+        <option value="fade">Fade</option>
     </select>
 
     <button onclick="generarLink()">Generar Link para OBS</button>
@@ -250,6 +288,8 @@
 
     let usuarioActual = null;
     const canalInput = document.getElementById('canal');
+    const animacionDireccionSelect = document.getElementById('animacionDireccion');
+    const animacionEstiloSelect = document.getElementById('animacionEstilo');
 
     // Obtiene el canal guardado si el usuario se autenticó con Twitch.
     const getTwitchChannelFromStorage = () => {
@@ -276,6 +316,8 @@
                 canalInput.value = data.canal;
                 document.getElementById('color').value = data.color;
                 document.getElementById('fuente').value = data.fuente;
+                animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
+                animacionEstiloSelect.value = data.animacionEstilo || 'slide';
                 // Aplicar la fuente guardada al select
                 document.getElementById('fuente').style.fontFamily = `'${data.fuente}', sans-serif`;
             }
@@ -302,6 +344,9 @@
         if(!canal) { alert("¡Poné el nombre de tu canal!"); return; }
 
         try {
+            const urlBase = "https://interactive-with-you.vercel.app/widget.html";
+            const linkCompleto = `${urlBase}?canal=${canal}`;
+
             if (usuarioActual) {
                 await setDoc(doc(db, "usuarios", usuarioActual.uid), {
                     uid: usuarioActual.uid,
@@ -309,6 +354,8 @@
                     canal: canal,
                     color: color,
                     fuente: fuente,
+                    animacionDireccion: animacionDireccionSelect.value,
+                    animacionEstilo: animacionEstiloSelect.value,
                     ultima_actualizacion: new Date()
                 });
                 console.log("¡Configuración guardada en la nube para:", canal, "!");
@@ -316,9 +363,6 @@
                 console.log("Usuario Twitch sin Firebase: link generado localmente para:", canal);
             }
 
-            const urlBase = "https://interactive-with-you.vercel.app/widget.html";
-            const linkCompleto = `${urlBase}?canal=${canal}`;
-            
             document.getElementById('linkFinal').innerText = linkCompleto;
             document.getElementById('resultado').style.display = 'block';
         } catch (error) {
@@ -335,15 +379,19 @@
     }
 
     const inputColor = document.getElementById('color');
+    const animacionDireccionSelect = document.getElementById('animacionDireccion');
+    const animacionEstiloSelect = document.getElementById('animacionEstilo');
+
     inputColor.addEventListener('input', () => {
         inputColor.style.borderBottom = `2px solid ${inputColor.value}`;
         document.getElementById('resultado').style.borderColor = inputColor.value;
     });
 
-    const campos = [document.getElementById('canal'), document.getElementById('color'), document.getElementById('fuente')];
+    const campos = [document.getElementById('canal'), document.getElementById('color'), document.getElementById('fuente'), animacionDireccionSelect, animacionEstiloSelect];
     campos.forEach(campo => {
         campo.addEventListener('input', () => {
             document.getElementById('resultado').style.display = 'none';
+            renderPreview();
         });
     });
 
@@ -385,12 +433,36 @@
 
     cargarFuentesDeGoogle();
 
-    selectFuente.addEventListener('change', () => {
-        document.getElementById('resultado').style.display = 'none';
-        // Aplicar la fuente también al select para ver el preview
-        selectFuente.style.fontFamily = `'${selectFuente.value}', sans-serif`;
-        renderPreview();
-    });
+    const previewChat = document.getElementById('chatPreview');
+    const sampleMessages = [
+        { usuario: 'StreamBot', mensaje: '¡Bienvenidos al stream!', color: '#55c2ff' },
+        { usuario: 'Gamer123', mensaje: '¿Qué vamos a hacer hoy?', color: '#ffb300' },
+        { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86' },
+        { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d' }
+    ];
+    let previewInterval = null;
+    let previewIndex = 0;
+
+    function mapDirectionClass() {
+        return animacionDireccionSelect.value || 'from-top';
+    }
+
+    function mapStyleClass() {
+        return animacionEstiloSelect.value || 'slide';
+    }
+
+    function addPreviewMessage() {
+        const item = sampleMessages[previewIndex % sampleMessages.length];
+        const div = document.createElement('div');
+        div.className = `preview-message ${mapDirectionClass()} ${mapStyleClass()}`;
+        div.style.borderLeftColor = document.getElementById('color').value;
+        div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
+        previewChat.appendChild(div);
+        if (previewChat.children.length > 5) {
+            previewChat.removeChild(previewChat.firstElementChild);
+        }
+        previewIndex += 1;
+    }
 
     const previewChat = document.getElementById('chatPreview');
     const sampleMessages = [
@@ -399,26 +471,49 @@
         { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86' },
         { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d' }
     ];
+    let previewInterval = null;
+    let previewIndex = 0;
+
+    function mapDirectionClass() {
+        return animacionDireccionSelect.value || 'from-top';
+    }
+
+    function mapStyleClass() {
+        return animacionEstiloSelect.value || 'slide';
+    }
+
+    function addPreviewMessage() {
+        const item = sampleMessages[previewIndex % sampleMessages.length];
+        const div = document.createElement('div');
+        div.className = `preview-message ${mapDirectionClass()} ${mapStyleClass()}`;
+        div.style.borderLeftColor = document.getElementById('color').value;
+        div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
+        previewChat.appendChild(div);
+        if (previewChat.children.length > 5) {
+            previewChat.removeChild(previewChat.firstElementChild);
+        }
+        previewIndex += 1;
+    }
 
     function renderPreview() {
-        const color = document.getElementById('color').value;
-        const fuente = document.getElementById('fuente').value || 'Poppins';
         previewChat.innerHTML = '';
-        previewChat.style.fontFamily = `'${fuente}', sans-serif`;
-
-        sampleMessages.forEach((item, index) => {
-            const div = document.createElement('div');
-            const effect = ['from-top', 'from-bottom', 'from-left'][index % 3];
-            div.className = `preview-message ${effect}`;
-            div.style.borderLeftColor = color;
-            div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
-            previewChat.appendChild(div);
-        });
+        previewChat.style.fontFamily = `'${selectFuente.value || 'Poppins'}', sans-serif`;
+        previewIndex = 0;
+        addPreviewMessage();
+        clearInterval(previewInterval);
+        previewInterval = setInterval(addPreviewMessage, 2200);
     }
 
     renderPreview();
 
-    [document.getElementById('canal'), inputColor, selectFuente].forEach(el => {
+    selectFuente.addEventListener('change', () => {
+        document.getElementById('resultado').style.display = 'none';
+        selectFuente.style.fontFamily = `'${selectFuente.value}', sans-serif`;
+        renderPreview();
+    });
+
+    const previewControls = [document.getElementById('canal'), inputColor, selectFuente, animacionDireccionSelect, animacionEstiloSelect];
+    previewControls.forEach(el => {
         el.addEventListener('input', () => {
             document.getElementById('resultado').style.display = 'none';
             renderPreview();

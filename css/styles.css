@@ -93,3 +93,52 @@ body {
         transform: translateX(0);
     }
 }
+
+.mensaje.from-right {
+    animation-name: aparecerDesdeDerecha;
+}
+
+.mensaje.slide {
+    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.mensaje.appear {
+    animation-name: apareceConFade;
+}
+
+.mensaje.fade {
+    animation-name: aparecerSoloFade;
+}
+
+@keyframes aparecerDesdeDerecha {
+    from {
+        opacity: 0;
+        transform: translateX(28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes apareceConFade {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes aparecerSoloFade {
+    from {
+        opacity: 0;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

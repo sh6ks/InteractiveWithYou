@@ -53,10 +53,10 @@
             const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
             const querySnapshot = await getDocs(q);
             
-            let config = { color: "#6441a5", fuente: "Roboto" };
+            let config = { color: "#6441a5", fuente: "Roboto", animacionDireccion: 'from-left', animacionEstilo: 'slide' };
 
             querySnapshot.forEach((doc) => {
-                config = doc.data();
+                config = { ...config, ...doc.data() };
             });
 
             // Cargamos la fuente y RECIÉN AHÍ conectamos al chat
@@ -130,8 +130,9 @@
                     const mensajeRaw = data.split(`PRIVMSG #${canal} :`)[1];
                     const contenedor = document.getElementById('chat');
                     const div = document.createElement('div');
-                    const effect = ['from-top', 'from-bottom', 'from-left'][Math.floor(Math.random() * 3)];
-                    div.className = `mensaje ${effect}`;
+                    const direction = config.animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
+                    const estilo = config.animacionEstilo || 'slide';
+                    div.className = `mensaje ${direction} ${estilo}`;
                     div.style.borderLeft = `5px solid ${colorBorde}`;
                     div.innerHTML = `<span style="color:${colorTwitch}; font-weight:bold;">${usuario}:</span> ${mensajeRaw}`;
                     contenedor.appendChild(div);
