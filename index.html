@@ -101,6 +101,23 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             : `${window.location.origin}/`;
         const TWITCH_SCOPE = 'user:read:email chat:read';
 
+        const SECCIONES_VALIDAS = ['home', 'chat', 'alerts', 'funciones', 'comunidad', 'contacto'];
+
+        const getSeccionPersistida = () => {
+            const seccionUrl = new URLSearchParams(window.location.search).get('seccion');
+            if (SECCIONES_VALIDAS.includes(seccionUrl)) return seccionUrl;
+            const seccionStorage = localStorage.getItem('seccionActual');
+            if (SECCIONES_VALIDAS.includes(seccionStorage)) return seccionStorage;
+            return 'home';
+        };
+
+        const persistirSeccion = (seccion) => {
+            localStorage.setItem('seccionActual', seccion);
+            const url = new URL(window.location.href);
+            url.searchParams.set('seccion', seccion);
+            window.history.replaceState({}, document.title, url.toString());
+        };
+
         // Construye la URL de autorización para Twitch.
         const getTwitchAuthUrl = () => {
             const params = new URLSearchParams({
@@ -141,7 +158,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                         <span class="link_name">Salir (${nombreTwitch})</span>
                     </a>
                 `;
-                cargarSeccion('home');
+                window.cargarSeccion(getSeccionPersistida());
                 return;
             }
 
@@ -152,7 +169,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                         <span class="link_name">Salir</span>
                     </a>
                 `;
-                cargarSeccion('home');
+                window.cargarSeccion(getSeccionPersistida());
                 return;
             }
 
@@ -204,6 +221,10 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         
         window.logout = () => {
             localStorage.clear();
+            localStorage.setItem('seccionActual', 'home');
+            const url = new URL(window.location.href);
+            url.searchParams.set('seccion', 'home');
+            window.history.replaceState({}, document.title, url.toString());
             signOut(auth).then(() => location.reload());
         };
 
@@ -213,16 +234,19 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         // --- LÓGICA DE LA SIDEBAR Y SECCIONES ---
         // Carga la sección correspondiente dentro del iframe principal.
         window.cargarSeccion = (seccion) => {
+            const seccionFinal = SECCIONES_VALIDAS.includes(seccion) ? seccion : 'home';
+            persistirSeccion(seccionFinal);
+
             mainContainer.innerHTML = '<div style="color:#a970ff; padding:20px;">Cargando...</div>';
             if (window.innerWidth <= 768) sidebar.classList.remove("open-mobile");
 
             let archivo = "";
-            if (seccion === 'home') archivo = "html/home.html";
-            else if (seccion === 'chat') archivo = "html/config.html";
-            else if (seccion === 'alerts') archivo = "html/alerts.html";
-            else if (seccion === 'funciones') archivo = "html/functions.html";
-            else if (seccion === 'comunidad') archivo = "html/comunity.html";
-            else if (seccion === 'contacto') archivo = "html/contacto.html";
+            if (seccionFinal === 'home') archivo = "html/home.html";
+            else if (seccionFinal === 'chat') archivo = "html/config.html";
+            else if (seccionFinal === 'alerts') archivo = "html/alerts.html";
+            else if (seccionFinal === 'funciones') archivo = "html/functions.html";
+            else if (seccionFinal === 'comunidad') archivo = "html/comunity.html";
+            else if (seccionFinal === 'contacto') archivo = "html/contacto.html";
 
             if (archivo) {
                 mainContainer.innerHTML = `<iframe src="${archivo}" style="width:100%; height:85vh; border:none;"></iframe>`;
