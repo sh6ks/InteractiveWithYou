@@ -19,7 +19,7 @@
     <script type="module">
         // Script del widget: carga configuración desde Firestore y se conecta al chat de Twitch.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -49,12 +49,26 @@
             try {
                 const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
                 const querySnapshot = await getDocs(q);
-                
+
                 let config = { color: "#6441a5", fuente: "Roboto", animacionDireccion: 'from-left', animacionEstilo: 'slide' };
 
-                querySnapshot.forEach((doc) => {
-                    config = { ...config, ...doc.data() };
-                });
+                // Prioriza el documento por ID de canal para evitar tomar configs viejas.
+                const canalDocRef = doc(db, 'usuarios', canalSolicitado);
+                const canalDocSnap = await getDoc(canalDocRef);
+                if (canalDocSnap.exists()) {
+                    config = { ...config, ...canalDocSnap.data() };
+                } else {
+                    const docs = [];
+                    querySnapshot.forEach((snap) => docs.push(snap.data()));
+                    if (docs.length > 0) {
+                        docs.sort((a, b) => {
+                            const ta = a.ultima_actualizacion?.seconds || 0;
+                            const tb = b.ultima_actualizacion?.seconds || 0;
+                            return tb - ta;
+                        });
+                        config = { ...config, ...docs[0] };
+                    }
+                }
 
                 if (querySnapshot.empty) {
                     console.warn('No se encontró configuración para', canalSolicitado);
