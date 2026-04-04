@@ -85,6 +85,47 @@
         transform: translateY(-2px);
         box-shadow: 0 10px 25px rgba(145, 71, 255, 0.25);
     }
+
+    .actions-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 25px;
+    }
+
+    .actions-row button {
+        margin-top: 0;
+    }
+
+    .save-feedback {
+        margin-top: 12px;
+        font-size: 0.85rem;
+        color: #bfc3da;
+        min-height: 20px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .save-feedback.show {
+        opacity: 1;
+    }
+
+    .save-feedback.success {
+        color: #7dffaf;
+    }
+
+    .save-feedback.error {
+        color: #ff9ba3;
+    }
+
+    .secondary-btn {
+        background: #3f3f46;
+    }
+
+    .secondary-btn:hover {
+        background: #2f2f35;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+    }
     
     #resultado { 
         margin-top: 25px; 
@@ -214,6 +255,7 @@
     @media (max-width: 900px) {
         body { padding: 30px; }
         .layout { grid-template-columns: 1fr; }
+        .actions-row { grid-template-columns: 1fr; }
     }
 
     @keyframes fadeIn {
@@ -259,7 +301,11 @@
         <option value="fade">Fade</option>
     </select>
 
-    <button onclick="generarLink()">Generar Link para OBS</button>
+    <div class="actions-row">
+        <button class="secondary-btn" onclick="guardarConfiguracion()">Guardar configuración</button>
+        <button onclick="generarLink()">Generar Link para OBS</button>
+    </div>
+    <div id="saveFeedback" class="save-feedback" aria-live="polite"></div>
 
     <div id="resultado">
     <small>Copiá este link en OBS:</small><br>
@@ -306,6 +352,7 @@
     const selectFuente = document.getElementById('fuente');
     const inputColor = document.getElementById('color');
     const previewChat = document.getElementById('chatPreview');
+    const saveFeedback = document.getElementById('saveFeedback');
 
     const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE';
     const sampleMessages = [
@@ -318,6 +365,15 @@
     let previewIndex = 0;
 
     const getTwitchChannelFromStorage = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
+
+    function showSaveFeedback(message, type = 'success') {
+        saveFeedback.textContent = message;
+        saveFeedback.className = `save-feedback show ${type}`;
+        clearTimeout(showSaveFeedback.timer);
+        showSaveFeedback.timer = setTimeout(() => {
+            saveFeedback.className = 'save-feedback';
+        }, 2600);
+    }
 
     const setCanalReadonly = (readonly) => {
         canalInput.readOnly = readonly;
@@ -440,6 +496,53 @@
         window.parent.location.href = '/index.html';
     });
 
+    async function persistirConfiguracion(canal, color, fuente) {
+        if (usuarioActual) {
+            await setDoc(doc(db, 'usuarios', usuarioActual.uid), {
+                uid: usuarioActual.uid,
+                email: usuarioActual.email || '',
+                canal,
+                color,
+                fuente,
+                animacionDireccion: animacionDireccionSelect.value,
+                animacionEstilo: animacionEstiloSelect.value,
+                ultima_actualizacion: new Date()
+            });
+            return;
+        }
+
+        if (canal) {
+            // Usuario logueado con Twitch: guarda con el canal como ID del doc
+            await setDoc(doc(db, 'usuarios', canal), {
+                canal,
+                color,
+                fuente,
+                animacionDireccion: animacionDireccionSelect.value,
+                animacionEstilo: animacionEstiloSelect.value,
+                ultima_actualizacion: new Date()
+            });
+        }
+    }
+
+    window.guardarConfiguracion = async function() {
+        const canal = canalInput.value.trim().toLowerCase() || getTwitchChannelFromStorage();
+        const color = inputColor.value;
+        const fuente = selectFuente.value;
+
+        if (!canal) {
+            showSaveFeedback('Poné el nombre de tu canal para guardar.', 'error');
+            return;
+        }
+
+        try {
+            await persistirConfiguracion(canal, color, fuente);
+            showSaveFeedback('Configuración guardada correctamente.', 'success');
+        } catch (error) {
+            console.error('Error al guardar:', error);
+            showSaveFeedback('No se pudo guardar la configuración.', 'error');
+        }
+    };
+
     window.generarLink = async function() {
         const canal = canalInput.value.trim().toLowerCase() || getTwitchChannelFromStorage();
         const color = inputColor.value;
@@ -454,28 +557,7 @@
             const urlBase = 'https://interactive-with-you.vercel.app/widget.html';
             const linkCompleto = `${urlBase}?canal=${canal}`;
 
-            if (usuarioActual) {
-                await setDoc(doc(db, 'usuarios', usuarioActual.uid), {
-                    uid: usuarioActual.uid,
-                    email: usuarioActual.email || '',
-                    canal,
-                    color,
-                    fuente,
-                    animacionDireccion: animacionDireccionSelect.value,
-                    animacionEstilo: animacionEstiloSelect.value,
-                    ultima_actualizacion: new Date()
-                });
-            } else if (canal) {
-                // Usuario logueado con Twitch: guarda con el canal como ID del doc
-                await setDoc(doc(db, 'usuarios', canal), {
-                    canal,
-                    color,
-                    fuente,
-                    animacionDireccion: animacionDireccionSelect.value,
-                    animacionEstilo: animacionEstiloSelect.value,
-                    ultima_actualizacion: new Date()
-                });
-            }
+            await persistirConfiguracion(canal, color, fuente);
 
             document.getElementById('linkFinal').innerText = linkCompleto;
             document.getElementById('resultado').style.display = 'block';
