@@ -2,6 +2,47 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /usuarios/{docId} {
+      allow read: if true;
+      allow write: if request.time < timestamp.date(2026, 4, 19)
+        && request.resource.data.canal is string
+        && request.resource.data.canal.size() > 0
+        && request.resource.data.canal.size() <= 40
+        && request.resource.data.color is string
+        && request.resource.data.color.matches('^#[0-9a-fA-F]{6}$')
+        && (
+          !('colorRecuadro' in request.resource.data)
+          || request.resource.data.colorRecuadro.matches('^#[0-9a-fA-F]{6}$')
+        )
+        && (
+          !('grosorBorde' in request.resource.data)
+          || (request.resource.data.grosorBorde is int && request.resource.data.grosorBorde >= 2 && request.resource.data.grosorBorde <= 12)
+        )
+        && (
+          !('opacidadRecuadro' in request.resource.data)
+          || (request.resource.data.opacidadRecuadro is int && request.resource.data.opacidadRecuadro >= 10 && request.resource.data.opacidadRecuadro <= 100)
+        )
+        && (
+          !('customCssMode' in request.resource.data)
+          || request.resource.data.customCssMode in ['url', 'file']
+        )
+        && (
+          !('customCssUrl' in request.resource.data)
+          || (
+            request.resource.data.customCssUrl is string
+            && request.resource.data.customCssUrl.size() <= 600
+            && request.resource.data.customCssUrl.matches('^$|^https?://.+')
+          )
+        )
+        && (
+          !('customCssContent' in request.resource.data)
+          || (
+            request.resource.data.customCssContent is string
+            && request.resource.data.customCssContent.size() <= 200000
+          )
+        );
+    }
+
     match /{document=**} {
       // This rule allows anyone with your database reference to view, edit,
       // and delete all data in your database. It is useful for getting

@@ -209,6 +209,66 @@
         animation-fill-mode: forwards;
     }
 
+    .preview-message.design-transparent {
+        background: transparent;
+        box-shadow: none;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.55);
+    }
+
+    .preview-message.design-solid {
+        background: rgba(0, 0, 0, 0.88);
+    }
+
+    .preview-message.design-square {
+        border-radius: 0;
+        background: rgba(0, 0, 0, 0.82);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.28);
+    }
+
+    .preview-message.design-glass {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-left-width: 5px;
+    }
+
+    .preview-message.design-neon {
+        background: rgba(8, 10, 20, 0.9);
+        box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 145, 71, 255), 0.38), 0 0 16px rgba(var(--accent-rgb, 145, 71, 255), 0.24);
+        border-left-color: var(--accent-color, #9147ff) !important;
+    }
+
+    .preview-message.design-outline {
+        background: rgba(0, 0, 0, 0.35);
+        border: 2px solid rgba(var(--accent-rgb, 145, 71, 255), 0.62);
+        border-left-width: 5px;
+        box-shadow: none;
+    }
+
+    .preview-message.design-pill {
+        background: rgba(18, 14, 34, 0.92);
+        border-radius: 999px;
+        padding: 12px 22px;
+    }
+
+    .preview-message.design-custom {
+        background: rgba(0, 0, 0, 0.8);
+    }
+
+    .custom-design-group {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px dashed #4d3f88;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.22);
+    }
+
+    .custom-design-group small {
+        display: block;
+        color: #aaa8c6;
+        margin-top: 6px;
+    }
+
     .preview-message.from-top { animation-name: apareceDesdeArriba; }
     .preview-message.from-bottom { animation-name: apareceDesdeAbajo; }
     .preview-message.from-left { animation-name: apareceDesdeIzquierda; }
@@ -278,6 +338,16 @@
     <label>Color del borde:</label>
     <input type="color" id="color" value="#9147ff">
 
+    <label>Grosor del borde: <span id="grosorBordeValue">5</span>px</label>
+    <input type="range" id="grosorBorde" min="2" max="12" step="1" value="5">
+
+    <div id="colorRecuadroGroup">
+        <label>Color del recuadro (Clásico/Cuadrado):</label>
+        <input type="color" id="colorRecuadro" value="#000000">
+        <label>Opacidad del recuadro: <span id="opacidadRecuadroValue">88</span>%</label>
+        <input type="range" id="opacidadRecuadro" min="10" max="100" step="1" value="88">
+    </div>
+
     <label>Fuente:</label>
     <select id="fuente">
         <option value="Poppins">Poppins</option>
@@ -300,6 +370,39 @@
         <option value="appear">Aparecer</option>
         <option value="fade">Fade</option>
     </select>
+
+    <label>Diseño del mensaje:</label>
+    <select id="disenoMensaje">
+        <option value="design-solid">Clásico</option>
+        <option value="design-transparent">Transparente total</option>
+        <option value="design-square">Cuadrado</option>
+        <option value="design-glass">Glass</option>
+        <option value="design-neon">Neón</option>
+        <option value="design-outline">Contorno</option>
+        <option value="design-pill">Píldora</option>
+        <option value="design-custom">Personalizado (CSS)</option>
+    </select>
+
+    <div id="customDesignGroup" class="custom-design-group" style="display:none;">
+        <label>Método de diseño personalizado:</label>
+        <select id="customCssMode">
+            <option value="url">URL CSS</option>
+            <option value="file">Archivo .css</option>
+        </select>
+
+        <div id="customCssUrlGroup">
+            <label>URL del CSS:</label>
+            <input type="url" id="customCssUrl" placeholder="https://tu-sitio.com/chat.css">
+        </div>
+
+        <div id="customCssFileGroup" style="display:none;">
+            <label>Subir archivo CSS:</label>
+            <input type="file" id="customCssFile" accept=".css,text/css">
+            <small id="customCssFileStatus">No hay archivo cargado.</small>
+        </div>
+
+        <small>Tip: podés usar clases como <strong>.mensaje</strong> o <strong>.preview-message</strong> en tu CSS.</small>
+    </div>
 
     <div class="actions-row">
         <button class="secondary-btn" onclick="guardarConfiguracion()">Guardar configuración</button>
@@ -349,8 +452,22 @@
     const canalInput = document.getElementById('canal');
     const animacionDireccionSelect = document.getElementById('animacionDireccion');
     const animacionEstiloSelect = document.getElementById('animacionEstilo');
+    const disenoMensajeSelect = document.getElementById('disenoMensaje');
+    const customDesignGroup = document.getElementById('customDesignGroup');
+    const customCssModeSelect = document.getElementById('customCssMode');
+    const customCssUrlGroup = document.getElementById('customCssUrlGroup');
+    const customCssFileGroup = document.getElementById('customCssFileGroup');
+    const customCssUrlInput = document.getElementById('customCssUrl');
+    const customCssFileInput = document.getElementById('customCssFile');
+    const customCssFileStatus = document.getElementById('customCssFileStatus');
     const selectFuente = document.getElementById('fuente');
     const inputColor = document.getElementById('color');
+    const inputGrosorBorde = document.getElementById('grosorBorde');
+    const grosorBordeValue = document.getElementById('grosorBordeValue');
+    const inputColorRecuadro = document.getElementById('colorRecuadro');
+    const inputOpacidadRecuadro = document.getElementById('opacidadRecuadro');
+    const opacidadRecuadroValue = document.getElementById('opacidadRecuadroValue');
+    const colorRecuadroGroup = document.getElementById('colorRecuadroGroup');
     const previewChat = document.getElementById('chatPreview');
     const saveFeedback = document.getElementById('saveFeedback');
 
@@ -363,6 +480,9 @@
     ];
     let previewInterval = null;
     let previewIndex = 0;
+    let customCssContent = '';
+    let previewCustomStyleTag = null;
+    let previewCustomLinkTag = null;
 
     const getTwitchChannelFromStorage = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
 
@@ -424,11 +544,119 @@
         return animacionEstiloSelect.value || 'slide';
     }
 
+    function mapDesignClass() {
+        return disenoMensajeSelect.value || 'design-solid';
+    }
+
+    function hexToRgb(hex) {
+        const value = (hex || '').replace('#', '');
+        const normalized = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
+        const num = parseInt(normalized, 16);
+        if (Number.isNaN(num)) return { r: 145, g: 71, b: 255 };
+        return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+
+    function updateColorRecuadroVisibility() {
+        const design = mapDesignClass();
+        const usaRecuadro = design === 'design-solid' || design === 'design-square';
+        colorRecuadroGroup.style.display = usaRecuadro ? 'block' : 'none';
+    }
+
+    function updateCustomControlsVisibility() {
+        const isCustomDesign = mapDesignClass() === 'design-custom';
+        customDesignGroup.style.display = isCustomDesign ? 'block' : 'none';
+
+        if (!isCustomDesign) return;
+        const mode = customCssModeSelect.value || 'url';
+        customCssUrlGroup.style.display = mode === 'url' ? 'block' : 'none';
+        customCssFileGroup.style.display = mode === 'file' ? 'block' : 'none';
+    }
+
+    function removePreviewCustomAssets() {
+        if (previewCustomStyleTag) {
+            previewCustomStyleTag.remove();
+            previewCustomStyleTag = null;
+        }
+        if (previewCustomLinkTag) {
+            previewCustomLinkTag.remove();
+            previewCustomLinkTag = null;
+        }
+    }
+
+    function normalizeCssForPreview(cssText) {
+        if (!cssText) return '';
+        return cssText.replace(/\.mensaje\b/g, '.preview-message');
+    }
+
+    function isSafeCustomCssUrl(url) {
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+        } catch {
+            return false;
+        }
+    }
+
+    function validateCustomCssText(cssText) {
+        const content = (cssText || '').toLowerCase();
+        const forbidden = [
+            /@import\b/,
+            /\bhtml\b\s*\{/,
+            /\bbody\b\s*\{/,
+            /:root\s*\{/,
+            /(^|\n)\s*\*\s*\{/
+        ];
+        return !forbidden.some((pattern) => pattern.test(content));
+    }
+
+    function applyCustomPreviewAssets() {
+        removePreviewCustomAssets();
+        if (mapDesignClass() !== 'design-custom') return;
+
+        const mode = customCssModeSelect.value || 'url';
+        if (mode === 'url') {
+            const cssUrl = customCssUrlInput.value.trim();
+            if (!cssUrl) return;
+            if (!isSafeCustomCssUrl(cssUrl)) return;
+            previewCustomLinkTag = document.createElement('link');
+            previewCustomLinkTag.rel = 'stylesheet';
+            previewCustomLinkTag.href = cssUrl;
+            previewCustomLinkTag.setAttribute('data-preview-custom-css', 'true');
+            document.head.appendChild(previewCustomLinkTag);
+            return;
+        }
+
+        if (mode === 'file' && customCssContent && validateCustomCssText(customCssContent)) {
+            previewCustomStyleTag = document.createElement('style');
+            previewCustomStyleTag.setAttribute('data-preview-custom-css', 'true');
+            previewCustomStyleTag.textContent = normalizeCssForPreview(customCssContent);
+            document.head.appendChild(previewCustomStyleTag);
+        }
+    }
+
+    function hexToRgba(hex, alpha) {
+        const rgb = hexToRgb(hex);
+        const a = Math.max(0, Math.min(1, alpha));
+        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
+    }
+
+    function updateControlLabels() {
+        grosorBordeValue.textContent = inputGrosorBorde.value;
+        opacidadRecuadroValue.textContent = inputOpacidadRecuadro.value;
+    }
+
     function addPreviewMessage() {
         const item = sampleMessages[previewIndex % sampleMessages.length];
         const div = document.createElement('div');
-        div.className = `preview-message ${mapDirectionClass()} ${mapStyleClass()}`;
+        div.className = `preview-message ${mapDirectionClass()} ${mapStyleClass()} ${mapDesignClass()}`;
         div.style.borderLeftColor = inputColor.value;
+        div.style.borderLeftWidth = `${inputGrosorBorde.value || 5}px`;
+        div.style.setProperty('--accent-color', inputColor.value);
+        const rgb = hexToRgb(inputColor.value);
+        div.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        if (mapDesignClass() === 'design-solid' || mapDesignClass() === 'design-square') {
+            div.style.backgroundColor = hexToRgba(inputColorRecuadro.value, Number(inputOpacidadRecuadro.value || 88) / 100);
+        }
         div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
         previewChat.appendChild(div);
         if (previewChat.children.length > 5) {
@@ -438,6 +666,7 @@
     }
 
     function renderPreview() {
+        applyCustomPreviewAssets();
         previewChat.innerHTML = '';
         previewChat.style.fontFamily = `'${selectFuente.value}', sans-serif`;
         previewIndex = 0;
@@ -457,14 +686,25 @@
                 const data = docSnap.data();
                 canalInput.value = data.canal || getTwitchChannelFromStorage();
                 inputColor.value = data.color || '#9147ff';
+                inputGrosorBorde.value = data.grosorBorde || 5;
+                inputColorRecuadro.value = data.colorRecuadro || '#000000';
+                inputOpacidadRecuadro.value = data.opacidadRecuadro || 88;
                 selectFuente.value = data.fuente || 'Poppins';
                 animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
                 animacionEstiloSelect.value = data.animacionEstilo || 'slide';
+                disenoMensajeSelect.value = data.disenoMensaje || 'design-solid';
+                customCssModeSelect.value = data.customCssMode || 'url';
+                customCssUrlInput.value = data.customCssUrl || '';
+                customCssContent = data.customCssContent || '';
+                customCssFileStatus.textContent = customCssContent ? 'Archivo CSS cargado en configuración.' : 'No hay archivo cargado.';
             } else {
                 canalInput.value = getTwitchChannelFromStorage();
             }
             setCanalReadonly(Boolean(getTwitchChannelFromStorage()));
             loadFont(selectFuente.value);
+            updateControlLabels();
+            updateColorRecuadroVisibility();
+            updateCustomControlsVisibility();
             renderPreview();
             return;
         }
@@ -480,14 +720,25 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     inputColor.value = data.color || '#9147ff';
+                    inputGrosorBorde.value = data.grosorBorde || 5;
+                    inputColorRecuadro.value = data.colorRecuadro || '#000000';
+                    inputOpacidadRecuadro.value = data.opacidadRecuadro || 88;
                     selectFuente.value = data.fuente || 'Poppins';
                     animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
                     animacionEstiloSelect.value = data.animacionEstilo || 'slide';
+                    disenoMensajeSelect.value = data.disenoMensaje || 'design-solid';
+                    customCssModeSelect.value = data.customCssMode || 'url';
+                    customCssUrlInput.value = data.customCssUrl || '';
+                    customCssContent = data.customCssContent || '';
+                    customCssFileStatus.textContent = customCssContent ? 'Archivo CSS cargado en configuración.' : 'No hay archivo cargado.';
                 }
             } catch (e) {
                 console.warn('No se pudo cargar config de canal Twitch:', e);
             }
             loadFont(selectFuente.value);
+            updateControlLabels();
+            updateColorRecuadroVisibility();
+            updateCustomControlsVisibility();
             renderPreview();
             return;
         }
@@ -497,12 +748,31 @@
     });
 
     async function persistirConfiguracion(canal, color, fuente) {
+        const customMode = customCssModeSelect.value || 'url';
+        const customUrl = customCssUrlInput.value.trim();
+
+        if (disenoMensajeSelect.value === 'design-custom') {
+            if (customMode === 'url' && customUrl && !isSafeCustomCssUrl(customUrl)) {
+                throw new Error('URL de CSS inválida. Usá http/https.');
+            }
+            if (customMode === 'file' && customCssContent && !validateCustomCssText(customCssContent)) {
+                throw new Error('El CSS contiene reglas no permitidas (@import, body, html, :root o *).');
+            }
+        }
+
         const payload = {
             canal,
             color,
+            grosorBorde: Number(inputGrosorBorde.value || 5),
+            colorRecuadro: inputColorRecuadro.value,
+            opacidadRecuadro: Number(inputOpacidadRecuadro.value || 88),
             fuente,
             animacionDireccion: animacionDireccionSelect.value,
             animacionEstilo: animacionEstiloSelect.value,
+            disenoMensaje: disenoMensajeSelect.value,
+            customCssMode: customMode,
+            customCssUrl: customUrl,
+            customCssContent,
             ultima_actualizacion: new Date()
         };
 
@@ -582,13 +852,75 @@
         renderPreview();
     });
 
+    inputColorRecuadro.addEventListener('input', () => {
+        updateControlLabels();
+        renderPreview();
+    });
+
+    inputGrosorBorde.addEventListener('input', () => {
+        updateControlLabels();
+        renderPreview();
+    });
+
+    inputOpacidadRecuadro.addEventListener('input', () => {
+        updateControlLabels();
+        renderPreview();
+    });
+
+    disenoMensajeSelect.addEventListener('change', () => {
+        updateColorRecuadroVisibility();
+        updateCustomControlsVisibility();
+        renderPreview();
+    });
+
+    customCssModeSelect.addEventListener('change', () => {
+        updateCustomControlsVisibility();
+        renderPreview();
+    });
+
+    customCssUrlInput.addEventListener('input', () => {
+        if (mapDesignClass() === 'design-custom' && customCssModeSelect.value === 'url') {
+            renderPreview();
+        }
+    });
+
+    customCssFileInput.addEventListener('change', async () => {
+        const file = customCssFileInput.files?.[0];
+        if (!file) {
+            customCssContent = '';
+            customCssFileStatus.textContent = 'No hay archivo cargado.';
+            renderPreview();
+            return;
+        }
+
+        if (file.size > 200 * 1024) {
+            showSaveFeedback('El archivo CSS es demasiado grande (máx. 200KB).', 'error');
+            customCssFileInput.value = '';
+            return;
+        }
+
+        const text = await file.text();
+        if (!validateCustomCssText(text)) {
+            showSaveFeedback('CSS no permitido: evitá @import, body, html, :root o *.', 'error');
+            customCssContent = '';
+            customCssFileInput.value = '';
+            customCssFileStatus.textContent = 'No hay archivo cargado.';
+            renderPreview();
+            return;
+        }
+
+        customCssContent = text;
+        customCssFileStatus.textContent = `Archivo cargado: ${file.name}`;
+        renderPreview();
+    });
+
     selectFuente.addEventListener('change', () => {
         document.getElementById('resultado').style.display = 'none';
         loadFont(selectFuente.value);
         renderPreview();
     });
 
-    const previewControls = [canalInput, selectFuente, animacionDireccionSelect, animacionEstiloSelect];
+    const previewControls = [canalInput, selectFuente, animacionDireccionSelect, animacionEstiloSelect, disenoMensajeSelect];
     previewControls.forEach(el => {
         el.addEventListener('input', () => {
             document.getElementById('resultado').style.display = 'none';
@@ -599,6 +931,9 @@
     cargarFuentesDeGoogle().then(() => {
         if (!selectFuente.value) selectFuente.value = 'Poppins';
         loadFont(selectFuente.value);
+        updateControlLabels();
+        updateColorRecuadroVisibility();
+        updateCustomControlsVisibility();
         renderPreview();
     });
 </script>

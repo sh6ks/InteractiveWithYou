@@ -50,7 +50,7 @@
                 const q = query(collection(db, "usuarios"), where("canal", "==", canalSolicitado));
                 const querySnapshot = await getDocs(q);
 
-                let config = { color: "#6441a5", fuente: "Roboto", animacionDireccion: 'from-left', animacionEstilo: 'slide' };
+                let config = { color: "#6441a5", grosorBorde: 5, colorRecuadro: '#000000', opacidadRecuadro: 88, fuente: "Roboto", animacionDireccion: 'from-left', animacionEstilo: 'slide', disenoMensaje: 'design-solid', customCssMode: 'url', customCssUrl: '', customCssContent: '' };
 
                 // Prioriza el documento por ID de canal para evitar tomar configs viejas.
                 const canalDocRef = doc(db, 'usuarios', canalSolicitado);
@@ -75,8 +75,26 @@
                     setStatus(`Sin config personalizada para #${canalSolicitado}, usando valores por defecto`, 'warning');
                 }
 
-                const twitchClientId = config.twitchClientId || urlParams.get('client_id') || '9cac6zpfterkbzigfr28hpil7se9y3';
-                const twitchAccessToken = config.twitchAccessToken || urlParams.get('access_token') || 'j09j0n1xcu9m7d7wf4p136amhp2u67';
+                let twitchClientId = config.twitchClientId || urlParams.get('client_id');
+                let twitchAccessToken = config.twitchAccessToken || urlParams.get('access_token');
+                const twitchTokenEndpoint = config.twitchTokenEndpoint || urlParams.get('token_endpoint');
+
+                // If token is missing in frontend config, request a short-lived token from backend.
+                if ((!twitchClientId || !twitchAccessToken) && twitchTokenEndpoint) {
+                    try {
+                        const tokenResponse = await fetch(twitchTokenEndpoint);
+                        const tokenJson = await tokenResponse.json();
+                        if (tokenResponse.ok && tokenJson?.access_token) {
+                            twitchAccessToken = tokenJson.access_token;
+                            twitchClientId = twitchClientId || tokenJson.client_id || null;
+                        } else {
+                            console.warn('No se pudo obtener token desde backend:', tokenJson);
+                        }
+                    } catch (tokenErr) {
+                        console.warn('Error consultando endpoint de token Twitch:', tokenErr);
+                    }
+                }
+
                 let twitchAssets = null;
                 if (twitchClientId && twitchAccessToken) {
                     try {
@@ -84,6 +102,10 @@
                     } catch (err) {
                         console.warn('No se pudieron cargar assets de Twitch API:', err);
                     }
+                }
+
+                if (config.disenoMensaje === 'design-custom') {
+                    applyCustomWidgetCss(config.customCssMode, config.customCssUrl, config.customCssContent);
                 }
 
                 // Cargamos la fuente y RECIÉN AHÍ conectamos al chat
@@ -94,12 +116,12 @@
                     active: function() {
                         console.log("Fuente cargada con éxito:", config.fuente);
                         document.body.style.fontFamily = config.fuente;
-                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, twitchAssets);
+                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, config.disenoMensaje, config.colorRecuadro, config.opacidadRecuadro, config.grosorBorde, twitchAssets);
                     },
                     inactive: function() {
                         console.log("No se pudo cargar la fuente, usando fallback.");
                         document.body.style.fontFamily = "sans-serif";
-                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, twitchAssets);
+                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, config.disenoMensaje, config.colorRecuadro, config.opacidadRecuadro, config.grosorBorde, twitchAssets);
                     }
                 });
             } catch (error) {
@@ -213,6 +235,76 @@
             }).join(' ');
         }
 
+        function hexToRgb(hex) {
+            const value = (hex || '').replace('#', '');
+            const normalized = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
+            const num = parseInt(normalized, 16);
+            if (Number.isNaN(num)) return { r: 145, g: 71, b: 255 };
+            return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+        }
+
+        function hexToRgba(hex, alpha) {
+            const rgb = hexToRgb(hex);
+            const a = Math.max(0, Math.min(1, alpha));
+            return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
+        }
+
+        let customWidgetStyleTag = null;
+        let customWidgetLinkTag = null;
+
+        function removeCustomWidgetCss() {
+            if (customWidgetStyleTag) {
+                customWidgetStyleTag.remove();
+                customWidgetStyleTag = null;
+            }
+            if (customWidgetLinkTag) {
+                customWidgetLinkTag.remove();
+                customWidgetLinkTag = null;
+            }
+        }
+
+        function isSafeCustomCssUrl(url) {
+            try {
+                const parsed = new URL(url);
+                return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+            } catch {
+                return false;
+            }
+        }
+
+        function validateCustomCssText(cssText) {
+            const content = (cssText || '').toLowerCase();
+            const forbidden = [
+                /@import\b/,
+                /\bhtml\b\s*\{/,
+                /\bbody\b\s*\{/,
+                /:root\s*\{/,
+                /(^|\n)\s*\*\s*\{/
+            ];
+            return !forbidden.some((pattern) => pattern.test(content));
+        }
+
+        function applyCustomWidgetCss(mode = 'url', cssUrl = '', cssContent = '') {
+            removeCustomWidgetCss();
+            if (mode === 'url') {
+                const url = (cssUrl || '').trim();
+                if (!url || !isSafeCustomCssUrl(url)) return;
+                customWidgetLinkTag = document.createElement('link');
+                customWidgetLinkTag.rel = 'stylesheet';
+                customWidgetLinkTag.href = url;
+                customWidgetLinkTag.setAttribute('data-widget-custom-css', 'true');
+                document.head.appendChild(customWidgetLinkTag);
+                return;
+            }
+
+            const content = (cssContent || '').trim();
+            if (!content || !validateCustomCssText(content)) return;
+            customWidgetStyleTag = document.createElement('style');
+            customWidgetStyleTag.setAttribute('data-widget-custom-css', 'true');
+            customWidgetStyleTag.textContent = content;
+            document.head.appendChild(customWidgetStyleTag);
+        }
+
         function mostrarEjemplos(texto) {
             const contenedor = document.getElementById('chat');
             contenedor.innerHTML = '';
@@ -231,7 +323,7 @@
         }
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
-        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', twitchAssets = null) {
+        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null) {
             setStatus(`Conectando al chat de #${canal}...`, 'info');
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
 
@@ -292,8 +384,15 @@
                     const div = document.createElement('div');
                     const direction = animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];
                     const estilo = animacionEstilo || 'slide';
-                    div.className = `mensaje ${direction} ${estilo}`;
-                    div.style.borderLeft = `5px solid ${colorBorde}`;
+                    div.className = `mensaje ${direction} ${estilo} ${disenoMensaje}`;
+                    const borderSize = Math.max(2, Math.min(12, Number(grosorBorde) || 5));
+                    div.style.borderLeft = `${borderSize}px solid ${colorBorde}`;
+                    div.style.setProperty('--accent-color', colorBorde);
+                    const rgb = hexToRgb(colorBorde);
+                    div.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+                    if (disenoMensaje === 'design-solid' || disenoMensaje === 'design-square') {
+                        div.style.backgroundColor = hexToRgba(colorRecuadro || '#000000', (Number(opacidadRecuadro) || 88) / 100);
+                    }
                     div.innerHTML = `${avatarHtml}${badgesHtml}<span style="color:${colorTwitch}; font-weight:bold;"> ${usuario}:</span> ${mensajeRaw}`;
                     contenedor.appendChild(div);
                     setTimeout(() => div.remove(), 10000);

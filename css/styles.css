@@ -38,6 +38,48 @@ body {
     word-wrap: break-word; 
 }
 
+.mensaje.design-solid {
+    background: rgba(0, 0, 0, 0.88);
+}
+
+.mensaje.design-transparent {
+    background: transparent;
+    box-shadow: none;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.65);
+}
+
+.mensaje.design-square {
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.82);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.28);
+}
+
+.mensaje.design-glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-left-width: 5px;
+}
+
+.mensaje.design-neon {
+    background: rgba(8, 10, 20, 0.9);
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 145, 71, 255), 0.38), 0 0 16px rgba(var(--accent-rgb, 145, 71, 255), 0.24);
+    border-left-color: var(--accent-color, #9147ff);
+}
+
+.mensaje.design-outline {
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(var(--accent-rgb, 145, 71, 255), 0.62);
+    border-left-width: 5px;
+    box-shadow: none;
+}
+
+.mensaje.design-pill {
+    background: rgba(18, 14, 34, 0.92);
+    border-radius: 999px;
+    padding: 12px 22px;
+}
+
 .mensaje.from-top {
     animation-name: aparecerDesdeArriba;
 }
