@@ -536,7 +536,7 @@
 
         try {
             await persistirConfiguracion(canal, color, fuente);
-            showSaveFeedback('Configuración guardada correctamente.', 'success');
+            showSaveFeedback('Configuración guardada. Recordá refrescar cache de la página en OBS.', 'success');
         } catch (error) {
             console.error('Error al guardar:', error);
             showSaveFeedback('No se pudo guardar la configuración.', 'error');
@@ -570,7 +570,7 @@
     window.copiarAlPortapapeles = function() {
         const link = document.getElementById('linkFinal').innerText;
         navigator.clipboard.writeText(link).then(() => {
-            showSaveFeedback('Link copiado correctamente.', 'success');
+            showSaveFeedback('Link copiado. Recordá refrescar cache de la página en OBS.', 'success');
         }).catch(() => {
             showSaveFeedback('No se pudo copiar el link.', 'error');
         });
