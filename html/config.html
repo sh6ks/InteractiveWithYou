@@ -570,7 +570,9 @@
     window.copiarAlPortapapeles = function() {
         const link = document.getElementById('linkFinal').innerText;
         navigator.clipboard.writeText(link).then(() => {
-            alert('¡Link copiado! Pegalo en OBS.');
+            showSaveFeedback('Link copiado correctamente.', 'success');
+        }).catch(() => {
+            showSaveFeedback('No se pudo copiar el link.', 'error');
         });
     };
 
