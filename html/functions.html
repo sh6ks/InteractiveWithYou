@@ -10,110 +10,404 @@
     <title>Funciones - Interactive With You</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Usamos fondo transparente para que se vea el del index.html */
-        body { 
-            background: transparent !important; 
-            margin: 0; 
-            padding: 30px; 
-            color: white; 
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            background: transparent !important;
+            margin: 0;
+            padding: 30px;
+            color: white;
             font-family: 'Poppins', sans-serif;
         }
-        
+
+        .page-head {
+            margin-bottom: 28px;
+        }
+
+        .page-head h2 {
+            margin: 0 0 8px;
+            font-size: clamp(1.8rem, 3vw, 2.35rem);
+            color: #fff;
+        }
+
+        .page-head p {
+            margin: 0;
+            color: #a79fcb;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            max-width: 720px;
+        }
+
         .grid-funciones {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 20px;
             overflow: visible;
         }
-        
-        /* Tus antiguas clases .btn-main mejoradas como .card-funcion */
+
         .card-funcion {
-            background: #1d1b31;
-            border: 2px solid #3f3f46;
-            padding: 18px;
-            border-radius: 20px;
-            color: white;
-            text-decoration: none;
-            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-            text-align: center;
-            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            min-height: 268px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            min-height: 180px;
-            box-sizing: border-box;
-            position: relative;
+            justify-content: flex-end;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0b1c;
+            transition:
+                transform 0.45s cubic-bezier(0.23,1,0.32,1),
+                box-shadow 0.45s ease,
+                border-color 0.3s;
+            will-change: transform;
         }
-        
+
         .card-funcion:hover {
-            border-color: #9147ff;
-            transform: scale(1.02);
-            background: #24223d;
-            box-shadow: 0 8px 20px rgba(145, 71, 255, 0.16);
+            transform: scale(1.045) translateY(-7px);
+            border-color: var(--accent, rgba(145,71,255,.55));
+            box-shadow: 0 30px 60px rgba(0,0,0,.5), 0 0 44px var(--glow, rgba(145,71,255,.18));
             z-index: 1;
         }
 
-        .card-funcion i { 
-            font-size: 3rem; 
-            color: #a970ff; 
-            margin-bottom: 20px; 
+        .card-chat     { --accent: rgba(145,71,255,.6);  --glow: rgba(145,71,255,.22); }
+        .card-alertas  { --accent: rgba(251,146,60,.65); --glow: rgba(251,146,60,.2); }
+        .card-comandos { --accent: rgba(74,222,128,.6); --glow: rgba(74,222,128,.18); }
+
+        .card-preview {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.45s ease;
+            pointer-events: none;
         }
-        
-        .card-funcion strong { 
-            font-size: 1.5rem; 
-            margin-bottom: 10px;
+
+        .card-funcion:hover .card-preview {
+            opacity: 1;
+        }
+
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to top,
+                rgba(8,5,20,.95) 0%,
+                rgba(8,5,20,.55) 42%,
+                rgba(8,5,20,.08) 100%
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .card-body {
+            position: relative;
+            z-index: 2;
+            padding: 20px 22px 22px;
+            transition: transform 0.4s ease;
+        }
+
+        .card-funcion:hover .card-body {
+            transform: translateY(-4px);
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: var(--accent, rgba(145,71,255,.2));
+            color: #fff;
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+        }
+
+        .card-body strong {
+            display: block;
+            margin: 0 0 6px;
+            font-size: 1.12rem;
+            color: #fff;
+        }
+
+        .card-body p {
+            margin: 0 0 12px;
+            font-size: 0.87rem;
+            color: #b3aad8;
+            line-height: 1.55;
+        }
+
+        .card-cta {
+            font-size: 0.83rem;
+            font-weight: 700;
+            color: #fff;
+            opacity: 0;
+            transform: translateX(-6px);
+            transition: opacity 0.32s .06s ease, transform 0.32s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .card-funcion:hover .card-cta {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .preview-chat {
+            background: linear-gradient(170deg, rgba(100,40,180,.5) 0%, transparent 70%);
+        }
+
+        .preview-chat .bar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, #9147ff, #4b1f97);
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 12px 12px 12px 2px;
+            padding: 6px 11px;
+            font-size: 0.76rem;
+            color: #e0d8ff;
+            white-space: nowrap;
+            opacity: 0;
+            background: rgba(120,60,220,.3);
+            border: 1px solid rgba(145,71,255,.4);
+            backdrop-filter: blur(4px);
+        }
+
+        .bubble.r {
+            border-radius: 12px 12px 2px 12px;
+            background: rgba(90,40,170,.35);
+            border-color: rgba(170,110,255,.4);
+        }
+
+        .card-funcion:hover .bubble {
+            animation: bubIn .45s ease forwards;
+        }
+
+        .b1 { left: 18px; top: 20px; animation-delay: .04s !important; }
+        .b2 { right: 22px; top: 60px; animation-delay: .2s !important; }
+        .b3 { left: 24px; top: 102px; animation-delay: .38s !important; }
+        .b4 { right: 18px; top: 144px; animation-delay: .56s !important; }
+
+        @keyframes bubIn {
+            from { opacity: 0; transform: translateY(8px) scale(.93); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .preview-alertas {
+            background: radial-gradient(circle at 50% 38%, rgba(251,146,60,.32) 0%, transparent 62%);
+        }
+
+        .bell-center {
+            position: absolute;
+            top: 26px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .bell-ico {
+            font-size: 2.6rem;
+            color: #fb923c;
+            opacity: 0;
+            filter: drop-shadow(0 0 12px rgba(251,146,60,.75));
             display: block;
         }
 
-        .card-funcion p {
-            color: #adadb8;
-            font-size: 0.95rem;
-            line-height: 1.4;
+        .card-funcion:hover .bell-ico {
+            animation: bellRing .75s .08s ease forwards;
         }
 
-        .locked {
-            opacity: 0.6;
-            cursor: not-allowed;
-            filter: grayscale(0.8);
+        @keyframes bellRing {
+            0% { opacity: 0; transform: rotate(0) scale(.6); }
+            20% { opacity: 1; transform: rotate(-14deg) scale(1.1); }
+            40% { transform: rotate(11deg); }
+            60% { transform: rotate(-7deg); }
+            80% { transform: rotate(4deg); }
+            100% { opacity: 1; transform: rotate(0) scale(1); }
         }
 
-        @media (max-width: 1024px) {
+        .ripple {
+            position: absolute;
+            top: 44px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            border: 2px solid rgba(251,146,60,.55);
+            width: 48px;
+            height: 48px;
+            opacity: 0;
+        }
+
+        .card-funcion:hover .ripple {
+            animation: ripOut 1.5s ease-out infinite;
+        }
+
+        .rp2 { animation-delay: .45s !important; }
+        .rp3 { animation-delay: .9s !important; }
+
+        @keyframes ripOut {
+            0% { width: 48px; height: 48px; opacity: .8; }
+            100% { width: 170px; height: 170px; margin-left: -61px; opacity: 0; }
+        }
+
+        .preview-comandos {
+            background: linear-gradient(175deg, rgba(15,40,20,.75) 0%, transparent 80%);
+        }
+
+        .terminal {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            right: 14px;
+            background: rgba(0,10,4,.88);
+            border: 1px solid rgba(74,222,128,.3);
+            border-radius: 10px;
+            padding: 10px 12px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.74rem;
+        }
+
+        .t-bar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        .t-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+        }
+
+        .t-dot.red { background: #ff5f56; }
+        .t-dot.yel { background: #ffbd2e; }
+        .t-dot.grn { background: #27c93f; }
+
+        .tl {
+            color: #4ade80;
+            white-space: nowrap;
+            overflow: hidden;
+            margin-bottom: 3px;
+            opacity: 0;
+        }
+
+        .tl.res {
+            color: #bbf7d0;
+            padding-left: 12px;
+        }
+
+        .card-funcion:hover .tl {
+            animation: lineIn .3s ease forwards;
+        }
+
+        .tl:nth-child(2) { animation-delay: .06s !important; }
+        .tl:nth-child(3) { animation-delay: .26s !important; }
+        .tl:nth-child(4) { animation-delay: .46s !important; }
+        .tl:nth-child(5) { animation-delay: .66s !important; }
+        .tl:nth-child(6) { animation-delay: .82s !important; }
+
+        @keyframes lineIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 7px;
+            height: 12px;
+            background: #4ade80;
+            vertical-align: text-bottom;
+            animation: blink .85s steps(1) infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        @media (max-width: 1100px) {
             body { padding: 20px; }
-            .card-funcion { padding: 24px; }
+            .grid-funciones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
 
         @media (max-width: 720px) {
             body { padding: 14px; }
-            .grid-funciones { gap: 12px; }
-            .card-funcion { padding: 20px; min-height: auto; }
-            .card-funcion i { font-size: 2.4rem; margin-bottom: 14px; }
-            .card-funcion strong { font-size: 1.3rem; }
-            .card-funcion p { font-size: 0.95rem; }
+            .grid-funciones { grid-template-columns: 1fr; gap: 14px; }
+            .card-funcion { min-height: 220px; }
         }
     </style>
 </head>
 <body>
 <!-- Contenido con tarjetas de funciones disponibles y próximas herramientas -->
 
-    <h2 style="margin-bottom: 30px;">Elegí una herramienta 🛠️</h2>
+    <div class="page-head">
+        <h2>Elegí una herramienta 🛠️</h2>
+    </div>
 
     <div class="grid-funciones">
-        <div class="card-funcion" onclick="parent.cargarSeccion('chat')">
-            <i class="fa-solid fa-comment-dots"></i>
-            <strong>Widget de Chat</strong>
-            <p>Personalizá colores y fuentes de Google para tu chat de Twitch.</p>
+        <div class="card-funcion card-chat" onclick="parent.cargarSeccion('chat')">
+            <div class="card-preview preview-chat">
+                <div class="bar"></div>
+                <div class="bubble b1">shekssink: Buenas a todos</div>
+                <div class="bubble b2 r">viewer42: PogChamp</div>
+                <div class="bubble b3">mod_user: !redes</div>
+                <div class="bubble b4 r">fan_123: alto overlay</div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-comment-dots"></i></div>
+                <strong>Widget de Chat</strong>
+                <p>Personalizá colores, fuentes, emotes y animaciones para tu chat de Twitch.</p>
+                <span class="card-cta">Abrir widget <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
         </div>
 
-        <div class="card-funcion" onclick="parent.cargarSeccion('alerts')">
-            <i class="fa-solid fa-bell"></i>
-            <strong>Alertas en vivo</strong>
-            <p>Notificaciones visuales para tu overlay en OBS.</p>
+        <div class="card-funcion card-alertas" onclick="parent.cargarSeccion('alerts')">
+            <div class="card-preview preview-alertas">
+                <div class="bell-center">
+                    <i class="fa-solid fa-bell bell-ico"></i>
+                </div>
+                <div class="ripple"></div>
+                <div class="ripple rp2"></div>
+                <div class="ripple rp3"></div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-bell"></i></div>
+                <strong>Alertas en vivo</strong>
+                <p>Mostrá notificaciones visuales para follows, subs y eventos en tu overlay.</p>
+                <span class="card-cta">Configurar alertas <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
         </div>
 
-        <div class="card-funcion" onclick="parent.cargarSeccion('comandos')">
-            <i class="fa-solid fa-terminal"></i>
-            <strong>Comandos y timers</strong>
-            <p>Creá respuestas automáticas (!redes) y mensajes periódicos para el chat.</p>
+        <div class="card-funcion card-comandos" onclick="parent.cargarSeccion('comandos')">
+            <div class="card-preview preview-comandos">
+                <div class="terminal">
+                    <div class="t-bar">
+                        <div class="t-dot red"></div>
+                        <div class="t-dot yel"></div>
+                        <div class="t-dot grn"></div>
+                    </div>
+                    <div class="tl">$ viewer1: !redes</div>
+                    <div class="tl res">→ Seguime en IG: @tuser</div>
+                    <div class="tl">$ viewer2: !discord</div>
+                    <div class="tl res">→ discord.gg/tusserver</div>
+                    <div class="tl"><span class="cursor"></span></div>
+                </div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-terminal"></i></div>
+                <strong>Comandos y timers</strong>
+                <p>Creá respuestas automáticas, accesos rápidos y mensajes periódicos para el chat.</p>
+                <span class="card-cta">Crear comandos <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
         </div>
     </div>
 

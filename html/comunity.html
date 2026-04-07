@@ -9,55 +9,657 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comunidad - Interactive With You</title>
     <style>
-        body { background: transparent; color: white; font-family: 'Poppins', sans-serif; padding: 20px; }
-        .comunidad-container { max-width: 600px; margin: auto; }
-        h2 { color: #a970ff; margin-bottom: 20px; }
-        textarea { width: 100%; height: 80px; background: #11101d; border: 1px solid #9147ff; color: white; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; font-size: 1rem; }
-        button { background: #9147ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        button:hover { background: #bf94ff; transform: scale(1.05); }
-        .mensaje-card { background: #1d1b31; padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 4px solid #9147ff; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .mensaje-card:hover { transform: scale(1.01); box-shadow: 0 8px 22px rgba(0,0,0,0.3); }
-        .autor { color: #a970ff; font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 5px; }
-        p { margin: 0; line-height: 1.4; color: #efeff1; }
-        .comment-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-        .comment-actions button { background: #2d2750; color: #dcd7ff; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s ease; }
-        .comment-actions button:hover { background: #3e3478; }
-        .reply-card { background: #141322; border-left: 4px solid #5f42e0; padding: 12px; margin-top: 12px; margin-left: 18px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .reply-card:hover { transform: scale(1.01); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
-        .reply-box { margin-top: 12px; }
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            background: transparent;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            padding: 24px;
+            margin: 0;
+        }
+
+        .comunidad-container {
+            max-width: 920px;
+            margin: 0 auto;
+        }
+
+        .community-hero {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(145,71,255,0.16) 0%, rgba(14,10,26,0.96) 58%, rgba(9,31,45,0.96) 100%);
+            border: 1px solid rgba(145,71,255,0.2);
+            border-radius: 24px;
+            padding: 30px 32px;
+            margin-bottom: 22px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+        }
+
+        .community-hero::before {
+            content: '';
+            position: absolute;
+            top: -80px;
+            right: -60px;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: rgba(56,189,248,0.14);
+            filter: blur(42px);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            color: #cfc7ff;
+            font-size: 0.8rem;
+            margin-bottom: 14px;
+        }
+
+        h2 {
+            color: #d8c8ff;
+            margin: 0 0 8px;
+            font-size: clamp(1.8rem, 3vw, 2.35rem);
+        }
+
+        .community-subtitle {
+            margin: 0;
+            color: #b5afd5;
+            line-height: 1.65;
+            max-width: 700px;
+            font-size: 0.95rem;
+        }
+
+        .composer-card {
+            margin-top: 22px;
+            background: rgba(8, 8, 19, 0.52);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 22px;
+            padding: 18px;
+            backdrop-filter: blur(10px);
+        }
+
+        .composer-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .composer-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .user-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #9147ff, #38bdf8);
+            display: grid;
+            place-items: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .composer-user strong {
+            display: block;
+            color: #fff;
+            font-size: 0.95rem;
+        }
+
+        .composer-user span {
+            display: block;
+            color: #9690ba;
+            font-size: 0.82rem;
+        }
+
+        .composer-hint {
+            color: #a8a2cb;
+            font-size: 0.8rem;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.05);
+            white-space: nowrap;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 122px;
+            background: linear-gradient(180deg, rgba(17,16,29,0.96) 0%, rgba(13,12,25,0.96) 100%);
+            border: 1px solid rgba(145,71,255,0.42);
+            color: white;
+            border-radius: 18px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+            resize: vertical;
+            font-size: 0.98rem;
+            transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #9d68ff;
+            box-shadow: 0 0 0 4px rgba(145,71,255,0.15);
+        }
+
+        .composer-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .composer-note {
+            color: #8d86b2;
+            font-size: 0.83rem;
+        }
+
+        button {
+            background: linear-gradient(135deg, #9147ff 0%, #7a4bff 100%);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(145,71,255,0.28);
+            filter: brightness(1.05);
+        }
+
+        .feed-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 26px 0 14px;
+        }
+
+        .feed-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #e8e2ff;
+        }
+
+        .feed-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .feed-controls span {
+            font-size: 0.82rem;
+            color: #8f89b5;
+        }
+
+        .sort-pills {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .sort-pill {
+            background: rgba(255,255,255,0.05);
+            color: #cfc9f5;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 999px;
+            padding: 10px 14px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: none;
+        }
+
+        .sort-pill:hover {
+            transform: translateY(-1px);
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(145,71,255,0.18);
+        }
+
+        .sort-pill.is-active {
+            background: linear-gradient(135deg, rgba(145,71,255,0.22) 0%, rgba(56,189,248,0.16) 100%);
+            border-color: rgba(145,71,255,0.42);
+            color: #ffffff;
+            box-shadow: 0 10px 22px rgba(145,71,255,0.16);
+        }
+
+        .sort-pill:focus-visible {
+            outline: none;
+            border-color: rgba(145,71,255,0.48);
+            box-shadow: 0 0 0 4px rgba(145,71,255,0.14);
+        }
+
+        #lista-mensajes {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .mensaje-card {
+            background: linear-gradient(180deg, rgba(29,27,49,0.95) 0%, rgba(22,20,39,0.95) 100%);
+            padding: 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.22);
+            transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        }
+
+        .mensaje-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 36px rgba(0,0,0,0.26);
+            border-color: rgba(145,71,255,0.18);
+        }
+
+        .reply-card {
+            margin-top: 12px;
+            margin-left: 22px;
+            background: linear-gradient(180deg, rgba(20,19,34,0.98) 0%, rgba(15,15,29,0.98) 100%);
+            border-color: rgba(95,66,224,0.18);
+        }
+
+        .comment-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+
+        .comment-author {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .comment-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 13px;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            display: grid;
+            place-items: center;
+            color: white;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .autor {
+            color: #d9c9ff;
+            font-weight: 700;
+            font-size: 0.92rem;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .comment-meta {
+            color: #8e88b1;
+            font-size: 0.78rem;
+        }
+
+        .message-body {
+            margin: 0;
+            line-height: 1.6;
+            color: #efeff1;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .comment-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .action-btn {
+            background: rgba(255,255,255,0.05);
+            color: #dcd7ff;
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 9px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: none;
+        }
+
+        .action-btn.like-active {
+            background: rgba(52,211,153,0.12);
+            border-color: rgba(52,211,153,0.34);
+            color: #baf7e0;
+        }
+
+        .action-btn.dislike-active {
+            background: rgba(248,113,113,0.12);
+            border-color: rgba(248,113,113,0.34);
+            color: #ffd4d4;
+        }
+
+        .reply-box {
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .reply-box textarea {
+            min-height: 90px;
+            margin-bottom: 10px;
+            border-radius: 14px;
+        }
+
+        .reply-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .ghost-btn {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #d2ccf4;
+        }
+
+        .ghost-btn:hover {
+            box-shadow: none;
+            background: rgba(255,255,255,0.08);
+        }
+
         .hidden { display: none; }
+
+        .empty-state {
+            padding: 24px;
+            border-radius: 18px;
+            text-align: center;
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.08);
+            color: #a7a1c7;
+        }
+
+        .contact-card {
+            margin-top: 22px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0b1c;
+            transition: transform 0.45s cubic-bezier(0.23,1,0.32,1), box-shadow 0.45s ease, border-color 0.3s;
+            --accent: rgba(244,114,182,.58);
+            --glow: rgba(244,114,182,.18);
+        }
+
+        .contact-card:hover {
+            transform: scale(1.02) translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 28px 54px rgba(0,0,0,.34), 0 0 40px var(--glow);
+        }
+
+        .contact-preview {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(160deg, rgba(87,34,94,.52) 0%, rgba(13,11,28,.12) 70%);
+            pointer-events: none;
+        }
+
+        .contact-preview::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 78% 22%, rgba(251,146,60,.22), transparent 22%), radial-gradient(circle at 16% 18%, rgba(244,114,182,.18), transparent 28%);
+            animation: contactGlow 8s ease-in-out infinite;
+        }
+
+        .contact-mail {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            right: 18px;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(9,10,22,.64);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(8px);
+        }
+
+        .contact-mail-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: #f2deff;
+            font-size: 0.8rem;
+        }
+
+        .contact-tags {
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .contact-tag {
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #ffd8ee;
+            font-size: 0.74rem;
+        }
+
+        .contact-lines {
+            display: grid;
+            gap: 8px;
+        }
+
+        .contact-line {
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.06));
+            animation: lineSweep 3.2s ease-in-out infinite;
+        }
+
+        .contact-line.short { width: 58%; animation-delay: .35s; }
+        .contact-line.mid { width: 76%; animation-delay: .7s; }
+
+        .contact-card .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(8,5,20,.95) 0%, rgba(8,5,20,.5) 42%, rgba(8,5,20,.08) 100%);
+            z-index: 1;
+        }
+
+        .contact-body {
+            position: relative;
+            z-index: 2;
+            padding: 20px 22px 22px;
+        }
+
+        .contact-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: rgba(244,114,182,.18);
+            color: #fff;
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+        }
+
+        .contact-body h3 {
+            margin: 0 0 6px;
+            color: #fff;
+            font-size: 1.12rem;
+        }
+
+        .contact-body p {
+            margin: 0 0 12px;
+            font-size: 0.87rem;
+            color: #d9c0d1;
+            line-height: 1.55;
+        }
+
+        .contact-cta {
+            font-size: 0.83rem;
+            font-weight: 700;
+            color: #fff;
+            opacity: 0;
+            transform: translateX(-6px);
+            transition: opacity 0.32s .06s ease, transform 0.32s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .contact-card:hover .contact-cta {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        @keyframes contactGlow {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: .84; }
+        }
+
+        @keyframes lineSweep {
+            0%, 100% { opacity: .55; transform: translateX(0); }
+            50% { opacity: 1; transform: translateX(4px); }
+        }
 
         @media (max-width: 1024px) {
             body { padding: 18px; }
-            .comunidad-container { max-width: 100%; padding: 0 10px; }
+            .comunidad-container { max-width: 100%; }
         }
 
         @media (max-width: 720px) {
             body { padding: 14px; }
-            .comunidad-container { padding: 0 8px; }
-            button { width: 100%; padding: 12px 18px; }
-            .mensaje-card { padding: 14px; }
-            .comment-actions { flex-direction: column; align-items: stretch; }
+            .community-hero { padding: 22px 18px; }
+            .composer-top,
+            .composer-actions,
+            .feed-header,
+            .reply-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .feed-controls { align-items: stretch; }
+            .composer-hint { white-space: normal; }
+            button,
+            .action-btn,
+            .sort-pill { width: 100%; justify-content: center; }
             .reply-card { margin-left: 0; }
-            .reply-box { margin-top: 10px; }
-            .reply-box textarea { width: 100%; }
+            .comment-actions { flex-direction: column; }
         }
     </style>
 </head>
 <body>
 <!-- Sección principal de comunidad con caja de envío y lista de mensajes -->
     <div class="comunidad-container">
-        <h2>Muro de ideas y opiniones 💬</h2>
-        <textarea id="nuevo-comentario" placeholder="Contanos tus ideas, opiniones o sugerencias..."></textarea>
-        <button id="btn-enviar">Enviar idea</button>
+        <section class="community-hero">
+            <div class="hero-badge">Feedback en tiempo real</div>
+            <h2>Muro de ideas y opiniones</h2>
+            <p class="community-subtitle">Compartí sugerencias, votá propuestas y respondé ideas de otros usuarios. Cada comentario permite una sola reacción por usuario: like o dislike.</p>
+
+            <div class="composer-card">
+                <div class="composer-top">
+                    <div class="composer-user">
+                        <div class="user-avatar" id="composerAvatar">IW</div>
+                        <div>
+                            <strong id="composerName">Cargando usuario...</strong>
+                            <span>Tu mensaje se publica en la comunidad</span>
+                        </div>
+                    </div>
+                    <div class="composer-hint">Ideas claras, votos claros</div>
+                </div>
+
+                <textarea id="nuevo-comentario" placeholder="Contanos tu idea, opinión o sugerencia..."></textarea>
+
+                <div class="composer-actions">
+                    <span class="composer-note">Podés responder ideas existentes y dejar un like o dislike por comentario.</span>
+                    <button id="btn-enviar">Publicar idea</button>
+                </div>
+            </div>
+        </section>
+
+        <div class="feed-header">
+            <h3>Comentarios</h3>
+            <div class="feed-controls">
+                <span>Ordenar por</span>
+                <div class="sort-pills" id="sortComments">
+                    <button type="button" class="sort-pill is-active" data-sort="recent">Más recientes</button>
+                    <button type="button" class="sort-pill" data-sort="relevance">Relevancia</button>
+                    <button type="button" class="sort-pill" data-sort="oldest">Fecha</button>
+                    <button type="button" class="sort-pill" data-sort="likes">Más me gusta</button>
+                </div>
+            </div>
+        </div>
 
         <div id="lista-mensajes"></div>
+
+        <section class="contact-card" onclick="parent.cargarSeccion('contacto')">
+            <div class="contact-preview">
+                <div class="contact-mail">
+                    <div class="contact-mail-top">
+                        <span>Nueva consulta</span>
+                        <span>support@interactivewithyou</span>
+                    </div>
+                    <div class="contact-tags">
+                        <span class="contact-tag">Ideas</span>
+                        <span class="contact-tag">Soporte</span>
+                        <span class="contact-tag">Colaboración</span>
+                    </div>
+                    <div class="contact-lines">
+                        <div class="contact-line"></div>
+                        <div class="contact-line mid"></div>
+                        <div class="contact-line short"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="contact-body">
+                <div class="contact-icon"><i class="fa-solid fa-paper-plane"></i></div>
+                <h3>Contacto directo</h3>
+                <p>Mandanos una consulta, propuesta o colaboración y seguí la conversación fuera del muro.</p>
+                <span class="contact-cta">Ir a contacto <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
+        </section>
     </div>
 
     <script type="module">
         // Script de comunidad: muestra comentarios en tiempo real y permite likes/respuestas.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -77,6 +679,11 @@
         const twitchName = localStorage.getItem('nombreTwitch') || '';
         const audioNotificacion = new Audio('assets/notificacion.mp3');
         let cargaInicial = true;
+        let latestSnapshotDocs = [];
+        let currentSortMode = 'recent';
+        const composerName = document.getElementById('composerName');
+        const composerAvatar = document.getElementById('composerAvatar');
+        const sortCommentsGroup = document.getElementById('sortComments');
 
         // Obtiene el nombre a mostrar según el usuario autenticado o Twitch.
         const getDisplayName = () => {
@@ -84,6 +691,202 @@
                 return currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario';
             }
             return twitchName || 'Invitado';
+        };
+
+        const getActorId = () => {
+            if (currentUser?.uid) {
+                return `google:${currentUser.uid}`;
+            }
+            if (twitchName) {
+                return `twitch:${twitchName.trim().toLowerCase()}`;
+            }
+            return null;
+        };
+
+        const getInitials = (name) => {
+            const cleanName = String(name || 'IW').trim();
+            if (!cleanName) return 'IW';
+            return cleanName
+                .split(/\s+/)
+                .slice(0, 2)
+                .map(part => part.charAt(0).toUpperCase())
+                .join('');
+        };
+
+        const escapeHtml = (value) => String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const formatCommentDate = (fecha) => {
+            const seconds = fecha?.seconds;
+            if (!seconds) return 'Recién publicado';
+            const date = new Date(seconds * 1000);
+            return new Intl.DateTimeFormat('es-AR', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        };
+
+        const getTimestamp = (item) => item?.fecha?.seconds || 0;
+
+        const getLikesCount = (item) => {
+            if (Number.isFinite(item.likes)) return item.likes;
+            return Array.isArray(item.likedBy) ? item.likedBy.length : 0;
+        };
+
+        const getDislikesCount = (item) => {
+            if (Number.isFinite(item.dislikes)) return item.dislikes;
+            return Array.isArray(item.dislikedBy) ? item.dislikedBy.length : 0;
+        };
+
+        const getRelevanceScore = (item) => {
+            const likes = getLikesCount(item);
+            const dislikes = getDislikesCount(item);
+            const repliesBoost = Number(item.replyCount) || 0;
+            return (likes * 2) - dislikes + repliesBoost;
+        };
+
+        const sortCommentsByMode = (items, mode) => {
+            const list = [...items];
+
+            if (mode === 'relevance') {
+                return list.sort((a, b) => {
+                    const scoreDiff = getRelevanceScore(b) - getRelevanceScore(a);
+                    return scoreDiff || (getTimestamp(b) - getTimestamp(a));
+                });
+            }
+
+            if (mode === 'oldest') {
+                return list.sort((a, b) => getTimestamp(a) - getTimestamp(b));
+            }
+
+            if (mode === 'likes') {
+                return list.sort((a, b) => {
+                    const likesDiff = getLikesCount(b) - getLikesCount(a);
+                    return likesDiff || (getTimestamp(b) - getTimestamp(a));
+                });
+            }
+
+            return list.sort((a, b) => getTimestamp(b) - getTimestamp(a));
+        };
+
+        const setSortMode = (mode) => {
+            currentSortMode = mode;
+            sortCommentsGroup.querySelectorAll('.sort-pill').forEach(button => {
+                button.classList.toggle('is-active', button.dataset.sort === mode);
+            });
+        };
+
+        const syncComposerIdentity = () => {
+            const name = getDisplayName();
+            composerName.textContent = name;
+            composerAvatar.textContent = getInitials(name);
+        };
+
+        const buildCommentCard = (comment, actorId, isReply = false) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = isReply ? 'mensaje-card reply-card' : 'mensaje-card';
+
+            const likedBy = Array.isArray(comment.likedBy) ? comment.likedBy : [];
+            const dislikedBy = Array.isArray(comment.dislikedBy) ? comment.dislikedBy : [];
+            const userReaction = actorId ? (likedBy.includes(actorId) ? 'like' : dislikedBy.includes(actorId) ? 'dislike' : null) : null;
+            const likesCount = Number.isFinite(comment.likes) ? comment.likes : likedBy.length;
+            const dislikesCount = Number.isFinite(comment.dislikes) ? comment.dislikes : dislikedBy.length;
+
+            wrapper.innerHTML = `
+                <div class="comment-head">
+                    <div class="comment-author">
+                        <div class="comment-avatar">${escapeHtml(getInitials(comment.nombre))}</div>
+                        <div>
+                            <span class="autor">${escapeHtml(comment.nombre)}</span>
+                            <span class="comment-meta">${escapeHtml(formatCommentDate(comment.fecha))}${isReply ? ' · Respuesta' : ''}</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="message-body">${escapeHtml(comment.texto)}</p>
+                <div class="comment-actions">
+                    <button class="action-btn reaction-btn ${userReaction === 'like' ? 'like-active' : ''}" data-id="${comment.id}" data-reaction="like">👍 <span>${likesCount}</span></button>
+                    <button class="action-btn reaction-btn ${userReaction === 'dislike' ? 'dislike-active' : ''}" data-id="${comment.id}" data-reaction="dislike">👎 <span>${dislikesCount}</span></button>
+                    <button class="action-btn reply-btn" data-id="${comment.id}">Responder</button>
+                </div>
+                <div class="reply-box hidden" id="reply-box-${comment.id}">
+                    <textarea class="reply-input" placeholder="Escribí tu respuesta..."></textarea>
+                    <div class="reply-actions">
+                        <button class="ghost-btn close-reply-btn" data-id="${comment.id}">Cancelar</button>
+                        <button class="submit-reply-btn" data-id="${comment.id}">Enviar respuesta</button>
+                    </div>
+                </div>
+            `;
+
+            return wrapper;
+        };
+
+        const toggleReaction = async (commentId, reactionType) => {
+            if (!requireLogin()) return;
+
+            const actorId = getActorId();
+            if (!actorId) return;
+
+            const ref = doc(db, 'comunidad', commentId);
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const snapshot = await transaction.get(ref);
+                    if (!snapshot.exists()) {
+                        throw new Error('El comentario no existe.');
+                    }
+
+                    const data = snapshot.data();
+                    const likedBy = Array.isArray(data.likedBy) ? [...data.likedBy] : [];
+                    const dislikedBy = Array.isArray(data.dislikedBy) ? [...data.dislikedBy] : [];
+                    let likes = Number.isFinite(data.likes) ? data.likes : likedBy.length;
+                    let dislikes = Number.isFinite(data.dislikes) ? data.dislikes : dislikedBy.length;
+
+                    const isLiked = likedBy.includes(actorId);
+                    const isDisliked = dislikedBy.includes(actorId);
+
+                    if (reactionType === 'like') {
+                        if (isLiked) {
+                            likedBy.splice(likedBy.indexOf(actorId), 1);
+                            likes = Math.max(0, likes - 1);
+                        } else {
+                            likedBy.push(actorId);
+                            likes += 1;
+                            if (isDisliked) {
+                                dislikedBy.splice(dislikedBy.indexOf(actorId), 1);
+                                dislikes = Math.max(0, dislikes - 1);
+                            }
+                        }
+                    }
+
+                    if (reactionType === 'dislike') {
+                        if (isDisliked) {
+                            dislikedBy.splice(dislikedBy.indexOf(actorId), 1);
+                            dislikes = Math.max(0, dislikes - 1);
+                        } else {
+                            dislikedBy.push(actorId);
+                            dislikes += 1;
+                            if (isLiked) {
+                                likedBy.splice(likedBy.indexOf(actorId), 1);
+                                likes = Math.max(0, likes - 1);
+                            }
+                        }
+                    }
+
+                    transaction.update(ref, {
+                        likedBy,
+                        dislikedBy,
+                        likes,
+                        dislikes
+                    });
+                });
+            } catch (error) {
+                console.error('Error al reaccionar:', error);
+            }
         };
 
         const requireLogin = () => {
@@ -112,60 +915,47 @@
         const renderComments = (docs) => {
             const lista = document.getElementById('lista-mensajes');
             const comments = docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const rootComments = comments.filter(c => !c.parentId).sort((a, b) => b.fecha?.seconds - a.fecha?.seconds);
             const repliesMap = {};
+            const actorId = getActorId();
             comments.filter(c => c.parentId).forEach(reply => {
                 if (!repliesMap[reply.parentId]) repliesMap[reply.parentId] = [];
                 repliesMap[reply.parentId].push(reply);
             });
 
+            const rootComments = comments
+                .filter(c => !c.parentId)
+                .map(comment => ({
+                    ...comment,
+                    replyCount: (repliesMap[comment.id] || []).length
+                }));
+
+            Object.values(repliesMap).forEach(replies => {
+                replies.sort((a, b) => getTimestamp(a) - getTimestamp(b));
+            });
+
+            const sortedRootComments = sortCommentsByMode(rootComments, currentSortMode);
+
             lista.innerHTML = '';
-            rootComments.forEach(comment => {
-                const div = document.createElement('div');
-                div.className = 'mensaje-card';
-                div.innerHTML = `
-                    <span class="autor">${comment.nombre}</span>
-                    <p>${comment.texto}</p>
-                    <div class="comment-actions">
-                        <button class="like-btn" data-id="${comment.id}">👍 ${comment.likes || 0}</button>
-                        <button class="reply-btn" data-id="${comment.id}">Responder</button>
-                    </div>
-                    <div class="reply-box hidden" id="reply-box-${comment.id}">
-                        <textarea class="reply-input" placeholder="Escribí tu respuesta..."></textarea>
-                        <button class="submit-reply-btn" data-id="${comment.id}">Enviar respuesta</button>
-                    </div>
-                `;
+            if (rootComments.length === 0) {
+                lista.innerHTML = '<div class="empty-state">Todavía no hay comentarios. Publicá la primera idea y abrí la conversación.</div>';
+                return;
+            }
+
+            sortedRootComments.forEach(comment => {
+                const div = buildCommentCard(comment, actorId, false);
 
                 const replies = repliesMap[comment.id] || [];
-                replies.sort((a, b) => a.fecha?.seconds - b.fecha?.seconds).forEach(reply => {
-                    const replyDiv = document.createElement('div');
-                    replyDiv.className = 'mensaje-card reply-card';
-                    replyDiv.innerHTML = `
-                        <span class="autor">${reply.nombre}</span>
-                        <p>${reply.texto}</p>
-                        <div class="comment-actions">
-                            <button class="like-btn" data-id="${reply.id}">👍 ${reply.likes || 0}</button>
-                            <button class="reply-btn" data-id="${reply.id}">Responder</button>
-                        </div>
-                        <div class="reply-box hidden" id="reply-box-${reply.id}">
-                            <textarea class="reply-input" placeholder="Escribí tu respuesta..."></textarea>
-                            <button class="submit-reply-btn" data-id="${reply.id}">Enviar respuesta</button>
-                        </div>
-                    `;
+                replies.forEach(reply => {
+                    const replyDiv = buildCommentCard(reply, actorId, true);
                     div.appendChild(replyDiv);
                 });
 
                 lista.appendChild(div);
             });
 
-            lista.querySelectorAll('.like-btn').forEach(button => {
+            lista.querySelectorAll('.reaction-btn').forEach(button => {
                 button.addEventListener('click', async () => {
-                    const id = button.dataset.id;
-                    try {
-                        await updateDoc(doc(db, 'comunidad', id), { likes: increment(1) });
-                    } catch (error) {
-                        console.error('Error al dar like:', error);
-                    }
+                    await toggleReaction(button.dataset.id, button.dataset.reaction);
                 });
             });
 
@@ -177,10 +967,19 @@
                 });
             });
 
+            lista.querySelectorAll('.close-reply-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const box = document.getElementById(`reply-box-${button.dataset.id}`);
+                    if (!box) return;
+                    box.classList.add('hidden');
+                });
+            });
+
             lista.querySelectorAll('.submit-reply-btn').forEach(button => {
                 button.addEventListener('click', async () => {
                     const id = button.dataset.id;
-                    const textarea = button.parentElement.querySelector('.reply-input');
+                    const replyBox = button.closest('.reply-box');
+                    const textarea = replyBox?.querySelector('.reply-input');
                     const texto = textarea?.value.trim();
                     if (!texto) return;
                     if (!requireLogin()) return;
@@ -190,10 +989,13 @@
                             texto: texto,
                             parentId: id,
                             likes: 0,
+                            dislikes: 0,
+                            likedBy: [],
+                            dislikedBy: [],
                             fecha: serverTimestamp()
                         });
                         textarea.value = '';
-                        button.parentElement.classList.add('hidden');
+                        replyBox.classList.add('hidden');
                     } catch (error) {
                         console.error('Error al responder:', error);
                     }
@@ -212,6 +1014,9 @@
                     texto: texto,
                     parentId: null,
                     likes: 0,
+                    dislikes: 0,
+                    likedBy: [],
+                    dislikedBy: [],
                     fecha: serverTimestamp()
                 });
                 document.getElementById('nuevo-comentario').value = '';
@@ -222,16 +1027,26 @@
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
+            syncComposerIdentity();
             if (!currentUser && !twitchName) {
                 alert('Tenés que iniciar sesión con Google o Twitch para usar la Comunidad.');
                 window.parent.location.href = '/index.html';
             }
         });
 
+        syncComposerIdentity();
+
+        sortCommentsGroup.querySelectorAll('.sort-pill').forEach(button => {
+            button.addEventListener('click', () => {
+                setSortMode(button.dataset.sort);
+                renderComments(latestSnapshotDocs);
+            });
+        });
+
         const q = query(collection(db, 'comunidad'), orderBy('fecha', 'desc'));
 
         onSnapshot(q, (snapshot) => {
-            const lista = document.getElementById('lista-mensajes');
+            latestSnapshotDocs = snapshot.docs;
 
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added' && !cargaInicial) {
@@ -241,7 +1056,7 @@
                 }
             });
 
-            renderComments(snapshot.docs);
+            renderComments(latestSnapshotDocs);
             cargaInicial = false;
         });
     </script>

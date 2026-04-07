@@ -2,73 +2,268 @@
 <html lang="es">
 <!--
   contacto.html
-  Página de contacto con enlaces a redes sociales del proyecto.
+  Pagina de contacto con enlaces a redes sociales del proyecto.
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* Contenedor principal para centrar todo */
+        *, *::before, *::after { box-sizing: border-box; }
+
         body {
             background: transparent;
             color: white;
             font-family: 'Poppins', sans-serif;
             margin: 0;
-            display: flex;
-            justify-content: center; 
-            align-items: center;    
-            height: 100vh;           
-            text-align: center;
+            padding: 26px;
         }
 
         .contacto-container {
-            background: #1d1b31;
-            padding: 40px;
-            border-radius: 20px;
-            border: 1px solid #333;
-            max-width: 500px;
-            width: 90%; /* Para que en el celu no se pegue a los bordes */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 980px;
+            margin: 0 auto;
+            display: grid;
+            gap: 20px;
         }
 
-        h2 { color: #a970ff; margin-bottom: 15px; }
-        p { color: #ccc; margin-bottom: 30px; }
+        .contact-hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            border: 1px solid rgba(145, 71, 255, 0.22);
+            background: linear-gradient(135deg, rgba(145,71,255,0.18) 0%, rgba(14,10,26,0.96) 58%, rgba(9,31,45,0.94) 100%);
+            padding: 30px 32px;
+            box-shadow: 0 24px 58px rgba(0,0,0,0.34);
+        }
+
+        .contact-hero::before {
+            content: '';
+            position: absolute;
+            top: -90px;
+            right: -50px;
+            width: 230px;
+            height: 230px;
+            border-radius: 50%;
+            background: rgba(56,189,248,0.15);
+            filter: blur(42px);
+            pointer-events: none;
+            animation: floatGlow 9s ease-in-out infinite;
+        }
+
+        .contact-hero::after {
+            content: '';
+            position: absolute;
+            left: -40px;
+            bottom: -80px;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: rgba(244,114,182,0.12);
+            filter: blur(45px);
+            pointer-events: none;
+            animation: floatGlow 12s ease-in-out infinite reverse;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #d9ceff;
+            font-size: 0.78rem;
+            margin-bottom: 12px;
+        }
+
+        h2 {
+            color: #eadfff;
+            margin: 0 0 10px;
+            font-size: clamp(1.8rem, 3vw, 2.4rem);
+            line-height: 1.2;
+        }
+
+        .hero-text {
+            color: #bfb8e1;
+            margin: 0;
+            line-height: 1.65;
+            max-width: 720px;
+            font-size: 0.96rem;
+        }
+
+        .contact-panel {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(16,14,34,0.82);
+            box-shadow: 0 16px 36px rgba(0,0,0,0.28);
+            padding: 22px;
+        }
+
+        .contact-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .contact-panel-head strong {
+            color: #f2edff;
+            font-size: 1rem;
+        }
+
+        .contact-panel-head span {
+            color: #988fbe;
+            font-size: 0.82rem;
+        }
 
         .redes {
-            display: flex;
-            justify-content: center;
-            gap: 25px;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
         }
 
         .redes a {
-            color: white;
-            font-size: 2.5rem;
-            transition: 0.3s;
+            --accent: rgba(255,255,255,0.2);
             text-decoration: none;
+            color: #fff;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            min-height: 126px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Colores originales al pasar el mouse */
-        .redes a:hover { transform: translateY(-5px); }
-        .fa-twitch:hover { color: #9147ff; }
-        .fa-instagram:hover { color: #e1306c; }
-        .fa-discord:hover { color: #5865f2; }
-        .fa-x-twitter:hover { color: #000000; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+        .redes a::before {
+            content: '';
+            position: absolute;
+            top: -40%;
+            left: -30%;
+            width: 130%;
+            height: 130%;
+            border-radius: 50%;
+            background: var(--accent);
+            filter: blur(28px);
+            opacity: 0;
+            transition: opacity 0.24s ease;
+            pointer-events: none;
+        }
+
+        .redes a:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255,255,255,0.28);
+            box-shadow: 0 14px 26px rgba(0,0,0,0.28);
+        }
+
+        .redes a:hover::before { opacity: 0.55; }
+
+        .redes i {
+            font-size: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .redes b {
+            font-size: 0.8rem;
+            color: #ece7ff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .redes small {
+            font-size: 0.72rem;
+            color: #aaa3cc;
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            line-height: 1.35;
+        }
+
+        .social-twitch { --accent: rgba(145,71,255,0.32); }
+        .social-instagram { --accent: rgba(225,48,108,0.34); }
+        .social-discord { --accent: rgba(88,101,242,0.32); }
+        .social-x { --accent: rgba(248,250,252,0.18); }
+
+        .social-twitch:hover i { color: #b98aff; }
+        .social-instagram:hover i { color: #ff74a8; }
+        .social-discord:hover i { color: #9aa4ff; }
+        .social-x:hover i { color: #d7e3ff; }
+
+        @keyframes floatGlow {
+            0%, 100% { transform: translate3d(0,0,0); }
+            50% { transform: translate3d(16px, 12px, 0); }
+        }
+
+        @media (max-width: 860px) {
+            .redes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 14px; }
+            .contact-hero { padding: 24px 18px; }
+            .contact-panel { padding: 16px; }
+            .contact-panel-head { flex-direction: column; align-items: flex-start; }
+            .redes { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-<!-- Contenedor de información de contacto y accesos directos a redes sociales -->
+<!-- Contenedor de informacion de contacto y accesos directos a redes sociales -->
 
     <div class="contacto-container">
-        <h2>¿Tenés dudas o querés colaborar?</h2>
-        <p>Seguime en mis redes para estar al tanto de las actualizaciones.</p>
+        <section class="contact-hero">
+            <div class="hero-content">
+                <div class="hero-badge"><i class="fa-solid fa-satellite-dish"></i> Contacto y comunidad</div>
+                <h2>¿Tenes dudas o queres colaborar?</h2>
+                <p class="hero-text">Elegi tu canal favorito para escribirme. Estoy leyendo feedback, propuestas y colaboraciones para seguir mejorando Interactive With You.</p>
+            </div>
+        </section>
 
-        <div class="redes">
-            <a href="https://www.twitch.tv/shekssink" target="_blank"><i class="fa-brands fa-twitch"></i></a>
-            <a href="https://www.instagram.com/shekssink/" target="_blank"><i class="fa-brands fa-instagram"></i></a>
-            <a href="https://discord.gg/Xr3UspB57Z" target="_blank"><i class="fa-brands fa-discord"></i></a>
-            <a href="https://x.com/sheks_sin_k" target="_blank"><i class="fa-brands fa-x-twitter"></i></a>
-        </div>
+        <section class="contact-panel">
+            <div class="contact-panel-head">
+                <strong>Redes disponibles</strong>
+                <span>Respuesta por DM, chat o servidor</span>
+            </div>
+
+            <div class="redes">
+                <a class="social-twitch" href="https://www.twitch.tv/shekssink" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-brands fa-twitch"></i>
+                    <b>Twitch</b>
+                    <small>Streams y chat en vivo</small>
+                </a>
+                <a class="social-instagram" href="https://www.instagram.com/shekssink/" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-brands fa-instagram"></i>
+                    <b>Instagram</b>
+                    <small>Novedades y contenido</small>
+                </a>
+                <a class="social-discord" href="https://discord.gg/Xr3UspB57Z" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-brands fa-discord"></i>
+                    <b>Discord</b>
+                    <small>Comunidad y soporte</small>
+                </a>
+                <a class="social-x" href="https://x.com/sheks_sin_k" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-brands fa-x-twitter"></i>
+                    <b>X</b>
+                    <small>Actualizaciones rapidas</small>
+                </a>
+            </div>
+        </section>
     </div>
 
 </body>
