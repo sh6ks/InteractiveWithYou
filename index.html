@@ -40,6 +40,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                         <ul>
                             <li><a href="#" onclick="cargarSeccion('chat')">Widget de Chat</a></li>
                             <li><a href="#" onclick="cargarSeccion('alerts')">Alertas en vivo</a></li>
+                            <li><a href="#" onclick="cargarSeccion('comandos')">Comandos y timers</a></li>
                         </ul>
                     </div>
                 </div>
@@ -101,7 +102,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             : `${window.location.origin}/`;
         const TWITCH_SCOPE = 'user:read:email chat:read';
 
-        const SECCIONES_VALIDAS = ['home', 'chat', 'alerts', 'funciones', 'comunidad', 'contacto'];
+        const SECCIONES_VALIDAS = ['home', 'chat', 'alerts', 'comandos', 'funciones', 'comunidad', 'contacto'];
 
         const getSeccionPersistida = () => {
             const seccionUrl = new URLSearchParams(window.location.search).get('seccion');
@@ -244,6 +245,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             if (seccionFinal === 'home') archivo = "html/home.html";
             else if (seccionFinal === 'chat') archivo = "html/config.html";
             else if (seccionFinal === 'alerts') archivo = "html/alerts.html";
+            else if (seccionFinal === 'comandos') archivo = "html/commands.html";
             else if (seccionFinal === 'funciones') archivo = "html/functions.html";
             else if (seccionFinal === 'comunidad') archivo = "html/comunity.html";
             else if (seccionFinal === 'contacto') archivo = "html/contacto.html";

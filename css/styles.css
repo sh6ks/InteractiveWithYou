@@ -226,6 +226,22 @@ body {
     object-fit: contain;
 }
 
+.chat-emote {
+    display: inline-block;
+    height: 1.35em;
+    vertical-align: -0.25em;
+    margin: 0 0.08em;
+    image-rendering: -webkit-optimize-contrast;
+}
+
+.chat-emote-twitch {
+    width: auto;
+}
+
+.chat-emote-third-party {
+    width: auto;
+}
+
 .badge-subscriber {
     background: #9147ff;
 }

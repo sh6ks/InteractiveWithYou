@@ -118,6 +118,115 @@
         color: #ff9ba3;
     }
 
+    /* ── EMOTE PROVIDER CARDS ─────────────────── */
+    .emote-section-label {
+        display: block;
+        margin: 20px 0 10px;
+        color: #bdb9ff;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+    }
+
+    .provider-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 4px;
+    }
+
+    .provider-toggle-input { display: none; }
+
+    .provider-card {
+        background: rgba(255,255,255,0.04);
+        border: 1.5px solid rgba(255,255,255,0.07);
+        border-radius: 16px;
+        padding: 16px 10px 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 9px;
+        cursor: pointer;
+        user-select: none;
+        transition: border-color 0.28s, background 0.28s, box-shadow 0.28s, transform 0.2s;
+    }
+    .provider-card:hover { transform: translateY(-2px); }
+
+    .provider-7tv  { --p-color: #19c4b1; --p-rgb: 25,196,177; }
+    .provider-bttv { --p-color: #f67a1b; --p-rgb: 246,122,27; }
+    .provider-ffz  { --p-color: #4d90f0; --p-rgb: 77,144,240; }
+
+    .provider-ico {
+        width: 38px; height: 38px;
+        border-radius: 11px;
+        background: rgba(var(--p-rgb), 0.14);
+        display: grid; place-items: center;
+        font-size: 0.72rem;
+        font-weight: 900;
+        color: var(--p-color);
+        letter-spacing: -0.5px;
+        font-family: 'Courier New', monospace;
+        transition: background 0.28s;
+    }
+
+    .provider-name-txt {
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: #b0acd8;
+        transition: color 0.28s;
+    }
+
+    .prov-switch {
+        position: relative;
+        width: 38px; height: 21px;
+        flex-shrink: 0;
+        pointer-events: none;
+    }
+    .prov-switch::before {
+        content: '';
+        position: absolute; inset: 0;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.12);
+        transition: background 0.28s, border-color 0.28s;
+    }
+    .prov-switch::after {
+        content: '';
+        position: absolute;
+        top: 3px; left: 3px;
+        width: 15px; height: 15px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.38);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.38);
+        transition: transform 0.28s cubic-bezier(0.23,1,0.32,1), background 0.28s;
+    }
+
+    /* checked states */
+    .provider-toggle-input:checked + .provider-card {
+        border-color: var(--p-color);
+        background: rgba(var(--p-rgb), 0.09);
+        box-shadow: 0 4px 18px rgba(var(--p-rgb), 0.15);
+    }
+    .provider-toggle-input:checked + .provider-card .provider-ico {
+        background: rgba(var(--p-rgb), 0.24);
+    }
+    .provider-toggle-input:checked + .provider-card .provider-name-txt { color: #fff; }
+    .provider-toggle-input:checked + .provider-card .prov-switch::before {
+        background: var(--p-color);
+        border-color: var(--p-color);
+    }
+    .provider-toggle-input:checked + .provider-card .prov-switch::after {
+        transform: translateX(17px);
+        background: #fff;
+    }
+
+    .control-help {
+        margin: 6px 0 8px;
+        font-size: 0.82rem;
+        color: #7a778f;
+    }
+
     .secondary-btn {
         background: #3f3f46;
     }
@@ -404,6 +513,29 @@
         <small>Tip: podés usar clases como <strong>.mensaje</strong> o <strong>.preview-message</strong> en tu CSS.</small>
     </div>
 
+    <span class="emote-section-label">Emotes externos</span>
+    <div class="provider-cards">
+        <input type="checkbox" id="enable7tvEmotes" class="provider-toggle-input" checked>
+        <label class="provider-card provider-7tv" for="enable7tvEmotes">
+            <div class="provider-ico">7TV</div>
+            <span class="provider-name-txt">7TV</span>
+            <span class="prov-switch"></span>
+        </label>
+        <input type="checkbox" id="enableBttvEmotes" class="provider-toggle-input" checked>
+        <label class="provider-card provider-bttv" for="enableBttvEmotes">
+            <div class="provider-ico">BTTV</div>
+            <span class="provider-name-txt">BTTV</span>
+            <span class="prov-switch"></span>
+        </label>
+        <input type="checkbox" id="enableFfzEmotes" class="provider-toggle-input" checked>
+        <label class="provider-card provider-ffz" for="enableFfzEmotes">
+            <div class="provider-ico">FFZ</div>
+            <span class="provider-name-txt">FFZ</span>
+            <span class="prov-switch"></span>
+        </label>
+    </div>
+    <p class="control-help">Activá o desactivá emotes de cada proveedor según tu preferencia.</p>
+
     <div class="actions-row">
         <button class="secondary-btn" onclick="guardarConfiguracion()">Guardar configuración</button>
         <button onclick="generarLink()">Generar Link para OBS</button>
@@ -460,6 +592,9 @@
     const customCssUrlInput = document.getElementById('customCssUrl');
     const customCssFileInput = document.getElementById('customCssFile');
     const customCssFileStatus = document.getElementById('customCssFileStatus');
+    const enable7tvEmotesInput = document.getElementById('enable7tvEmotes');
+    const enableBttvEmotesInput = document.getElementById('enableBttvEmotes');
+    const enableFfzEmotesInput = document.getElementById('enableFfzEmotes');
     const selectFuente = document.getElementById('fuente');
     const inputColor = document.getElementById('color');
     const inputGrosorBorde = document.getElementById('grosorBorde');
@@ -645,6 +780,13 @@
         opacidadRecuadroValue.textContent = inputOpacidadRecuadro.value;
     }
 
+    function applyEmoteSettingsFromData(data = {}) {
+        const legacyEnabled = data.enableThirdPartyEmotes !== false;
+        enable7tvEmotesInput.checked = data.enable7tvEmotes ?? legacyEnabled;
+        enableBttvEmotesInput.checked = data.enableBttvEmotes ?? legacyEnabled;
+        enableFfzEmotesInput.checked = data.enableFfzEmotes ?? legacyEnabled;
+    }
+
     function addPreviewMessage() {
         const item = sampleMessages[previewIndex % sampleMessages.length];
         const div = document.createElement('div');
@@ -696,9 +838,11 @@
                 customCssModeSelect.value = data.customCssMode || 'url';
                 customCssUrlInput.value = data.customCssUrl || '';
                 customCssContent = data.customCssContent || '';
+                applyEmoteSettingsFromData(data);
                 customCssFileStatus.textContent = customCssContent ? 'Archivo CSS cargado en configuración.' : 'No hay archivo cargado.';
             } else {
                 canalInput.value = getTwitchChannelFromStorage();
+                applyEmoteSettingsFromData({});
             }
             setCanalReadonly(Boolean(getTwitchChannelFromStorage()));
             loadFont(selectFuente.value);
@@ -730,6 +874,7 @@
                     customCssModeSelect.value = data.customCssMode || 'url';
                     customCssUrlInput.value = data.customCssUrl || '';
                     customCssContent = data.customCssContent || '';
+                    applyEmoteSettingsFromData(data);
                     customCssFileStatus.textContent = customCssContent ? 'Archivo CSS cargado en configuración.' : 'No hay archivo cargado.';
                 }
             } catch (e) {
@@ -770,6 +915,10 @@
             animacionDireccion: animacionDireccionSelect.value,
             animacionEstilo: animacionEstiloSelect.value,
             disenoMensaje: disenoMensajeSelect.value,
+            enable7tvEmotes: Boolean(enable7tvEmotesInput.checked),
+            enableBttvEmotes: Boolean(enableBttvEmotesInput.checked),
+            enableFfzEmotes: Boolean(enableFfzEmotesInput.checked),
+            enableThirdPartyEmotes: Boolean(enable7tvEmotesInput.checked || enableBttvEmotesInput.checked || enableFfzEmotesInput.checked),
             customCssMode: customMode,
             customCssUrl: customUrl,
             customCssContent,
@@ -781,16 +930,16 @@
                 uid: usuarioActual.uid,
                 email: usuarioActual.email || '',
                 ...payload
-            });
+            }, { merge: true });
 
             // Mantiene un doc por canal para que el widget siempre lea la config más nueva.
-            await setDoc(doc(db, 'usuarios', canal), payload);
+            await setDoc(doc(db, 'usuarios', canal), payload, { merge: true });
             return;
         }
 
         if (canal) {
             // Usuario logueado con Twitch: guarda con el canal como ID del doc
-            await setDoc(doc(db, 'usuarios', canal), payload);
+            await setDoc(doc(db, 'usuarios', canal), payload, { merge: true });
         }
     }
 

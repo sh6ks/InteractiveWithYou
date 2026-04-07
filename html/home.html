@@ -9,189 +9,421 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
         body {
             background: transparent;
             color: white;
             font-family: 'Poppins', sans-serif;
             padding: 28px;
-            overflow: hidden;
+            margin: 0;
         }
 
+        /* ── HERO ─────────────────────────────────────── */
         .hero {
-            background: linear-gradient(180deg, rgba(145,71,255,0.16) 0%, rgba(18,11,30,0.95) 100%);
-            border: 1px solid rgba(145, 71, 255, 0.2);
+            background: linear-gradient(135deg, rgba(145,71,255,0.18) 0%, rgba(14,10,26,0.97) 100%);
+            border: 1px solid rgba(145,71,255,0.22);
             border-radius: 24px;
-            padding: 36px;
-            margin-bottom: 28px;
+            padding: 36px 40px;
+            margin-bottom: 32px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.35);
         }
-
         .hero::before {
             content: '';
             position: absolute;
-            top: -30px;
-            right: -40px;
-            width: 180px;
-            height: 180px;
-            background: rgba(145,71,255,0.18);
+            top: -40px; right: -40px;
+            width: 220px; height: 220px;
+            background: rgba(145,71,255,0.22);
             border-radius: 50%;
-            filter: blur(20px);
+            filter: blur(44px);
+            pointer-events: none;
         }
+        .hero h1 { margin: 0 0 10px; font-size: clamp(1.8rem,3.5vw,2.8rem); color: #d4c2ff; }
+        .hero p  { margin: 0; max-width: 700px; color: #c5bef5; line-height: 1.75; font-size: 0.96rem; }
 
-        .hero h1 {
-            margin: 0 0 12px;
-            font-size: clamp(2rem, 4vw, 3rem);
-            color: #c9b7ff;
+        .cta-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+        .btn-primary, .btn-secondary {
+            padding: 12px 20px; border-radius: 14px; border: none;
+            cursor: pointer; font-weight: 700; font-size: 0.9rem;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
+        .btn-primary { background: #9147ff; color: #fff; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(145,71,255,0.38); }
+        .btn-secondary { background: rgba(255,255,255,0.07); color: #dcd7ff; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-secondary:hover { transform: translateY(-2px); }
+        .note { color: #a79fcb; font-size: 0.88rem; }
 
-        .hero p {
-            margin: 0;
-            max-width: 760px;
-            color: #dad3ff;
-            line-height: 1.8;
-        }
-
-        .features {
+        /* ── CARD GRID ────────────────────────────────── */
+        .card-grid {
             display: grid;
-            gap: 18px;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            margin-bottom: 28px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
         }
 
-        .feature-card {
-            background: #161429;
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 24px;
-            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        /* ── BASE CARD ────────────────────────────────── */
+        .func-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            min-height: 268px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            justify-content: flex-end;
             cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0b1c;
+            transition:
+                transform 0.45s cubic-bezier(0.23,1,0.32,1),
+                box-shadow 0.45s ease,
+                border-color 0.3s;
+            will-change: transform;
+        }
+        .func-card:hover {
+            transform: scale(1.045) translateY(-7px);
+            border-color: var(--accent, rgba(145,71,255,.55));
+            box-shadow: 0 30px 60px rgba(0,0,0,.5), 0 0 44px var(--glow, rgba(145,71,255,.18));
+            z-index: 1;
         }
 
-        .feature-card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(145,71,255,0.4);
-            box-shadow: 0 18px 36px rgba(145,71,255,0.12);
+        /* Per-card accent colours */
+        .card-chat     { --accent: rgba(145,71,255,.6);  --glow: rgba(145,71,255,.22); }
+        .card-alerts   { --accent: rgba(251,146,60,.65); --glow: rgba(251,146,60,.2);  }
+        .card-comunidad{ --accent: rgba(56,189,248,.6);  --glow: rgba(56,189,248,.18); }
+        .card-commands { --accent: rgba(74,222,128,.6);  --glow: rgba(74,222,128,.18); }
+        .card-soon     { --accent: rgba(148,163,184,.35); --glow: rgba(148,163,184,.08); opacity:.58; cursor:not-allowed; }
+        .card-soon:hover { transform: none; box-shadow: none; border-color: rgba(255,255,255,.06); }
+
+        /* ── ANIMATED PREVIEW ─────────────────────────── */
+        .card-preview {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.45s ease;
+            pointer-events: none;
+        }
+        .func-card:hover .card-preview { opacity: 1; }
+        .card-soon:hover .card-preview { opacity: 0; }
+
+        /* Bottom gradient keeps text readable */
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to top,
+                rgba(8,5,20,.95) 0%,
+                rgba(8,5,20,.55) 42%,
+                rgba(8,5,20,.08) 100%
+            );
+            pointer-events: none;
+            z-index: 1;
         }
 
-        .feature-icon {
-            width: 48px;
-            height: 48px;
+        /* ── CARD BODY ────────────────────────────────── */
+        .card-body {
+            position: relative;
+            z-index: 2;
+            padding: 20px 22px 22px;
+            transition: transform 0.4s ease;
+        }
+        .func-card:hover .card-body { transform: translateY(-4px); }
+
+        .card-icon {
+            width: 44px; height: 44px;
+            border-radius: 14px;
+            display: grid; place-items: center;
+            background: var(--accent, rgba(145,71,255,.2));
+            color: #fff;
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+        }
+        .card-body h3 { margin: 0 0 6px; font-size: 1.12rem; color: #fff; }
+        .card-body p  { margin: 0 0 12px; font-size: 0.87rem; color: #b3aad8; line-height: 1.55; }
+
+        .card-cta {
+            font-size: 0.83rem; font-weight: 700;
+            color: #fff;
+            opacity: 0;
+            transform: translateX(-6px);
+            transition: opacity 0.32s .06s ease, transform 0.32s ease;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .func-card:hover .card-cta { opacity: 1; transform: translateX(0); }
+        .card-soon .card-cta { display: none; }
+
+        /* ══════════════════════════════════════════════
+           PREVIEW BACKGROUNDS
+        ══════════════════════════════════════════════ */
+
+        /* — CHAT: chat bubbles — */
+        .preview-chat {
+            background: linear-gradient(170deg, rgba(100,40,180,.5) 0%, transparent 70%);
+        }
+        .preview-chat .bar {
+            position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+            background: linear-gradient(to bottom, #9147ff, #4b1f97);
+        }
+        .bubble {
+            position: absolute;
+            border-radius: 12px 12px 12px 2px;
+            padding: 6px 11px;
+            font-size: 0.76rem;
+            color: #e0d8ff;
+            white-space: nowrap;
+            opacity: 0;
+            background: rgba(120,60,220,.3);
+            border: 1px solid rgba(145,71,255,.4);
+            backdrop-filter: blur(4px);
+        }
+        .bubble.r { border-radius: 12px 12px 2px 12px; background: rgba(90,40,170,.35); border-color: rgba(170,110,255,.4); }
+        .func-card:hover .bubble { animation: bubIn .45s ease forwards; }
+        .b1 { left: 18px; top: 20px;  animation-delay: .04s !important; }
+        .b2 { right: 22px; top: 60px; animation-delay: .2s !important;  }
+        .b3 { left: 24px; top: 102px; animation-delay: .38s !important; }
+        .b4 { right: 18px; top: 144px;animation-delay: .56s !important; }
+        @keyframes bubIn {
+            from { opacity:0; transform: translateY(8px) scale(.93); }
+            to   { opacity:1; transform: translateY(0) scale(1); }
+        }
+
+        /* — ALERTS: bell + ripples — */
+        .preview-alerts {
+            background: radial-gradient(circle at 50% 38%, rgba(251,146,60,.32) 0%, transparent 62%);
+        }
+        .bell-center {
+            position: absolute;
+            top: 26px; left: 50%; transform: translateX(-50%);
+        }
+        .bell-ico {
+            font-size: 2.6rem;
+            color: #fb923c;
+            opacity: 0;
+            filter: drop-shadow(0 0 12px rgba(251,146,60,.75));
+            display: block;
+        }
+        .func-card:hover .bell-ico { animation: bellRing .75s .08s ease forwards; }
+        @keyframes bellRing {
+            0%  { opacity:0; transform: rotate(0) scale(.6); }
+            20% { opacity:1; transform: rotate(-14deg) scale(1.1); }
+            40% { transform: rotate(11deg); }
+            60% { transform: rotate(-7deg); }
+            80% { transform: rotate(4deg); }
+            100%{ opacity:1; transform: rotate(0) scale(1); }
+        }
+        .ripple {
+            position: absolute;
+            top: 44px; left: 50%;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            border: 2px solid rgba(251,146,60,.55);
+            width: 48px; height: 48px;
+            opacity: 0;
+        }
+        .func-card:hover .ripple { animation: ripOut 1.5s ease-out infinite; }
+        .rp2 { animation-delay: .45s !important; }
+        .rp3 { animation-delay: .9s  !important; }
+        @keyframes ripOut {
+            0%  { width:48px; height:48px; opacity:.8; }
+            100%{ width:170px; height:170px; margin-left:-61px; opacity:0; }
+        }
+
+        /* ── FEEDBACK SECTION ─────────────────────────── */
+        .feedback-section {
+            margin-top: 24px;
+            background: linear-gradient(135deg, rgba(6,20,32,.97) 0%, rgba(8,38,54,.92) 100%);
+            border: 1px solid rgba(56,189,248,.2);
+            border-radius: 22px;
+            padding: 32px 36px;
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition:
+                transform 0.38s cubic-bezier(0.23,1,0.32,1),
+                box-shadow 0.38s ease,
+                border-color 0.3s;
+        }
+        .feedback-section:hover {
+            transform: translateY(-5px);
+            border-color: rgba(56,189,248,.55);
+            box-shadow: 0 22px 54px rgba(0,0,0,.45), 0 0 42px rgba(56,189,248,.14);
+        }
+        .feedback-section::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 220px; height: 220px;
+            background: rgba(56,189,248,.1);
+            border-radius: 50%;
+            filter: blur(44px);
+            pointer-events: none;
+        }
+        .fdb-left { flex: 0 0 300px; }
+        .fdb-icon {
+            width: 50px; height: 50px;
             border-radius: 16px;
-            display: grid;
-            place-items: center;
-            background: rgba(145,71,255,0.16);
-            color: #c9b7ff;
-            font-size: 1.4rem;
-        }
-
-        .feature-card h3 {
-            margin: 0;
-            font-size: 1.15rem;
-            color: white;
-        }
-
-        .feature-card p {
-            margin: 0;
-            color: #b9b1ff;
-            line-height: 1.6;
-            font-size: 0.95rem;
-        }
-
-        .action-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 18px;
-        }
-
-        .action-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(145,71,255,0.16);
-            border-radius: 20px;
-            padding: 24px;
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .action-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(145,71,255,0.4);
-            box-shadow: 0 14px 30px rgba(145,71,255,0.12);
-        }
-
-        .action-card i {
-            font-size: 1.8rem;
-            color: #9147ff;
+            background: rgba(56,189,248,.18);
+            display: grid; place-items: center;
+            font-size: 1.45rem; color: #38bdf8;
             margin-bottom: 14px;
         }
-
-        .action-card strong {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 1.05rem;
-            color: white;
+        .fdb-left h2 { margin: 0 0 8px; font-size: 1.35rem; color: #fff; }
+        .fdb-left p  { margin: 0 0 18px; color: #94c9e0; line-height: 1.65; font-size: 0.88rem; }
+        .fdb-cta {
+            font-size: 0.85rem; font-weight: 700; color: #38bdf8;
+            display: inline-flex; align-items: center; gap: 6px;
+            opacity: 0; transform: translateX(-6px);
+            transition: opacity 0.32s .06s, transform 0.32s;
         }
-
-        .action-card span {
-            font-size: 0.95rem;
-            color: #c4b9ff;
-        }
-
-        .cta-row {
-            display: flex;
-            gap: 18px;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-top: 18px;
-        }
-
-        .btn-primary,
-        .btn-secondary {
-            padding: 16px 24px;
+        .feedback-section:hover .fdb-cta { opacity: 1; transform: translateX(0); }
+        .fdb-right { flex: 1; min-width: 0; }
+        .fdb-mock {
+            background: rgba(0,0,0,.42);
+            border: 1px solid rgba(56,189,248,.16);
             border-radius: 16px;
-            border: none;
-            cursor: pointer;
-            font-weight: 700;
-            transition: transform 0.2s ease, background 0.2s ease;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .fdb-comment {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.38s ease, transform 0.38s ease;
+        }
+        .feedback-section:hover .fdb-comment { opacity: 1; transform: translateY(0); }
+        .fdb-comment.fc2 { transition-delay: .18s; }
+        .fc-av { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; }
+        .fc-bubble {
+            background: rgba(56,189,248,.08);
+            border: 1px solid rgba(56,189,248,.2);
+            border-radius: 8px 8px 8px 2px;
+            padding: 7px 11px;
+            font-size: 0.78rem; color: #c0e8f8; line-height: 1.45;
+        }
+        .fc-name { font-weight: 700; color: #38bdf8; font-size: 0.74rem; display: block; margin-bottom: 2px; }
+        .fdb-inputrow {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(56,189,248,.28);
+            border-radius: 10px;
+            padding: 9px 13px;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.38s .34s ease, transform 0.38s .34s ease;
+        }
+        .feedback-section:hover .fdb-inputrow { opacity: 1; transform: translateY(0); }
+        .fdb-typed-text {
+            flex: 1; font-size: 0.8rem; color: #a8cfe0;
+            white-space: nowrap; overflow: hidden;
+        }
+        .fdb-input-cursor {
+            display: inline-block;
+            width: 2px; height: 13px;
+            background: #38bdf8;
+            vertical-align: text-bottom;
+            animation: blink .85s steps(1) infinite;
+            margin-left: 1px;
+        }
+        .fdb-send-btn {
+            background: #38bdf8; color: #06111d;
+            border: none; border-radius: 8px;
+            padding: 5px 13px; font-size: 0.78rem; font-weight: 700;
+            cursor: pointer; flex-shrink: 0;
+            display: flex; align-items: center; gap: 5px;
         }
 
-        .btn-primary {
-            background: #9147ff;
-            color: white;
+        /* — COMMANDS: terminal — */
+        .preview-commands {
+            background: linear-gradient(175deg, rgba(15,40,20,.75) 0%, transparent 80%);
+        }
+        .terminal {
+            position: absolute;
+            top: 14px; left: 14px; right: 14px;
+            background: rgba(0,10,4,.88);
+            border: 1px solid rgba(74,222,128,.3);
+            border-radius: 10px;
+            padding: 10px 12px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.74rem;
+        }
+        .t-bar {
+            display: flex; gap: 5px; margin-bottom: 8px;
+        }
+        .t-dot { width: 9px; height: 9px; border-radius: 50%; }
+        .t-dot.red { background: #ff5f56; }
+        .t-dot.yel { background: #ffbd2e; }
+        .t-dot.grn { background: #27c93f; }
+        .tl {
+            color: #4ade80;
+            white-space: nowrap;
+            overflow: hidden;
+            margin-bottom: 3px;
+            opacity: 0;
+        }
+        .tl.res { color: #bbf7d0; padding-left: 12px; }
+        .func-card:hover .tl { animation: lineIn .3s ease forwards; }
+        .tl:nth-child(2) { animation-delay:.06s !important; }
+        .tl:nth-child(3) { animation-delay:.26s !important; }
+        .tl:nth-child(4) { animation-delay:.46s !important; }
+        .tl:nth-child(5) { animation-delay:.66s !important; }
+        .tl:nth-child(6) { animation-delay:.82s !important; }
+        @keyframes lineIn {
+            from { opacity:0; transform:translateX(-5px); }
+            to   { opacity:1; transform:translateX(0); }
+        }
+        .cursor { display:inline-block; width:7px; height:12px; background:#4ade80; vertical-align:text-bottom; animation: blink .85s steps(1) infinite; margin-left:2px; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+        /* — SOON: sparkles — */
+        .preview-soon {
+            background: radial-gradient(circle at 50% 35%, rgba(100,100,140,.18) 0%, transparent 70%);
+        }
+        .spark {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(200,190,255,.75);
+            opacity: 0;
+        }
+        .func-card:hover .spark { animation: sparkUp 2s ease-in-out infinite; }
+        .sk1 { width:4px; height:4px; top:22%; left:26%; animation-delay:0s !important; }
+        .sk2 { width:3px; height:3px; top:38%; left:62%; animation-delay:.3s !important; }
+        .sk3 { width:5px; height:5px; top:17%; left:70%; animation-delay:.6s !important; }
+        .sk4 { width:4px; height:4px; top:52%; left:38%; animation-delay:.9s !important; }
+        .sk5 { width:3px; height:3px; top:44%; left:76%; animation-delay:.2s !important; }
+        .sk6 { width:6px; height:6px; top:28%; left:48%; animation-delay:1.1s !important; }
+        @keyframes sparkUp {
+            0%  { opacity:0; transform:translateY(0) scale(.5); }
+            40% { opacity:.9; }
+            100%{ opacity:0; transform:translateY(-22px) scale(1.3); }
         }
 
-        .btn-secondary {
-            background: rgba(255,255,255,0.06);
-            color: #dcd7ff;
-            border: 1px solid rgba(255,255,255,0.08);
+        /* ── RESPONSIVE ───────────────────────────────── */
+        @media (max-width: 1100px) {
+            .card-grid { grid-template-columns: repeat(2, 1fr); }
+            .feedback-section { flex-direction: column; gap: 24px; }
+            .fdb-left { flex: none; width: 100%; }
         }
-
-        .btn-primary:hover,
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-        }
-
-        .note {
-            color: #b9b1ff;
-            font-size: 0.95rem;
-        }
-
-        @media (max-width: 1000px) {
-            .features,
-            .action-grid { grid-template-columns: 1fr; }
+        @media (max-width: 660px) {
+            body { padding: 14px; }
+            .card-grid { grid-template-columns: 1fr; }
+            .func-card { min-height: 210px; }
+            .feedback-section { padding: 22px 18px; }
         }
     </style>
 </head>
 <body>
-<!-- Hero, cards de funciones y acciones rápidas de navegación -->
+<!-- Hero y grilla de tarjetas con preview animado por función -->
     <div class="hero">
         <h1>Bienvenido a Interactive With You</h1>
-        <p>Diseñamos tu panel de control para streaming con foco en interacción, alertas y comunidad. Usá los accesos directos para arrancar rápido con tu chat, alertas o muro social.</p>
+        <p>Panel de control para streaming con foco en interacción, alertas y comunidad. Usá los accesos directos para arrancar rápido con tu chat, alertas o comunidad.</p>
         <div class="cta-row">
             <button class="btn-primary" onclick="parent.cargarSeccion('funciones')">Ir a herramientas</button>
             <button class="btn-secondary" onclick="parent.cargarSeccion('comunidad')">Ver comunidad</button>
@@ -200,40 +432,132 @@
         </div>
     </div>
 
-    <div class="features">
-        <div class="feature-card" onclick="parent.cargarSeccion('chat')">
-            <div class="feature-icon"><i class="fa-solid fa-comment-dots"></i></div>
-            <h3>Widget de chat</h3>
-            <p>Personalizá tu chat con fuentes, colores y estilo para que quede perfecto en tu overlay.</p>
+    <div class="card-grid">
+
+        <!-- CHAT WIDGET -->
+        <div class="func-card card-chat" onclick="parent.cargarSeccion('chat')">
+            <div class="card-preview preview-chat">
+                <div class="bar"></div>
+                <div class="bubble b1">shekssink: Buenas a todos 👋</div>
+                <div class="bubble b2 r">viewer42: PogChamp</div>
+                <div class="bubble b3">mod_user: !redes</div>
+                <div class="bubble b4 r">fan_123: ese overlay 💜</div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-comment-dots"></i></div>
+                <h3>Widget de chat</h3>
+                <p>Personalizá fuentes, colores y animaciones para tu overlay en OBS.</p>
+                <span class="card-cta">Abrir widget <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
         </div>
-        <div class="feature-card" onclick="parent.cargarSeccion('alerts')">
-            <div class="feature-icon"><i class="fa-solid fa-bell"></i></div>
-            <h3>Alertas en vivo</h3>
-            <p>Creá notificaciones visuales para tu overlay en OBS con imagen, video o sonido.</p>
+
+        <!-- ALERTAS -->
+        <div class="func-card card-alerts" onclick="parent.cargarSeccion('alerts')">
+            <div class="card-preview preview-alerts">
+                <div class="bell-center">
+                    <i class="fa-solid fa-bell bell-ico"></i>
+                </div>
+                <div class="ripple"></div>
+                <div class="ripple rp2"></div>
+                <div class="ripple rp3"></div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-bell"></i></div>
+                <h3>Alertas en vivo</h3>
+                <p>Notificaciones con imagen, video o sonido para tu overlay en OBS.</p>
+                <span class="card-cta">Configurar alertas <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
         </div>
-        <div class="feature-card" onclick="parent.cargarSeccion('comunidad')">
-            <div class="feature-icon"><i class="fa-solid fa-users"></i></div>
-            <h3>Comunidad</h3>
-            <p>Contanos tus ideas, opiniones o sugerencias y ayudanos a mejorar la plataforma.</p>
+
+        <!-- COMANDOS Y TIMERS -->
+        <div class="func-card card-commands" onclick="parent.cargarSeccion('comandos')">
+            <div class="card-preview preview-commands">
+                <div class="terminal">
+                    <div class="t-bar">
+                        <div class="t-dot red"></div>
+                        <div class="t-dot yel"></div>
+                        <div class="t-dot grn"></div>
+                    </div>
+                    <div class="tl">$ viewer1: !redes</div>
+                    <div class="tl res">→ Seguime en IG: @tuser</div>
+                    <div class="tl">$ viewer2: !discord</div>
+                    <div class="tl res">→ discord.gg/tusserver</div>
+                    <div class="tl"><span class="cursor"></span></div>
+                </div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-terminal"></i></div>
+                <h3>Comandos y timers</h3>
+                <p>Respuestas automáticas a comandos y mensajes periódicos en el chat.</p>
+                <span class="card-cta">Crear comandos <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
         </div>
+
+        <!-- PRÓXIMAMENTE 1 -->
+        <div class="func-card card-soon">
+            <div class="card-preview preview-soon">
+                <div class="spark sk1"></div><div class="spark sk2"></div>
+                <div class="spark sk3"></div><div class="spark sk4"></div>
+                <div class="spark sk5"></div><div class="spark sk6"></div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-bolt"></i></div>
+                <h3>Próximamente</h3>
+                <p>Nuevas alertas y efectos en vivo llegarán pronto.</p>
+            </div>
+        </div>
+
+        <!-- PRÓXIMAMENTE 2 -->
+        <div class="func-card card-soon">
+            <div class="card-preview preview-soon">
+                <div class="spark sk1"></div><div class="spark sk2"></div>
+                <div class="spark sk3"></div><div class="spark sk4"></div>
+                <div class="spark sk5"></div><div class="spark sk6"></div>
+            </div>
+            <div class="card-overlay"></div>
+            <div class="card-body">
+                <div class="card-icon"><i class="fa-solid fa-heart"></i></div>
+                <h3>Próximamente</h3>
+                <p>Nuevas herramientas de comunidad en camino.</p>
+            </div>
+        </div>
+
     </div>
 
-    <div class="action-grid">
-        <div class="action-card">
-            <i class="fa-solid fa-cog"></i>
-            <strong>Próximamente</strong>
-            <span>Más funciones de chat estarán disponibles aquí.</span>
+    <!-- FEEDBACK / COMUNIDAD -->
+    <section class="feedback-section" onclick="parent.cargarSeccion('comunidad')">
+        <div class="fdb-left">
+            <div class="fdb-icon"><i class="fa-solid fa-comments"></i></div>
+            <h2>Comunidad &amp; Feedback</h2>
+            <p>Compartí ideas, pedí funciones o contanos tu experiencia. Tu opinión da forma a la plataforma.</p>
+            <span class="fdb-cta">Ir a comunidad <i class="fa-solid fa-arrow-right"></i></span>
         </div>
-        <div class="action-card">
-            <i class="fa-solid fa-bolt"></i>
-            <strong>Próximamente</strong>
-            <span>Nuevas alertas y efectos en vivo llegarán pronto.</span>
+        <div class="fdb-right">
+            <div class="fdb-mock">
+                <div class="fdb-comment fc1">
+                    <div class="fc-av" style="background: linear-gradient(135deg,#60a5fa,#1d4ed8);"></div>
+                    <div class="fc-bubble">
+                        <span class="fc-name">streamer_leo</span>
+                        Estaría buenísimo poder cambiar la fuente del chat sin recargar el widget 🔥
+                    </div>
+                </div>
+                <div class="fdb-comment fc2">
+                    <div class="fc-av" style="background: linear-gradient(135deg,#f472b6,#db2777);"></div>
+                    <div class="fc-bubble">
+                        <span class="fc-name">nani_stream</span>
+                        Me encantaría que los comandos puedan tener imagen adjunta 🙌
+                    </div>
+                </div>
+                <div class="fdb-inputrow">
+                    <span class="fdb-typed-text">Sería genial poder personalizar los colores por usuario<span class="fdb-input-cursor"></span></span>
+                    <button class="fdb-send-btn"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
+                </div>
+            </div>
         </div>
-        <div class="action-card">
-            <i class="fa-solid fa-heart"></i>
-            <strong>Próximamente</strong>
-            <span>Estamos preparando nuevas herramientas de comunidad.</span>
-        </div>
-    </div>
+    </section>
 </body>
 </html>

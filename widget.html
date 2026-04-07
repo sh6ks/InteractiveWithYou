@@ -104,6 +104,22 @@
                     }
                 }
 
+                const legacyThirdPartyEnabled = config.enableThirdPartyEmotes !== false;
+                const emoteProviders = {
+                    sevenTv: config.enable7tvEmotes ?? legacyThirdPartyEnabled,
+                    bttv: config.enableBttvEmotes ?? legacyThirdPartyEnabled,
+                    ffz: config.enableFfzEmotes ?? legacyThirdPartyEnabled
+                };
+
+                let thirdPartyEmotes = {};
+                if (emoteProviders.sevenTv || emoteProviders.bttv || emoteProviders.ffz) {
+                    try {
+                        thirdPartyEmotes = await fetchThirdPartyEmotes(canalSolicitado, twitchAssets?.userId, emoteProviders);
+                    } catch (err) {
+                        console.warn('No se pudieron cargar emotes de terceros:', err);
+                    }
+                }
+
                 if (config.disenoMensaje === 'design-custom') {
                     applyCustomWidgetCss(config.customCssMode, config.customCssUrl, config.customCssContent);
                 }
@@ -116,12 +132,38 @@
                     active: function() {
                         console.log("Fuente cargada con éxito:", config.fuente);
                         document.body.style.fontFamily = config.fuente;
-                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, config.disenoMensaje, config.colorRecuadro, config.opacidadRecuadro, config.grosorBorde, twitchAssets);
+                        conectarTwitch(
+                            canalSolicitado,
+                            config.color,
+                            config.animacionDireccion,
+                            config.animacionEstilo,
+                            config.disenoMensaje,
+                            config.colorRecuadro,
+                            config.opacidadRecuadro,
+                            config.grosorBorde,
+                            twitchAssets,
+                            thirdPartyEmotes,
+                            config.chatCommands || [],
+                            config.chatTimers || []
+                        );
                     },
                     inactive: function() {
                         console.log("No se pudo cargar la fuente, usando fallback.");
                         document.body.style.fontFamily = "sans-serif";
-                        conectarTwitch(canalSolicitado, config.color, config.animacionDireccion, config.animacionEstilo, config.disenoMensaje, config.colorRecuadro, config.opacidadRecuadro, config.grosorBorde, twitchAssets);
+                        conectarTwitch(
+                            canalSolicitado,
+                            config.color,
+                            config.animacionDireccion,
+                            config.animacionEstilo,
+                            config.disenoMensaje,
+                            config.colorRecuadro,
+                            config.opacidadRecuadro,
+                            config.grosorBorde,
+                            twitchAssets,
+                            thirdPartyEmotes,
+                            config.chatCommands || [],
+                            config.chatTimers || []
+                        );
                     }
                 });
             } catch (error) {
@@ -139,9 +181,15 @@
         ];
 
         let firstRealMessage = true;
+        let timerHandles = [];
 
         function setStatus() {
             // Placeholder para mantener compatibilidad con el código anterior.
+        }
+
+        function clearChatTimers() {
+            timerHandles.forEach((handle) => clearInterval(handle));
+            timerHandles = [];
         }
 
         function getTwitchHeaders(clientId, token) {
@@ -187,6 +235,7 @@
             indexVersions(badgeData.data);
 
             return {
+                userId: user.id,
                 profileImageUrl: user.profile_image_url,
                 displayName: user.display_name,
                 badgeSets
@@ -233,6 +282,276 @@
                 const icon = badgeMap[key] || '🔰';
                 return `<span class="badge-icon badge-${key}" title="${key}${version ? ` ${version}` : ''}">${icon}</span>`;
             }).join(' ');
+        }
+
+        function escapeHtml(text) {
+            return (text || '').replace(/[&<>"']/g, (char) => {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                };
+                return map[char] || char;
+            });
+        }
+
+        function decodeIrcTagValue(value) {
+            return (value || '')
+                .replace(/\\s/g, ' ')
+                .replace(/\\:/g, ';')
+                .replace(/\\r/g, '\r')
+                .replace(/\\n/g, '\n')
+                .replace(/\\\\/g, '\\');
+        }
+
+        function normalizeEmoteUrl(url) {
+            if (!url) return '';
+            if (url.startsWith('http://') || url.startsWith('https://')) return url;
+            if (url.startsWith('//')) return `https:${url}`;
+            return `https://${url.replace(/^\/+/, '')}`;
+        }
+
+        function select7tvFile(files = []) {
+            if (!Array.isArray(files) || files.length === 0) return null;
+            return files.find(file => file.name === '1x.webp')
+                || files.find(file => file.name === '2x.webp')
+                || files.find(file => file.name?.endsWith('.webp'))
+                || files[0];
+        }
+
+        function parse7tvEmoteSet(emoteSet) {
+            const map = {};
+            if (!emoteSet?.emotes) return map;
+
+            emoteSet.emotes.forEach((emote) => {
+                const file = select7tvFile(emote?.data?.host?.files || []);
+                if (!file?.name || !emote?.data?.host?.url || !emote?.name) return;
+                const url = normalizeEmoteUrl(`${emote.data.host.url}/${file.name}`);
+                if (!url) return;
+                map[emote.name] = url;
+            });
+            return map;
+        }
+
+        function parseBttvList(list = []) {
+            const map = {};
+            if (!Array.isArray(list)) return map;
+
+            list.forEach((emote) => {
+                if (!emote?.code || !emote?.id) return;
+                map[emote.code] = `https://cdn.betterttv.net/emote/${emote.id}/1x`;
+            });
+            return map;
+        }
+
+        function parseFfzSets(sets) {
+            const map = {};
+            if (!sets || typeof sets !== 'object') return map;
+
+            Object.values(sets).forEach((set) => {
+                (set?.emoticons || []).forEach((emote) => {
+                    if (!emote?.name || !emote?.urls) return;
+                    const emoteUrl = emote.urls['1'] || emote.urls['2'] || emote.urls['4'];
+                    const normalizedUrl = normalizeEmoteUrl(emoteUrl);
+                    if (!normalizedUrl) return;
+                    map[emote.name] = normalizedUrl;
+                });
+            });
+
+            return map;
+        }
+
+        async function fetchThirdPartyEmotes(canal, twitchUserId, providers = {}) {
+            const emoteMap = {};
+            const merge = (entries) => {
+                Object.entries(entries || {}).forEach(([code, url]) => {
+                    if (!code || !url) return;
+                    emoteMap[code] = url;
+                });
+            };
+
+            const use7tv = providers.sevenTv !== false;
+            const useBttv = providers.bttv !== false;
+            const useFfz = providers.ffz !== false;
+
+            // Cargamos globales primero y luego los del canal para que sobrescriban si hay nombre repetido.
+            const tasks = [];
+
+            if (use7tv) {
+                tasks.push(
+                    fetch('https://7tv.io/v3/emote-sets/global').then(r => r.ok ? r.json() : null).then(data => merge(parse7tvEmoteSet(data))).catch(() => null)
+                );
+            }
+
+            if (useBttv) {
+                tasks.push(
+                    fetch('https://api.betterttv.net/3/cached/emotes/global').then(r => r.ok ? r.json() : null).then(data => merge(parseBttvList(data))).catch(() => null)
+                );
+            }
+
+            if (useFfz) {
+                tasks.push(
+                    fetch('https://api.frankerfacez.com/v1/set/global').then(r => r.ok ? r.json() : null).then(data => merge(parseFfzSets(data?.sets))).catch(() => null)
+                );
+            }
+
+            if (twitchUserId) {
+                if (use7tv) {
+                    tasks.push(
+                        fetch(`https://7tv.io/v3/users/twitch/${encodeURIComponent(twitchUserId)}`).then(r => r.ok ? r.json() : null).then(data => merge(parse7tvEmoteSet(data?.emote_set))).catch(() => null)
+                    );
+                }
+
+                if (useBttv) {
+                    tasks.push(
+                        fetch(`https://api.betterttv.net/3/cached/users/twitch/${encodeURIComponent(twitchUserId)}`).then(r => r.ok ? r.json() : null).then((data) => {
+                            merge(parseBttvList(data?.channelEmotes || []));
+                            merge(parseBttvList(data?.sharedEmotes || []));
+                        }).catch(() => null)
+                    );
+                }
+            }
+
+            if (canal && useFfz) {
+                tasks.push(
+                    fetch(`https://api.frankerfacez.com/v1/room/${encodeURIComponent(canal)}`).then(r => r.ok ? r.json() : null).then(data => merge(parseFfzSets(data?.sets))).catch(() => null)
+                );
+            }
+
+            await Promise.all(tasks);
+            return emoteMap;
+        }
+
+        function parseTwitchEmotes(tagValue) {
+            const emoteTag = decodeIrcTagValue(tagValue || '');
+            if (!emoteTag) return [];
+
+            const replacements = [];
+            emoteTag.split('/').forEach((group) => {
+                if (!group) return;
+                const [emoteId, positions] = group.split(':');
+                if (!emoteId || !positions) return;
+
+                positions.split(',').forEach((position) => {
+                    const [startRaw, endRaw] = position.split('-');
+                    const start = Number(startRaw);
+                    const end = Number(endRaw);
+                    if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) return;
+                    replacements.push({
+                        start,
+                        end,
+                        emoteId,
+                        url: `https://static-cdn.jtvnw.net/emoticons/v2/${emoteId}/default/dark/1.0`
+                    });
+                });
+            });
+
+            return replacements.sort((a, b) => a.start - b.start);
+        }
+
+        function renderSegmentWithThirdPartyEmotes(text, thirdPartyEmotes) {
+            if (!text) return '';
+            const chunks = text.split(/(\s+)/);
+            return chunks.map((chunk) => {
+                if (!chunk || /^\s+$/.test(chunk)) return escapeHtml(chunk);
+                const emoteUrl = thirdPartyEmotes?.[chunk];
+                if (!emoteUrl) return escapeHtml(chunk);
+                return `<img class="chat-emote chat-emote-third-party" src="${escapeHtml(emoteUrl)}" alt="${escapeHtml(chunk)}" title="${escapeHtml(chunk)}" loading="lazy">`;
+            }).join('');
+        }
+
+        function renderMessageWithEmotes(message, tags, thirdPartyEmotes) {
+            const twitchReplacements = parseTwitchEmotes(tags?.emotes || '');
+            if (twitchReplacements.length === 0) {
+                return renderSegmentWithThirdPartyEmotes(message, thirdPartyEmotes);
+            }
+
+            let html = '';
+            let cursor = 0;
+            twitchReplacements.forEach((item) => {
+                if (item.start < cursor || item.start > message.length - 1) return;
+                const plainText = message.slice(cursor, item.start);
+                html += renderSegmentWithThirdPartyEmotes(plainText, thirdPartyEmotes);
+
+                const rawToken = message.slice(item.start, item.end + 1);
+                html += `<img class="chat-emote chat-emote-twitch" src="${escapeHtml(item.url)}" alt="${escapeHtml(rawToken)}" title="${escapeHtml(rawToken)}" loading="lazy">`;
+                cursor = item.end + 1;
+            });
+
+            if (cursor < message.length) {
+                html += renderSegmentWithThirdPartyEmotes(message.slice(cursor), thirdPartyEmotes);
+            }
+
+            return html;
+        }
+
+        function sanitizeChatCommands(list = []) {
+            if (!Array.isArray(list)) return [];
+            return list
+                .map((item) => {
+                    const rawTrigger = (item?.trigger || '').toString().trim().toLowerCase().replace(/\s+/g, '');
+                    const trigger = rawTrigger ? (rawTrigger.startsWith('!') ? rawTrigger : `!${rawTrigger}`) : '';
+                    return {
+                        trigger,
+                        response: (item?.response || '').toString().trim(),
+                        enabled: item?.enabled !== false
+                    };
+                })
+                .filter((item) => item.trigger && item.response && item.enabled)
+                .slice(0, 30);
+        }
+
+        function sanitizeChatTimers(list = []) {
+            if (!Array.isArray(list)) return [];
+            return list
+                .map((item) => ({
+                    message: (item?.message || '').toString().trim(),
+                    minutes: Math.max(1, Math.min(120, Number(item?.minutes || 5))),
+                    enabled: item?.enabled !== false
+                }))
+                .filter((item) => item.message && item.enabled)
+                .slice(0, 20);
+        }
+
+        function createBotMessageElement(botName, message, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes) {
+            const div = document.createElement('div');
+            div.className = `mensaje from-left slide ${disenoMensaje}`;
+            const borderSize = Math.max(2, Math.min(12, Number(grosorBorde) || 5));
+            div.style.borderLeft = `${borderSize}px solid ${colorBorde}`;
+            div.style.setProperty('--accent-color', colorBorde);
+            const rgb = hexToRgb(colorBorde);
+            div.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+            if (disenoMensaje === 'design-solid' || disenoMensaje === 'design-square') {
+                div.style.backgroundColor = hexToRgba(colorRecuadro || '#000000', (Number(opacidadRecuadro) || 88) / 100);
+            }
+
+            const fakeTags = {};
+            const messageHtml = renderMessageWithEmotes(message, fakeTags, thirdPartyEmotes);
+            div.innerHTML = `<span style="color:${colorBorde}; font-weight:bold;">${escapeHtml(botName)}:</span> ${messageHtml}`;
+            return div;
+        }
+
+        function emitBotMessage(botName, message, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes) {
+            const contenedor = document.getElementById('chat');
+            if (!contenedor || !message) return;
+            const div = createBotMessageElement(botName, message, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
+            contenedor.appendChild(div);
+            setTimeout(() => {
+                if (div.parentElement) div.remove();
+            }, 10000);
+        }
+
+        function startChatTimers(botName, timers, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes) {
+            clearChatTimers();
+            timers.forEach((timer) => {
+                const intervalMs = Math.max(1, Math.min(120, Number(timer.minutes || 5))) * 60 * 1000;
+                const handle = setInterval(() => {
+                    emitBotMessage(botName, timer.message, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
+                }, intervalMs);
+                timerHandles.push(handle);
+            });
         }
 
         function hexToRgb(hex) {
@@ -323,8 +642,11 @@
         }
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
-        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null) {
+        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null, thirdPartyEmotes = {}, chatCommands = [], chatTimers = []) {
             setStatus(`Conectando al chat de #${canal}...`, 'info');
+            const normalizedCommands = sanitizeChatCommands(chatCommands);
+            const normalizedTimers = sanitizeChatTimers(chatTimers);
+            const botName = 'IWY Bot';
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
 
             socket.addEventListener('open', () => {
@@ -334,6 +656,7 @@
                 socket.send('JOIN #' + canal);
                 console.log('Socket abierto y JOIN enviado para', canal);
                 setStatus(`Conectado a #${canal}`, 'info');
+                startChatTimers(botName, normalizedTimers, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
             });
 
             socket.addEventListener('message', (event) => {
@@ -376,8 +699,9 @@
                     const login = tags['login'] || userPrefix.split('!')[0] || 'anon';
                     if (isBotUser(login)) return;
 
-                    const usuario = tags['display-name'] || login;
+                    const usuario = decodeIrcTagValue(tags['display-name']) || login;
                     const colorTwitch = tags['color'] || colorBorde;
+                    const mensajeHtml = renderMessageWithEmotes(mensajeRaw, tags, thirdPartyEmotes);
                     const avatarHtml = buildChannelAvatar(twitchAssets);
                     const badgesHtml = buildBadgeIcons(tags, twitchAssets?.badgeSets);
                     const contenedor = document.getElementById('chat');
@@ -393,9 +717,15 @@
                     if (disenoMensaje === 'design-solid' || disenoMensaje === 'design-square') {
                         div.style.backgroundColor = hexToRgba(colorRecuadro || '#000000', (Number(opacidadRecuadro) || 88) / 100);
                     }
-                    div.innerHTML = `${avatarHtml}${badgesHtml}<span style="color:${colorTwitch}; font-weight:bold;"> ${usuario}:</span> ${mensajeRaw}`;
+                    div.innerHTML = `${avatarHtml}${badgesHtml}<span style="color:${colorTwitch}; font-weight:bold;"> ${escapeHtml(usuario)}:</span> ${mensajeHtml}`;
                     contenedor.appendChild(div);
                     setTimeout(() => div.remove(), 10000);
+
+                    const firstToken = (mensajeRaw.trim().split(/\s+/)[0] || '').toLowerCase();
+                    const matchedCommand = normalizedCommands.find((item) => item.trigger === firstToken);
+                    if (matchedCommand) {
+                        emitBotMessage(botName, matchedCommand.response, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
+                    }
                 });
             });
 
@@ -407,6 +737,7 @@
             socket.addEventListener('close', (event) => {
                 console.warn('Socket cerrado para', canal, 'code=', event.code, 'reason=', event.reason);
                 setStatus(`Desconectado de #${canal} (${event.code})`, 'warning');
+                clearChatTimers();
             });
         }
 
