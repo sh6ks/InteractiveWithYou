@@ -621,8 +621,6 @@
 
                 <button class="btn-primary" id="createButton">Crear alerta</button>
                 <button class="btn-secondary" id="newAlertButton" style="display: none;">Nueva alerta</button>
-                <button class="btn-secondary" id="sampleImage">Prueba: Imagen</button>
-                <button class="btn-secondary" id="sampleVideo">Prueba: Video</button>
 
                 <div class="test-zone">
                     <h4>Simular en OBS</h4>
@@ -738,8 +736,6 @@
         const overlayLinkInput = document.getElementById('overlayLink');
         const copyOverlay = document.getElementById('copyOverlay');
         const openOverlay = document.getElementById('openOverlay');
-        const sampleImage = document.getElementById('sampleImage');
-        const sampleVideo = document.getElementById('sampleVideo');
         const testAlertButtons = document.querySelectorAll('.test-alert-btn');
         const eventPills = document.querySelectorAll('.event-pill');
         const newAlertButton = document.getElementById('newAlertButton');
@@ -760,8 +756,6 @@
         const previewVideo = document.getElementById('previewVideo');
 
         const sampleAssets = {
-            image: 'https://placekitten.com/900/500',
-            video: 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
             sound: 'https://samplelib.com/lib/preview/mp3/sample-3s.mp3'
         };
 
@@ -1075,8 +1069,7 @@
         const buildAlertPayload = (type, assetUrl, text, options = {}) => {
             const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
             const preferredType = type || tipoSelect.value;
-            const fallbackAsset = sampleAssets[preferredType] || sampleAssets.image;
-            const url = (assetUrl || assetInput.value.trim() || fallbackAsset).trim();
+            const url = (assetUrl || assetInput.value.trim() || '').trim();
             const alertText = (text || textInput.value.trim() || 'Alerta de prueba').trim();
             const soundUrl = options.soundUrl ?? uploadedSoundUrl ?? '';
 
@@ -1256,22 +1249,6 @@
             setStatus('Link copiado');
         });
         openOverlay.addEventListener('click', () => window.open(updateOverlayLink(), '_blank'));
-        sampleImage.addEventListener('click', () => {
-            tipoSelect.value = 'image';
-            assetInput.value = sampleAssets.image;
-            textInput.value = 'Prueba de imagen';
-            updatePreview();
-            updateMediaPreview();
-            createAlert('image', sampleAssets.image, 'Prueba');
-        });
-        sampleVideo.addEventListener('click', () => {
-            tipoSelect.value = 'video';
-            assetInput.value = sampleAssets.video;
-            textInput.value = 'Prueba de video';
-            updatePreview();
-            updateMediaPreview();
-            createAlert('video', sampleAssets.video, 'Prueba');
-        });
 
         testAlertButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
