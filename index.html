@@ -120,9 +120,10 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         const OWNER_GOOGLE_EMAILS = ['jeks2002@gmail.com'];
         // Opcional: agregá acá tu UID de Firebase cuando lo tengas.
         const OWNER_FIREBASE_UIDS = ['wmveayUqW3djaIApgS9E54KAsOv2'];
-        const NON_TOGGLABLE_FEATURES = ['home', 'planes'];
+        const BILLABLE_FEATURES = ['chat', 'alerts', 'comandos'];
 
-        // En el futuro, solo agregá aquí las secciones que quieras convertir a premium.
+        // Solo funciones dentro de Herramientas son monetizables.
+        // Para sumar funciones futuras, agregalas en BILLABLE_FEATURES.
         // Ejemplo: const PAID_FEATURES = ['alerts', 'comandos'];
         const PAID_FEATURES = [];
 
@@ -169,10 +170,9 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         };
 
         const sanitizePaidFeatures = (list) => {
-            const valid = new Set(Object.keys(FEATURE_FLAGS_BASE));
+            const valid = new Set(BILLABLE_FEATURES);
             return [...new Set((Array.isArray(list) ? list : []))]
-                .filter((feature) => valid.has(feature))
-                .filter((feature) => !NON_TOGGLABLE_FEATURES.includes(feature));
+                .filter((feature) => valid.has(feature));
         };
 
         const applyPaidFeaturesConfig = (list) => {
@@ -236,6 +236,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         const canAccessFeature = (section) => {
             if (section === 'planes') return isOwner;
             if (isOwner) return true;
+            if (!BILLABLE_FEATURES.includes(section)) return true;
             const feature = getFeatureInfo(section);
             return feature.tier !== PLAN_PREMIUM || currentPlan === PLAN_PREMIUM;
         };
@@ -243,7 +244,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         window.getPremiumConfig = () => ({
             paidFeatures: [...paidFeaturesConfig],
             features: Object.entries(FEATURE_FLAGS)
-                .filter(([key]) => !NON_TOGGLABLE_FEATURES.includes(key))
+                .filter(([key]) => BILLABLE_FEATURES.includes(key))
                 .map(([key, value]) => ({
                     key,
                     label: value.label,
