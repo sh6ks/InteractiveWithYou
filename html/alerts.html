@@ -1151,19 +1151,23 @@
 
             try {
                 // Intentar cargar la última alerta real del usuario para respetar su diseño
-                // Solo filtramos por canal para evitar índice compuesto; filtramos status en el cliente
+                // Solo filtramos por canal en Firestore; el resto lo hacemos en el cliente para evitar índices
                 let alertData = null;
                 const savedQ = query(
                     collection(db, 'liveAlerts'),
-                    where('canal', '==', canal),
-                    orderBy('createdAt', 'desc'),
-                    limit(20)
+                    where('canal', '==', canal)
                 );
                 const savedSnap = await getDocs(savedQ);
-                // Tomar la primera que no sea de prueba y ya haya sido mostrada
-                const realDoc = savedSnap.docs.find(d => {
+                // Ordenar por fecha descendente en el cliente
+                const sortedDocs = savedSnap.docs.sort((a, b) => {
+                    const timeA = a.data().createdAt?.toMillis?.() || 0;
+                    const timeB = b.data().createdAt?.toMillis?.() || 0;
+                    return timeB - timeA;
+                });
+                // Tomar la primera que no sea de prueba
+                const realDoc = sortedDocs.find(d => {
                     const dd = d.data();
-                    return !dd.isTest && (dd.status === 'shown' || dd.status === 'pending');
+                    return !dd.isTest;
                 });
                 if (realDoc) {
                     const saved = realDoc.data();
