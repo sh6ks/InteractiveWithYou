@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#4c1d95"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Burbuja principal (streamer) -->
+  <rect x="2" y="3" width="30" height="22" rx="7" fill="url(#g1)"/>
+  <!-- Cola de la burbuja principal -->
+  <path d="M8 25 L5 34 L17 25Z" fill="url(#g1)"/>
+
+  <!-- Burbuja secundaria (audiencia) -->
+  <rect x="18" y="22" width="28" height="20" rx="6" fill="url(#g2)"/>
+  <!-- Cola de la burbuja secundaria -->
+  <path d="M38 42 L46 47 L32 42Z" fill="url(#g2)"/>
+
+  <!-- Rayo dentro de la burbuja principal (energía / en vivo) -->
+  <path d="M15 7 L10 16 L15 16 L13 23 L20 12 L15 12Z" fill="white" opacity="0.95"/>
+
+  <!-- Puntos dentro de la burbuja secundaria (audiencia respondiendo) -->
+  <circle cx="27" cy="32" r="2.2" fill="white" opacity="0.85"/>
+  <circle cx="32" cy="32" r="2.2" fill="white" opacity="0.85"/>
+  <circle cx="37" cy="32" r="2.2" fill="white" opacity="0.85"/>
+</svg>
