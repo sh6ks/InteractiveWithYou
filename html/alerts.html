@@ -1073,17 +1073,22 @@
 
             try {
                 // Intentar cargar la última alerta real del usuario para respetar su diseño
+                // Solo filtramos por canal para evitar índice compuesto; filtramos status en el cliente
                 let alertData = null;
                 const savedQ = query(
                     collection(db, 'liveAlerts'),
                     where('canal', '==', canal),
-                    where('status', '==', 'shown'),
                     orderBy('createdAt', 'desc'),
-                    limit(1)
+                    limit(20)
                 );
                 const savedSnap = await getDocs(savedQ);
-                if (!savedSnap.empty) {
-                    const saved = savedSnap.docs[0].data();
+                // Tomar la primera que no sea de prueba y ya haya sido mostrada
+                const realDoc = savedSnap.docs.find(d => {
+                    const dd = d.data();
+                    return !dd.isTest && (dd.status === 'shown' || dd.status === 'pending');
+                });
+                if (realDoc) {
+                    const saved = realDoc.data();
                     alertData = {
                         canal,
                         type:          saved.type,
