@@ -14,10 +14,22 @@
         #alertContainer { position: relative; width: 100%; height: 100%; }
         .alert-box { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.25); }
         .alert-card { max-width: 900px; width: 100%; background: rgba(7, 4, 20, 0.9); border: 2px solid rgba(145, 71, 255, 0.8); border-radius: 26px; overflow: hidden; box-shadow: 0 0 80px rgba(145, 71, 255, 0.4); display: flex; flex-direction: column; gap: 14px; padding: 24px; }
+        .alert-card.position-top { flex-direction: column; }
+        .alert-card.position-center { flex-direction: column; }
+        .alert-card.position-bottom { flex-direction: column-reverse; }
+        .alert-card.position-left { flex-direction: row; align-items: center; }
+        .alert-card.position-right { flex-direction: row-reverse; align-items: center; }
         .alert-media { width: 100%; max-height: 480px; overflow: hidden; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: #050313; }
+        .alert-card.position-left .alert-media, .alert-card.position-right .alert-media { width: 55%; }
         .alert-media img, .alert-media video { max-width: 100%; max-height: 100%; }
         .alert-text { color: #f7f3ff; text-align: center; font-size: clamp(1.4rem, 2vw, 2.8rem); font-weight: 800; text-shadow: 0 0 24px rgba(145,71,255,0.45); }
         .sound-only { font-size: 2rem; color: #b9a4ff; text-align: center; }
+        @keyframes vibrate { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-28px); } }
+        @keyframes zoomAnim { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        .effect-vibrate { animation: vibrate 0.4s infinite; }
+        .effect-bounce { animation: bounce 0.7s infinite; }
+        .effect-zoom { animation: zoomAnim 0.9s infinite; }
         .hidden { display: none !important; }
         .debug-hud {
             position: fixed;
@@ -81,6 +93,7 @@
         const container = document.getElementById('alertContainer');
         const debugHud = document.getElementById('debugHud');
         const shownIds = new Set();
+        const alertQueue = [];
         let active = false;
         let lastEvent = 'ninguno';
         let lastDocId = '-';
@@ -106,6 +119,8 @@
 
             const body = document.createElement('div');
             body.className = 'alert-card';
+            const position = data.mediaPosition || 'center';
+            body.classList.add(`position-${position}`);
 
             const media = document.createElement('div');
             media.className = 'alert-media';
@@ -141,6 +156,13 @@
             const text = document.createElement('div');
             text.className = 'alert-text';
             text.innerText = data.text || '¡Alerta en vivo!';
+            text.style.fontFamily = data.fuente || 'Poppins, sans-serif';
+            text.style.fontSize = `${Number(data.fontSize) || 32}px`;
+            text.style.color = data.textColor || '#f7f3ff';
+
+            if (data.effects?.vibrate) text.classList.add('effect-vibrate');
+            if (data.effects?.bounce) text.classList.add('effect-bounce');
+            if (data.effects?.zoom) text.classList.add('effect-zoom');
 
             if (debugEnabled) {
                 const debugMeta = document.createElement('div');
@@ -156,13 +178,35 @@
 
             body.appendChild(media);
             body.appendChild(text);
+
+            if (data.soundUrl && data.type !== 'sound') {
+                const extraAudio = document.createElement('audio');
+                extraAudio.src = data.soundUrl;
+                extraAudio.autoplay = true;
+                extraAudio.controls = false;
+                extraAudio.style.display = 'none';
+                body.appendChild(extraAudio);
+            }
+
             card.appendChild(body);
             return card;
         };
 
+        const enqueueAlert = (docSnap) => {
+            if (shownIds.has(docSnap.id)) return;
+            alertQueue.push(docSnap);
+            processQueue();
+        };
+
+        const processQueue = async () => {
+            if (active || alertQueue.length === 0) return;
+            const nextDoc = alertQueue.shift();
+            await playAlert(nextDoc);
+        };
+
         // Reproduce la alerta y actualiza su estado a 'shown' cuando finaliza.
         const playAlert = async (docSnap) => {
-            if (active || shownIds.has(docSnap.id)) return;
+            if (shownIds.has(docSnap.id)) return;
             shownIds.add(docSnap.id);
             active = true;
 
@@ -176,11 +220,12 @@
 
             const duration = Number(data.duration) || 8;
             const video = alertEl.querySelector('video');
-            const audio = alertEl.querySelector('audio');
+            const audios = alertEl.querySelectorAll('audio');
 
             if (video) {
                 await video.play().catch(() => {});
             }
+            audios.forEach(a => a.play().catch(() => {}));
 
             setTimeout(async () => {
                 alertEl.remove();
@@ -192,6 +237,7 @@
                     console.error('No se pudo actualizar el estado de la alerta', err);
                     renderDebugHud('Error actualizando status shown');
                 }
+                processQueue();
             }, duration * 1000);
         };
 
@@ -200,8 +246,8 @@
             renderDebugHud(`Snapshot docs: ${snapshot.size}`);
             snapshot.docChanges().forEach(change => {
                 const data = change.doc.data();
-                if (change.type === 'added' && data.status === 'pending') {
-                    playAlert(change.doc);
+                if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending') {
+                    enqueueAlert(change.doc);
                 }
             });
         }, (error) => {

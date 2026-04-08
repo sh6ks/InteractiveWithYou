@@ -1407,7 +1407,7 @@
                 return;
             }
 
-            const text = testEventText[eventType] || 'Evento de prueba';
+            const fallbackText = testEventText[eventType] || 'Evento de prueba';
 
             try {
                 let alertData;
@@ -1419,7 +1419,7 @@
                         type:          savedData.type,
                         assetUrl:      savedData.assetUrl      || '',
                         soundUrl:      savedData.soundUrl      || '',
-                        text,
+                        text:          savedData.text || fallbackText,
                         fuente:        savedData.fuente        || 'Roboto',
                         fontSize:      savedData.fontSize      || 32,
                         textColor:     savedData.textColor     || '#d9d7ff',
@@ -1472,7 +1472,7 @@
                             type:          saved.type,
                             assetUrl:      saved.assetUrl      || '',
                             soundUrl:      saved.soundUrl      || '',
-                            text,
+                            text:          saved.text || fallbackText,
                             fuente:        saved.fuente        || 'Roboto',
                             fontSize:      saved.fontSize      || 32,
                             textColor:     saved.textColor     || '#d9d7ff',
