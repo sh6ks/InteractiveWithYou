@@ -60,6 +60,13 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                 </a>
             </li>
 
+            <li id="admin-plans-item" style="display:none;">
+                <a href="#" onclick="cargarSeccion('planes')">
+                    <i class="fa-solid fa-crown"></i>
+                    <span class="link_name">Planes (Admin)</span>
+                </a>
+            </li>
+
             <li id="auth-item" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;"></li>
         </ul>
     </nav>
@@ -77,6 +84,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         // Script principal: inicializa Firebase, gestiona autenticación, sidebar y carga de secciones.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Configuración de Firebase para autenticación y acceso a datos.
         const firebaseConfig = {
@@ -90,11 +98,13 @@ Panel de control principal con navegación, autenticación y carga de secciones.
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
         const sidebar = document.getElementById("sidebar");
         const btnMenu = document.getElementById("btn-menu");
         const authItem = document.getElementById("auth-item");
+        const adminPlansItem = document.getElementById("admin-plans-item");
         const mainContainer = document.getElementById("main-container");
         const CLIENT_ID_TWITCH = '9cac6zpfterkbzigfr28hpil7se9y3';
         const TWITCH_REDIRECT_URI = window.location.hostname.includes('vercel.app')
@@ -102,7 +112,40 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             : `${window.location.origin}/`;
         const TWITCH_SCOPE = 'user:read:email chat:read';
 
-        const SECCIONES_VALIDAS = ['home', 'chat', 'alerts', 'comandos', 'funciones', 'comunidad', 'contacto'];
+        const PLAN_FREE = 'free';
+        const PLAN_PREMIUM = 'premium';
+        const PLAN_STORAGE_KEY = 'planTier';
+        const PAID_FEATURES_STORAGE_KEY = 'paidFeaturesConfig';
+        const OWNER_TWITCH_LOGINS = ['shekssink'];
+        const OWNER_GOOGLE_EMAILS = ['jeks2002@gmail.com'];
+        // Opcional: agregá acá tu UID de Firebase cuando lo tengas.
+        const OWNER_FIREBASE_UIDS = ['wmveayUqW3djaIApgS9E54KAsOv2'];
+        const NON_TOGGLABLE_FEATURES = ['home', 'planes'];
+
+        // En el futuro, solo agregá aquí las secciones que quieras convertir a premium.
+        // Ejemplo: const PAID_FEATURES = ['alerts', 'comandos'];
+        const PAID_FEATURES = [];
+
+        const FEATURE_FLAGS_BASE = {
+            home: { label: 'Inicio', tier: PLAN_FREE },
+            chat: { label: 'Widget de Chat', tier: PLAN_FREE },
+            alerts: { label: 'Alertas en vivo', tier: PLAN_FREE },
+            comandos: { label: 'Comandos y timers', tier: PLAN_FREE },
+            funciones: { label: 'Herramientas', tier: PLAN_FREE },
+            comunidad: { label: 'Comunidad', tier: PLAN_FREE },
+            contacto: { label: 'Contacto', tier: PLAN_FREE },
+            planes: { label: 'Planes (Admin)', tier: PLAN_FREE }
+        };
+
+        const FEATURE_FLAGS = Object.fromEntries(
+            Object.entries(FEATURE_FLAGS_BASE).map(([key, value]) => [key, { ...value }])
+        );
+
+        const SECCIONES_VALIDAS = Object.keys(FEATURE_FLAGS_BASE);
+        let currentPlan = PLAN_FREE;
+        let currentAuthUser = null;
+        let isOwner = false;
+        let paidFeaturesConfig = [...PAID_FEATURES];
 
         const getSeccionPersistida = () => {
             const seccionUrl = new URLSearchParams(window.location.search).get('seccion');
@@ -117,6 +160,152 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             const url = new URL(window.location.href);
             url.searchParams.set('seccion', seccion);
             window.history.replaceState({}, document.title, url.toString());
+        };
+
+        const normalizePlan = (rawPlan) => {
+            const value = String(rawPlan || '').trim().toLowerCase();
+            if (['premium', 'paid', 'pro'].includes(value)) return PLAN_PREMIUM;
+            return PLAN_FREE;
+        };
+
+        const sanitizePaidFeatures = (list) => {
+            const valid = new Set(Object.keys(FEATURE_FLAGS_BASE));
+            return [...new Set((Array.isArray(list) ? list : []))]
+                .filter((feature) => valid.has(feature))
+                .filter((feature) => !NON_TOGGLABLE_FEATURES.includes(feature));
+        };
+
+        const applyPaidFeaturesConfig = (list) => {
+            const premiumFeatures = sanitizePaidFeatures(list);
+            Object.keys(FEATURE_FLAGS).forEach((key) => {
+                FEATURE_FLAGS[key].tier = PLAN_FREE;
+            });
+            premiumFeatures.forEach((featureKey) => {
+                if (FEATURE_FLAGS[featureKey]) {
+                    FEATURE_FLAGS[featureKey].tier = PLAN_PREMIUM;
+                }
+            });
+            paidFeaturesConfig = premiumFeatures;
+            localStorage.setItem(PAID_FEATURES_STORAGE_KEY, JSON.stringify(paidFeaturesConfig));
+        };
+
+        const resolvePaidFeaturesConfig = async () => {
+            try {
+                const configSnapshot = await getDoc(doc(db, 'sistema', 'planes'));
+                if (configSnapshot.exists()) {
+                    const data = configSnapshot.data();
+                    return sanitizePaidFeatures(data.paidFeatures);
+                }
+            } catch (error) {
+                console.warn('No se pudo leer la configuración de planes desde Firestore.', error);
+            }
+
+            try {
+                return sanitizePaidFeatures(JSON.parse(localStorage.getItem(PAID_FEATURES_STORAGE_KEY) || '[]'));
+            } catch {
+                return sanitizePaidFeatures(PAID_FEATURES);
+            }
+        };
+
+        const isOwnerAccount = (firebaseUser = null) => {
+            const twitchName = localStorage.getItem('nombreTwitch') || '';
+            const twitchMatch = OWNER_TWITCH_LOGINS.includes(twitchName.trim().toLowerCase());
+            if (twitchMatch) return true;
+
+            const uidKey = String(firebaseUser?.uid || '').trim();
+            if (uidKey && OWNER_FIREBASE_UIDS.includes(uidKey)) return true;
+
+            const emailKey = String(firebaseUser?.email || '').trim().toLowerCase();
+            return OWNER_GOOGLE_EMAILS.includes(emailKey);
+        };
+
+        const refreshAdminMenu = () => {
+            adminPlansItem.style.display = isOwner ? 'block' : 'none';
+        };
+
+        const getDisplayNameForAdmin = () => {
+            const twitchName = localStorage.getItem('nombreTwitch');
+            if (twitchName) return twitchName;
+            if (currentAuthUser?.displayName) return currentAuthUser.displayName;
+            if (currentAuthUser?.email) return currentAuthUser.email;
+            return 'owner';
+        };
+
+        const getFeatureInfo = (section) => FEATURE_FLAGS[section] || { label: section, tier: PLAN_FREE };
+
+        const canAccessFeature = (section) => {
+            if (section === 'planes') return isOwner;
+            if (isOwner) return true;
+            const feature = getFeatureInfo(section);
+            return feature.tier !== PLAN_PREMIUM || currentPlan === PLAN_PREMIUM;
+        };
+
+        window.getPremiumConfig = () => ({
+            paidFeatures: [...paidFeaturesConfig],
+            features: Object.entries(FEATURE_FLAGS)
+                .filter(([key]) => !NON_TOGGLABLE_FEATURES.includes(key))
+                .map(([key, value]) => ({
+                    key,
+                    label: value.label,
+                    tier: value.tier
+                }))
+        });
+
+        window.savePremiumConfig = async (featureList) => {
+            if (!isOwner) {
+                throw new Error('Solo el owner puede modificar los planes.');
+            }
+
+            const premiumFeatures = sanitizePaidFeatures(featureList);
+            applyPaidFeaturesConfig(premiumFeatures);
+
+            await setDoc(doc(db, 'sistema', 'planes'), {
+                paidFeatures: premiumFeatures,
+                updatedBy: getDisplayNameForAdmin(),
+                updatedAt: Date.now()
+            }, { merge: true });
+
+            return { ok: true, paidFeatures: premiumFeatures };
+        };
+
+        const renderUpgradeRequired = (section) => {
+            const feature = getFeatureInfo(section);
+            mainContainer.innerHTML = `
+                <div style="max-width:780px;margin:40px auto;padding:28px;border-radius:20px;border:1px solid rgba(145,71,255,0.28);background:linear-gradient(140deg,rgba(145,71,255,0.16) 0%, rgba(14,12,28,0.96) 66%, rgba(8,30,45,0.95) 100%);color:#f3f1ff;box-shadow:0 18px 42px rgba(0,0,0,0.35);">
+                    <span style="display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.08);font-size:0.8rem;margin-bottom:12px;">Plan premium requerido</span>
+                    <h2 style="margin:0 0 10px;">${feature.label} es una función premium</h2>
+                    <p style="margin:0 0 18px;color:#cdc8eb;line-height:1.6;">Tu plan actual es <strong style="color:#fff;">${currentPlan === PLAN_PREMIUM ? 'Premium' : 'Free'}</strong>. Cuando quieras activar esta función para usuarios, podés migrar de plan o mantenerla bloqueada por ahora.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button onclick="cargarSeccion('home')" style="border:none;border-radius:12px;padding:11px 14px;font-weight:700;cursor:pointer;background:#9147ff;color:white;">Volver al inicio</button>
+                        <button onclick="cargarSeccion('contacto')" style="border:1px solid rgba(255,255,255,0.14);border-radius:12px;padding:11px 14px;font-weight:700;cursor:pointer;background:rgba(255,255,255,0.06);color:#ece8ff;">Solicitar acceso</button>
+                    </div>
+                </div>
+            `;
+        };
+
+        const resolveCurrentPlan = async (firebaseUser = null) => {
+            try {
+                if (firebaseUser?.uid) {
+                    const userSnapshot = await getDoc(doc(db, 'usuarios', firebaseUser.uid));
+                    if (userSnapshot.exists()) {
+                        const data = userSnapshot.data();
+                        return normalizePlan(data.planTier || data.subscriptionPlan);
+                    }
+                }
+
+                const nombreTwitch = localStorage.getItem('nombreTwitch');
+                if (nombreTwitch) {
+                    const twitchSnapshot = await getDoc(doc(db, 'usuarios', nombreTwitch));
+                    if (twitchSnapshot.exists()) {
+                        const data = twitchSnapshot.data();
+                        return normalizePlan(data.planTier || data.subscriptionPlan);
+                    }
+                }
+            } catch (error) {
+                console.warn('No se pudo cargar plan desde Firestore, se usará fallback local.', error);
+            }
+
+            return normalizePlan(localStorage.getItem(PLAN_STORAGE_KEY));
         };
 
         // Construye la URL de autorización para Twitch.
@@ -151,12 +340,14 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         const renderAuthState = (firebaseUser = null) => {
             const nombreTwitch = localStorage.getItem('nombreTwitch');
             const fotoTwitch = localStorage.getItem('fotoTwitch');
+            const planBadge = currentPlan === PLAN_PREMIUM ? 'Premium' : 'Free';
+            refreshAdminMenu();
 
             if (nombreTwitch) {
                 authItem.innerHTML = `
                     <a onclick="logout()" style="cursor:pointer; background: rgba(145, 71, 255, 0.1); border-radius: 8px;">
                         <img src="${fotoTwitch}" style="width:30px; border-radius:50%; margin: 0 24px;">
-                        <span class="link_name">Salir (${nombreTwitch})</span>
+                        <span class="link_name">Salir (${nombreTwitch}) · ${planBadge}</span>
                     </a>
                 `;
                 window.cargarSeccion(getSeccionPersistida());
@@ -167,7 +358,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                 authItem.innerHTML = `
                     <a onclick="logout()" style="cursor:pointer; background: rgba(66, 133, 244, 0.1); border-radius: 8px;">
                         <img src="${firebaseUser.photoURL}" style="width:30px; border-radius:50%; margin: 0 24px;">
-                        <span class="link_name">Salir</span>
+                        <span class="link_name">Salir · ${planBadge}</span>
                     </a>
                 `;
                 window.cargarSeccion(getSeccionPersistida());
@@ -230,12 +421,31 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         };
 
         // --- INTERFAZ Y BOTONES ---
-        onAuthStateChanged(auth, renderAuthState);
+        onAuthStateChanged(auth, async (user) => {
+            currentAuthUser = user;
+            isOwner = isOwnerAccount(user);
+            paidFeaturesConfig = await resolvePaidFeaturesConfig();
+            applyPaidFeaturesConfig(paidFeaturesConfig);
+            currentPlan = await resolveCurrentPlan(user);
+            localStorage.setItem(PLAN_STORAGE_KEY, currentPlan);
+            renderAuthState(user);
+        });
 
         // --- LÓGICA DE LA SIDEBAR Y SECCIONES ---
         // Carga la sección correspondiente dentro del iframe principal.
         window.cargarSeccion = (seccion) => {
-            const seccionFinal = SECCIONES_VALIDAS.includes(seccion) ? seccion : 'home';
+            let seccionFinal = SECCIONES_VALIDAS.includes(seccion) ? seccion : 'home';
+
+            if (seccionFinal === 'planes' && !isOwner) {
+                seccionFinal = 'home';
+            }
+
+            if (!canAccessFeature(seccionFinal)) {
+                persistirSeccion('home');
+                renderUpgradeRequired(seccionFinal);
+                return;
+            }
+
             persistirSeccion(seccionFinal);
 
             mainContainer.innerHTML = '<div style="color:#a970ff; padding:20px;">Cargando...</div>';
@@ -249,6 +459,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             else if (seccionFinal === 'funciones') archivo = "html/functions.html";
             else if (seccionFinal === 'comunidad') archivo = "html/comunity.html";
             else if (seccionFinal === 'contacto') archivo = "html/contacto.html";
+            else if (seccionFinal === 'planes') archivo = "html/plan-admin.html";
 
             if (archivo) {
                 mainContainer.innerHTML = `<iframe src="${archivo}" style="width:100%; height:85vh; border:none;"></iframe>`;

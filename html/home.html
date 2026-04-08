@@ -298,6 +298,31 @@
             z-index: 1;
         }
 
+        .premium-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 4;
+            padding: 5px 9px;
+            border-radius: 999px;
+            border: 1px solid rgba(250,204,21,0.42);
+            background: rgba(250,204,21,0.14);
+            color: #ffe9a6;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            pointer-events: none;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.22);
+        }
+
+        .is-premium {
+            border-color: rgba(250,204,21,0.38) !important;
+            box-shadow: 0 16px 34px rgba(0,0,0,0.34), 0 0 32px rgba(250,204,21,0.09);
+        }
+
         /* Per-card accent colours */
         .card-chat     { --accent: rgba(145,71,255,.6);  --glow: rgba(145,71,255,.22); }
         .card-alerts   { --accent: rgba(251,146,60,.65); --glow: rgba(251,146,60,.2);  }
@@ -808,7 +833,7 @@
     <div class="card-grid">
 
         <!-- CHAT WIDGET -->
-        <div class="func-card card-chat" onclick="parent.cargarSeccion('chat')">
+        <div class="func-card card-chat" data-feature="chat" onclick="parent.cargarSeccion('chat')">
             <div class="card-preview preview-chat">
                 <div class="bar"></div>
                 <div class="bubble b1">shekssink: Buenas a todos 👋</div>
@@ -826,7 +851,7 @@
         </div>
 
         <!-- ALERTAS -->
-        <div class="func-card card-alerts" onclick="parent.cargarSeccion('alerts')">
+        <div class="func-card card-alerts" data-feature="alerts" onclick="parent.cargarSeccion('alerts')">
             <div class="card-preview preview-alerts">
                 <div class="bell-center">
                     <i class="fa-solid fa-bell bell-ico"></i>
@@ -845,7 +870,7 @@
         </div>
 
         <!-- COMANDOS Y TIMERS -->
-        <div class="func-card card-commands" onclick="parent.cargarSeccion('comandos')">
+        <div class="func-card card-commands" data-feature="comandos" onclick="parent.cargarSeccion('comandos')">
             <div class="card-preview preview-commands">
                 <div class="terminal">
                     <div class="t-bar">
@@ -902,7 +927,7 @@
     </div>
 
     <!-- FEEDBACK / COMUNIDAD -->
-    <section class="feedback-section" onclick="parent.cargarSeccion('comunidad')">
+    <section class="feedback-section" data-feature="comunidad" onclick="parent.cargarSeccion('comunidad')">
         <div class="fdb-left">
             <div class="fdb-icon"><i class="fa-solid fa-comments"></i></div>
             <h2>Comunidad &amp; Feedback</h2>
@@ -934,7 +959,7 @@
     </section>
 
     <!-- CONTACTO -->
-    <section class="home-contact-section" onclick="parent.cargarSeccion('contacto')">
+    <section class="home-contact-section" data-feature="contacto" onclick="parent.cargarSeccion('contacto')">
         <div class="hc-preview">
             <div class="hc-mail">
                 <div class="hc-mail-top">
@@ -961,5 +986,26 @@
             <span class="hc-cta">Ir a contacto <i class="fa-solid fa-arrow-right"></i></span>
         </div>
     </section>
+
+    <script>
+        (() => {
+            const premiumFeatures = new Set(
+                window.parent?.getPremiumConfig?.().paidFeatures || []
+            );
+
+            document.querySelectorAll('[data-feature]').forEach((element) => {
+                const featureKey = element.dataset.feature;
+                if (!premiumFeatures.has(featureKey)) return;
+
+                element.classList.add('is-premium');
+                if (element.querySelector('.premium-badge')) return;
+
+                const badge = document.createElement('span');
+                badge.className = 'premium-badge';
+                badge.innerHTML = '<i class="fa-solid fa-crown"></i> Premium';
+                element.appendChild(badge);
+            });
+        })();
+    </script>
 </body>
 </html>

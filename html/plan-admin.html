@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planes Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 22px;
+            background: transparent;
+            color: #f3f0ff;
+            font-family: 'Poppins', sans-serif;
+        }
+        .admin-wrap {
+            max-width: 920px;
+            margin: 0 auto;
+            display: grid;
+            gap: 18px;
+        }
+        .hero {
+            border-radius: 22px;
+            border: 1px solid rgba(145,71,255,0.26);
+            background: linear-gradient(135deg, rgba(145,71,255,0.16) 0%, rgba(14,12,28,0.96) 64%, rgba(10,30,45,0.94) 100%);
+            padding: 24px;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.32);
+        }
+        .hero h2 {
+            margin: 0 0 8px;
+            font-size: 1.9rem;
+            color: #e9ddff;
+        }
+        .hero p {
+            margin: 0;
+            color: #bcb4e0;
+            line-height: 1.6;
+        }
+        .panel {
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(18,16,34,0.86);
+            padding: 18px;
+        }
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .panel-head strong { color: #f7f3ff; }
+        .panel-head span { color: #a69fc7; font-size: 0.84rem; }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .feature-item {
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            background: rgba(255,255,255,0.03);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .feature-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .feature-label strong {
+            font-size: 0.92rem;
+            color: #f4efff;
+        }
+        .feature-label span {
+            font-size: 0.78rem;
+            color: #a5a0c7;
+        }
+        .pill {
+            display: inline-flex;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #d9d3f8;
+            background: rgba(255,255,255,0.05);
+        }
+        .toggle {
+            position: relative;
+            width: 46px;
+            height: 26px;
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.14);
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .toggle::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            transition: transform 0.22s ease;
+        }
+        .toggle:checked {
+            background: rgba(145,71,255,0.54);
+            border-color: rgba(145,71,255,0.72);
+        }
+        .toggle:checked::before { transform: translateX(20px); }
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        button {
+            border: none;
+            border-radius: 12px;
+            padding: 11px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #fff;
+        }
+        .btn-save {
+            background: linear-gradient(135deg, #9147ff 0%, #6f63ff 100%);
+        }
+        .btn-reset {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 0.84rem;
+            color: #b8b0db;
+            min-height: 20px;
+        }
+        .status.ok { color: #94f0c5; }
+        .status.error { color: #ffb7bf; }
+        @media (max-width: 760px) {
+            body { padding: 14px; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .panel-head,
+            .actions { flex-direction: column; align-items: stretch; }
+            button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-wrap">
+        <section class="hero">
+            <h2>Gestión de Planes</h2>
+            <p>Elegí qué funciones pasan a premium. Se guarda en Firestore y se aplica en el dashboard sin tocar más código.</p>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <strong>Funciones del sistema</strong>
+                <span>Toggle activado = premium</span>
+            </div>
+
+            <div id="featureGrid" class="feature-grid"></div>
+
+            <div class="actions">
+                <button class="btn-reset" id="btnReset" type="button">Dejar todo en free</button>
+                <button class="btn-save" id="btnSave" type="button"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios</button>
+            </div>
+            <div class="status" id="statusLine"></div>
+        </section>
+    </div>
+
+    <script>
+        const featureGrid = document.getElementById('featureGrid');
+        const btnSave = document.getElementById('btnSave');
+        const btnReset = document.getElementById('btnReset');
+        const statusLine = document.getElementById('statusLine');
+
+        const showStatus = (message, type = '') => {
+            statusLine.className = `status ${type}`.trim();
+            statusLine.textContent = message;
+        };
+
+        const getConfig = () => {
+            if (!window.parent || typeof window.parent.getPremiumConfig !== 'function') {
+                throw new Error('No se pudo obtener configuración desde el panel principal.');
+            }
+            return window.parent.getPremiumConfig();
+        };
+
+        const render = () => {
+            const config = getConfig();
+            featureGrid.innerHTML = '';
+            config.features.forEach((feature) => {
+                const item = document.createElement('div');
+                item.className = 'feature-item';
+                item.innerHTML = `
+                    <div class="feature-label">
+                        <strong>${feature.label}</strong>
+                        <span><span class="pill">Clave: ${feature.key}</span></span>
+                    </div>
+                    <input type="checkbox" class="toggle" data-feature="${feature.key}" ${config.paidFeatures.includes(feature.key) ? 'checked' : ''}>
+                `;
+                featureGrid.appendChild(item);
+            });
+        };
+
+        const getSelectedPremiumFeatures = () => {
+            return [...document.querySelectorAll('.toggle:checked')]
+                .map((input) => input.dataset.feature);
+        };
+
+        btnSave.addEventListener('click', async () => {
+            try {
+                showStatus('Guardando configuración...');
+                const selected = getSelectedPremiumFeatures();
+                await window.parent.savePremiumConfig(selected);
+                showStatus('Configuración guardada correctamente.', 'ok');
+                render();
+            } catch (error) {
+                showStatus(error.message || 'No se pudo guardar la configuración.', 'error');
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            document.querySelectorAll('.toggle').forEach((input) => {
+                input.checked = false;
+            });
+            showStatus('Todo marcado como free. Presioná Guardar cambios para aplicar.', 'ok');
+        });
+
+        try {
+            render();
+        } catch (error) {
+            showStatus(error.message || 'Error inicializando panel admin.', 'error');
+        }
+    </script>
+</body>
+</html>
