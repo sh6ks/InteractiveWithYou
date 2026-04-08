@@ -45,10 +45,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const canalParam = urlParams.get('canal')?.toLowerCase();
 
-        // Query sin orderBy para evitar índice compuesto
+        // Query sin combinaciones que requieran índice compuesto
         const alertsQuery = canalParam
-            ? query(collection(db, 'liveAlerts'), where('status', '==', 'pending'), where('canal', '==', canalParam))
-            : query(collection(db, 'liveAlerts'), where('status', '==', 'pending'));
+            ? query(collection(db, 'liveAlerts'), where('canal', '==', canalParam))
+            : query(collection(db, 'liveAlerts'));
 
         const container = document.getElementById('alertContainer');
         const shownIds = new Set();
@@ -135,7 +135,8 @@
 
         onSnapshot(alertsQuery, (snapshot) => {
             snapshot.docChanges().forEach(change => {
-                if (change.type === 'added') {
+                const data = change.doc.data();
+                if (change.type === 'added' && data.status === 'pending') {
                     playAlert(change.doc);
                 }
             });

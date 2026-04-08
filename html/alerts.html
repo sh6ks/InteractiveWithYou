@@ -1209,14 +1209,16 @@
                     currentEditingAlertId = null;
                     createButton.textContent = 'Crear alerta';
                 } else {
-                    // Validar límite por tipo de evento
+                    // Validar límite por tipo de evento sin requerir índice compuesto
                     const existingQ = query(
                         collection(db, 'liveAlerts'),
-                        where('canal', '==', alertData.canal),
-                        where('eventType', '==', selectedEventType)
+                        where('canal', '==', alertData.canal)
                     );
                     const existingSnap = await getDocs(existingQ);
-                    const existingReal = existingSnap.docs.filter(d => !d.data().isTest);
+                    const existingReal = existingSnap.docs.filter(d => {
+                        const data = d.data();
+                        return !data.isTest && (data.eventType || 'generico') === selectedEventType;
+                    });
                     const limit = await getUserLimit(alertData.canal);
                     const isPremium = limit === PREMIUM_LIMIT;
 
@@ -1289,15 +1291,17 @@
                         updatedAt:     serverTimestamp()
                     };
                 } else {
-                    // Buscar alertas guardadas del mismo tipo de evento
+                    // Buscar alertas guardadas del mismo tipo de evento sin índice compuesto
                     const savedQ = query(
                         collection(db, 'liveAlerts'),
-                        where('canal', '==', canal),
-                        where('eventType', '==', eventType)
+                        where('canal', '==', canal)
                     );
                     const savedSnap = await getDocs(savedQ);
                     const realAlerts = savedSnap.docs
-                        .filter(d => !d.data().isTest)
+                        .filter(d => {
+                            const data = d.data();
+                            return !data.isTest && (data.eventType || 'generico') === eventType;
+                        })
                         .sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0));
 
                     if (realAlerts.length > 1) {
@@ -1340,12 +1344,16 @@
                             updatedAt:     serverTimestamp()
                         };
                     } else {
-                        // Sin alertas guardadas para ese evento: usar valores del formulario
-                        alertData = buildAlertPayload(tipoSelect.value, '', text, {
-                            extra: { isTest: true, testEvent: eventType }
-                        });
-                        alertData.createdAt = serverTimestamp();
+                        // No usar fallback genérico: la prueba debe corresponder a una alerta real de ese evento
+                        const evName = { generico:'Genérico', follow:'Follow', sub:'Sub', resub:'Resub', gift_sub:'Gift Sub', raid:'Raid', bits:'Bits', channel_points:'Channel Points' }[eventType] || eventType;
+                        setStatus(`No tenés alertas creadas para ${evName}. Creá una primero para poder probarla.`, false);
+                        return;
                     }
+                }
+
+                if (!alertData.assetUrl) {
+                    setStatus('La alerta elegida no tiene asset válido. Editala y agrega una URL o archivo.', false);
+                    return;
                 }
 
                 testPicker.style.display = 'none';
