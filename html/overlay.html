@@ -45,9 +45,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const canalParam = urlParams.get('canal')?.toLowerCase();
 
+        // Query sin orderBy para evitar índice compuesto
         const alertsQuery = canalParam
-            ? query(collection(db, 'liveAlerts'), where('status', '==', 'pending'), where('canal', '==', canalParam), orderBy('createdAt', 'asc'))
-            : query(collection(db, 'liveAlerts'), where('status', '==', 'pending'), orderBy('createdAt', 'asc'));
+            ? query(collection(db, 'liveAlerts'), where('status', '==', 'pending'), where('canal', '==', canalParam))
+            : query(collection(db, 'liveAlerts'), where('status', '==', 'pending'));
 
         const container = document.getElementById('alertContainer');
         const shownIds = new Set();

@@ -414,6 +414,60 @@
             transform: translateY(-1px);
         }
 
+        .test-picker {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: rgba(145, 71, 255, 0.07);
+            border: 1px solid rgba(145, 71, 255, 0.25);
+        }
+
+        .test-picker-label {
+            font-size: 0.8rem;
+            color: #bdb9ff;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .test-picker-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .test-pick-btn {
+            padding: 6px 14px;
+            background: rgba(145, 71, 255, 0.18);
+            border: 1px solid rgba(145, 71, 255, 0.4);
+            border-radius: 8px;
+            color: #ede9ff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-top: 0;
+            width: auto;
+        }
+
+        .test-pick-btn:hover {
+            background: rgba(145, 71, 255, 0.32);
+            border-color: #9147ff;
+            transform: translateY(-1px);
+        }
+
+        .limit-badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 6px;
+            font-weight: 700;
+        }
+
+        .limit-badge.free { background: rgba(145,71,255,0.18); color: #c4b0ff; }
+        .limit-badge.premium { background: rgba(255,185,0,0.18); color: #ffd85a; }
+        .limit-badge.full { background: rgba(255,80,80,0.18); color: #ff9090; }
+
         small {
             color: #999;
             display: block;
@@ -523,6 +577,12 @@
         <div id="crear" class="tab-content active">
             <!-- Formulario -->
             <div>
+
+                <!-- Campo: nombre de la alerta -->
+                <div class="field-group">
+                    <label>Nombre de esta alerta <span style="color:#a7a2c9;font-weight:400;font-size:0.82rem;">(para identificarla fácilmente)</span></label>
+                    <input id="alertNombre" placeholder="ej: Alert Follow Amigable" maxlength="40" />
+                </div>
 
                 <!-- Barra: ¿Para qué evento es esta alerta? -->
                 <div class="event-bar">
@@ -634,6 +694,11 @@
                         <button type="button" class="test-alert-btn" data-test-event="bits">Bits</button>
                         <button type="button" class="test-alert-btn" data-test-event="channel_points">Channel Points</button>
                     </div>
+                    <!-- Picker: aparece cuando hay varias alertas del mismo evento -->
+                    <div class="test-picker" id="testPicker" style="display:none;">
+                        <span class="test-picker-label">¿Cuál alerta de <strong id="testPickerEvent"></strong> quieres probar?</span>
+                        <div class="test-picker-options" id="testPickerOptions"></div>
+                    </div>
                 </div>
             </div>
 
@@ -736,9 +801,26 @@
         const overlayLinkInput = document.getElementById('overlayLink');
         const copyOverlay = document.getElementById('copyOverlay');
         const openOverlay = document.getElementById('openOverlay');
+        const alertNombreInput = document.getElementById('alertNombre');
         const testAlertButtons = document.querySelectorAll('.test-alert-btn');
+        const testPicker = document.getElementById('testPicker');
+        const testPickerEvent = document.getElementById('testPickerEvent');
+        const testPickerOptions = document.getElementById('testPickerOptions');
         const eventPills = document.querySelectorAll('.event-pill');
         const newAlertButton = document.getElementById('newAlertButton');
+
+        // Límites de alertas por tipo de evento
+        const FREE_LIMIT = 3;
+        const PREMIUM_LIMIT = 8;
+
+        const getUserLimit = async (canal) => {
+            try {
+                const userQ = query(collection(db, 'usuarios'), where('canal', '==', canal));
+                const userSnap = await getDocs(userQ);
+                if (!userSnap.empty && userSnap.docs[0].data().premium) return PREMIUM_LIMIT;
+            } catch (_) {}
+            return FREE_LIMIT;
+        };
 
         // Barra de evento: selección de pills
         eventPills.forEach(pill => {
@@ -756,6 +838,8 @@
         const previewVideo = document.getElementById('previewVideo');
 
         const sampleAssets = {
+            image: 'https://via.placeholder.com/900x500/9147ff/ffffff?text=Alerta',
+            video: 'https://www.w3schools.com/html/mov_bbb.mp4',
             sound: 'https://samplelib.com/lib/preview/mp3/sample-3s.mp3'
         };
 
@@ -829,13 +913,17 @@
                 querySnapshot.forEach(docSnap => {
                     const alert = docSnap.data();
                     const alertId = docSnap.id;
+                    
+                    // Filtrar alertas de prueba (no mostrar)
+                    if (alert.isTest) return;
                     const alertEl = document.createElement('div');
                     alertEl.className = 'alert-item';
                     const eventLabels = { generico:'🔔 Genérico', follow:'❤️ Follow', sub:'⭐ Sub', resub:'🔄 Resub', gift_sub:'🎁 Gift Sub', raid:'🚀 Raid', bits:'💎 Bits', channel_points:'🏆 Channel Points' };
                     const evLabel = eventLabels[alert.eventType] || eventLabels.generico;
+                    const nombre = alert.nombre || alert.text || 'Sin nombre';
                     alertEl.innerHTML = `
                         <div class="alert-item-info">
-                            <div class="alert-item-title">${alert.text || 'Alerta sin título'}</div>
+                            <div class="alert-item-title">${nombre}</div>
                             <div class="alert-item-meta">${evLabel} | Asset: ${alert.type} | Duración: ${alert.duration}s | Fuente: ${alert.fuente || 'Por defecto'}</div>
                         </div>
                         <div class="alert-item-actions">
@@ -863,6 +951,8 @@
                 if (!alertData) return;
 
                 currentEditingAlertId = alertId;
+                // Restaurar nombre
+                alertNombreInput.value = alertData.nombre || '';
                 // Restaurar pill de evento
                 selectedEventType = alertData.eventType || 'generico';
                 eventPills.forEach(p => {
@@ -1069,7 +1159,8 @@
         const buildAlertPayload = (type, assetUrl, text, options = {}) => {
             const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
             const preferredType = type || tipoSelect.value;
-            const url = (assetUrl || assetInput.value.trim() || '').trim();
+            const fallbackAsset = sampleAssets[preferredType] || sampleAssets.image;
+            const url = (assetUrl || assetInput.value.trim() || fallbackAsset).trim();
             const alertText = (text || textInput.value.trim() || 'Alerta de prueba').trim();
             const soundUrl = options.soundUrl ?? uploadedSoundUrl ?? '';
 
@@ -1077,6 +1168,7 @@
                 canal,
                 type: preferredType,
                 eventType: selectedEventType,
+                nombre: (options.nombre ?? alertNombreInput.value.trim()) || 'Sin nombre',
                 assetUrl: url,
                 soundUrl,
                 text: alertText,
@@ -1117,6 +1209,29 @@
                     currentEditingAlertId = null;
                     createButton.textContent = 'Crear alerta';
                 } else {
+                    // Validar límite por tipo de evento
+                    const existingQ = query(
+                        collection(db, 'liveAlerts'),
+                        where('canal', '==', alertData.canal),
+                        where('eventType', '==', selectedEventType)
+                    );
+                    const existingSnap = await getDocs(existingQ);
+                    const existingReal = existingSnap.docs.filter(d => !d.data().isTest);
+                    const limit = await getUserLimit(alertData.canal);
+                    const isPremium = limit === PREMIUM_LIMIT;
+
+                    if (existingReal.length >= limit) {
+                        const eventName = { generico:'Genérico', follow:'Follow', sub:'Sub', resub:'Resub', gift_sub:'Gift Sub', raid:'Raid', bits:'Bits', channel_points:'Channel Points' }[selectedEventType] || selectedEventType;
+                        const upgradeMsg = isPremium ? '' : ' Cambia a Premium para agregar hasta 8.';
+                        setStatus(`Límite alcanzado: máximo ${limit} alertas de ${eventName}.${upgradeMsg}`, false);
+                        return;
+                    }
+
+                    if (!alertData.nombre || alertData.nombre === 'Sin nombre') {
+                        setStatus('Ponle un nombre a la alerta para poder identificarla', false);
+                        return;
+                    }
+
                     // Crear nueva alerta
                     alertData.createdAt = serverTimestamp();
                     await addDoc(collection(db, 'liveAlerts'), alertData);
@@ -1134,7 +1249,8 @@
             }
         };
 
-        const triggerTestAlert = async (eventType) => {
+        // Dispara una alerta de prueba. Si se pasa savedData, usa esa configuración directamente.
+        const triggerTestAlert = async (eventType, savedData = null) => {
             if (!auth.currentUser && !getTwitchChannel()) {
                 alert('Tenés que iniciar sesión');
                 window.parent.location.href = '/index.html';
@@ -1150,53 +1266,89 @@
             const text = testEventText[eventType] || 'Evento de prueba';
 
             try {
-                // Intentar cargar la última alerta real del usuario para respetar su diseño
-                // Solo filtramos por canal en Firestore; el resto lo hacemos en el cliente para evitar índices
-                let alertData = null;
-                const savedQ = query(
-                    collection(db, 'liveAlerts'),
-                    where('canal', '==', canal)
-                );
-                const savedSnap = await getDocs(savedQ);
-                // Ordenar por fecha descendente en el cliente
-                const sortedDocs = savedSnap.docs.sort((a, b) => {
-                    const timeA = a.data().createdAt?.toMillis?.() || 0;
-                    const timeB = b.data().createdAt?.toMillis?.() || 0;
-                    return timeB - timeA;
-                });
-                // Tomar la primera que no sea de prueba
-                const realDoc = sortedDocs.find(d => {
-                    const dd = d.data();
-                    return !dd.isTest;
-                });
-                if (realDoc) {
-                    const saved = realDoc.data();
+                let alertData;
+
+                if (savedData) {
+                    // Usar la alerta específica elegida en el picker
                     alertData = {
                         canal,
-                        type:          saved.type,
-                        assetUrl:      saved.assetUrl      || '',
-                        soundUrl:      saved.soundUrl      || '',
+                        type:          savedData.type,
+                        assetUrl:      savedData.assetUrl      || '',
+                        soundUrl:      savedData.soundUrl      || '',
                         text,
-                        fuente:        saved.fuente        || 'Roboto',
-                        fontSize:      saved.fontSize      || 32,
-                        textColor:     saved.textColor     || '#d9d7ff',
-                        mediaPosition: saved.mediaPosition || 'center',
-                        effects:       saved.effects       || { vibrate: false, bounce: false, zoom: false },
-                        duration:      saved.duration      || 8,
-                        status:       'pending',
+                        fuente:        savedData.fuente        || 'Roboto',
+                        fontSize:      savedData.fontSize      || 32,
+                        textColor:     savedData.textColor     || '#d9d7ff',
+                        mediaPosition: savedData.mediaPosition || 'center',
+                        effects:       savedData.effects       || { vibrate: false, bounce: false, zoom: false },
+                        duration:      savedData.duration      || 8,
+                        status:        'pending',
                         isTest:        true,
                         testEvent:     eventType,
                         createdAt:     serverTimestamp(),
                         updatedAt:     serverTimestamp()
                     };
                 } else {
-                    // Sin alertas guardadas: usar valores del formulario
-                    alertData = buildAlertPayload(tipoSelect.value, '', text, {
-                        extra: { isTest: true, testEvent: eventType }
-                    });
-                    alertData.createdAt = serverTimestamp();
+                    // Buscar alertas guardadas del mismo tipo de evento
+                    const savedQ = query(
+                        collection(db, 'liveAlerts'),
+                        where('canal', '==', canal),
+                        where('eventType', '==', eventType)
+                    );
+                    const savedSnap = await getDocs(savedQ);
+                    const realAlerts = savedSnap.docs
+                        .filter(d => !d.data().isTest)
+                        .sort((a, b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0));
+
+                    if (realAlerts.length > 1) {
+                        // Mostrar picker para que el usuario elija cuál probar
+                        const evName = { generico:'Genérico', follow:'Follow', sub:'Sub', resub:'Resub', gift_sub:'Gift Sub', raid:'Raid', bits:'Bits', channel_points:'Channel Points' }[eventType] || eventType;
+                        testPickerEvent.textContent = evName;
+                        testPickerOptions.innerHTML = '';
+                        realAlerts.forEach(d => {
+                            const data = d.data();
+                            const btn = document.createElement('button');
+                            btn.className = 'test-pick-btn';
+                            btn.textContent = data.nombre || data.text || 'Sin nombre';
+                            btn.addEventListener('click', () => {
+                                testPicker.style.display = 'none';
+                                triggerTestAlert(eventType, data);
+                            });
+                            testPickerOptions.appendChild(btn);
+                        });
+                        testPicker.style.display = 'block';
+                        return;
+                    } else if (realAlerts.length === 1) {
+                        // Solo hay una, usarla directamente
+                        const saved = realAlerts[0].data();
+                        alertData = {
+                            canal,
+                            type:          saved.type,
+                            assetUrl:      saved.assetUrl      || '',
+                            soundUrl:      saved.soundUrl      || '',
+                            text,
+                            fuente:        saved.fuente        || 'Roboto',
+                            fontSize:      saved.fontSize      || 32,
+                            textColor:     saved.textColor     || '#d9d7ff',
+                            mediaPosition: saved.mediaPosition || 'center',
+                            effects:       saved.effects       || { vibrate: false, bounce: false, zoom: false },
+                            duration:      saved.duration      || 8,
+                            status:        'pending',
+                            isTest:        true,
+                            testEvent:     eventType,
+                            createdAt:     serverTimestamp(),
+                            updatedAt:     serverTimestamp()
+                        };
+                    } else {
+                        // Sin alertas guardadas para ese evento: usar valores del formulario
+                        alertData = buildAlertPayload(tipoSelect.value, '', text, {
+                            extra: { isTest: true, testEvent: eventType }
+                        });
+                        alertData.createdAt = serverTimestamp();
+                    }
                 }
 
+                testPicker.style.display = 'none';
                 await addDoc(collection(db, 'liveAlerts'), alertData);
                 setStatus(`✅ Prueba enviada: ${eventType.toUpperCase()}`);
             } catch (error) {
@@ -1225,6 +1377,7 @@
             createButton.textContent = 'Crear alerta';
             newAlertButton.style.display = 'none';
             canalInput.value = getTwitchChannel() || '';
+            alertNombreInput.value = '';
             tipoSelect.value = 'image';
             assetInput.value = '';
             assetFileInput.value = '';
@@ -1256,6 +1409,7 @@
 
         testAlertButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
+                testPicker.style.display = 'none';
                 const eventType = btn.dataset.testEvent || 'follow';
                 triggerTestAlert(eventType);
             });
