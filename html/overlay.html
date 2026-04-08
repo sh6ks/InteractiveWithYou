@@ -19,16 +19,43 @@
         .alert-text { color: #f7f3ff; text-align: center; font-size: clamp(1.4rem, 2vw, 2.8rem); font-weight: 800; text-shadow: 0 0 24px rgba(145,71,255,0.45); }
         .sound-only { font-size: 2rem; color: #b9a4ff; text-align: center; }
         .hidden { display: none !important; }
+        .debug-hud {
+            position: fixed;
+            left: 12px;
+            bottom: 12px;
+            z-index: 9999;
+            min-width: 280px;
+            max-width: 420px;
+            border-radius: 12px;
+            border: 1px solid rgba(145, 71, 255, 0.55);
+            background: rgba(8, 7, 20, 0.88);
+            color: #f1ecff;
+            padding: 10px 12px;
+            font: 12px/1.45 Consolas, 'Courier New', monospace;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+            pointer-events: none;
+            white-space: pre-line;
+        }
+        .alert-debug-meta {
+            border-radius: 10px;
+            border: 1px dashed rgba(145, 71, 255, 0.65);
+            background: rgba(10, 8, 24, 0.85);
+            color: #cfc2ff;
+            padding: 8px 10px;
+            font: 12px/1.4 Consolas, 'Courier New', monospace;
+            white-space: pre-line;
+        }
     </style>
 </head>
 <body>
 <!-- Contenedor dinámico donde se muestran las alertas emitidas desde Firebase -->
     <div id="alertContainer"></div>
+    <div id="debugHud" class="debug-hud hidden"></div>
 
     <script type="module">
         // Script del overlay: recibe alertas pendientes desde Firestore y las muestra visualmente.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, query, where, orderBy, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -44,6 +71,7 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const canalParam = urlParams.get('canal')?.toLowerCase();
+        const debugEnabled = urlParams.get('debug') === '1';
 
         // Query sin combinaciones que requieran índice compuesto
         const alertsQuery = canalParam
@@ -51,8 +79,25 @@
             : query(collection(db, 'liveAlerts'));
 
         const container = document.getElementById('alertContainer');
+        const debugHud = document.getElementById('debugHud');
         const shownIds = new Set();
         let active = false;
+        let lastEvent = 'ninguno';
+        let lastDocId = '-';
+
+        const renderDebugHud = (extra = '') => {
+            if (!debugEnabled) return;
+            debugHud.classList.remove('hidden');
+            debugHud.textContent = [
+                'IWY Overlay Debug',
+                `Canal: ${canalParam || '(sin canal)'}`,
+                `Activa: ${active ? 'si' : 'no'}`,
+                `Pendientes cache: ${shownIds.size}`,
+                `Ultimo evento: ${lastEvent}`,
+                `Ultimo doc: ${lastDocId}`,
+                extra ? `Info: ${extra}` : ''
+            ].filter(Boolean).join('\n');
+        };
 
         // Crea el elemento visual de alerta según el tipo de asset.
         const createAlertElement = (data) => {
@@ -97,6 +142,18 @@
             text.className = 'alert-text';
             text.innerText = data.text || '¡Alerta en vivo!';
 
+            if (debugEnabled) {
+                const debugMeta = document.createElement('div');
+                debugMeta.className = 'alert-debug-meta';
+                debugMeta.textContent = [
+                    `Nombre: ${data.nombre || '(sin nombre)'}`,
+                    `Evento: ${data.eventType || 'generico'}`,
+                    `Asset: ${data.type || 'unknown'}`,
+                    `Canal: ${data.canal || '(sin canal)'}`
+                ].join('\n');
+                body.appendChild(debugMeta);
+            }
+
             body.appendChild(media);
             body.appendChild(text);
             card.appendChild(body);
@@ -110,6 +167,9 @@
             active = true;
 
             const data = docSnap.data();
+            lastEvent = `${data.eventType || 'generico'} (${data.type || 'unknown'})`;
+            lastDocId = docSnap.id;
+            renderDebugHud('Reproduciendo alerta');
             const alertEl = createAlertElement(data);
             alertEl.style.display = 'flex';
             container.appendChild(alertEl);
@@ -125,21 +185,28 @@
             setTimeout(async () => {
                 alertEl.remove();
                 active = false;
+                renderDebugHud('Alerta finalizada');
                 try {
                     await updateDoc(doc(db, 'liveAlerts', docSnap.id), { status: 'shown' });
                 } catch (err) {
                     console.error('No se pudo actualizar el estado de la alerta', err);
+                    renderDebugHud('Error actualizando status shown');
                 }
             }, duration * 1000);
         };
 
+        renderDebugHud('Esperando cambios de Firestore');
         onSnapshot(alertsQuery, (snapshot) => {
+            renderDebugHud(`Snapshot docs: ${snapshot.size}`);
             snapshot.docChanges().forEach(change => {
                 const data = change.doc.data();
                 if (change.type === 'added' && data.status === 'pending') {
                     playAlert(change.doc);
                 }
             });
+        }, (error) => {
+            console.error('Error en listener de overlay:', error);
+            renderDebugHud(`Error listener: ${error.message || 'desconocido'}`);
         });
     </script>
 </body>

@@ -310,6 +310,50 @@
             margin-top: 14px;
         }
 
+        .bug-report-box {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(255, 99, 132, 0.08);
+            border: 1px solid rgba(255, 99, 132, 0.32);
+        }
+
+        .bug-code {
+            display: block;
+            margin-top: 4px;
+            color: #ffd0d8;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        .bug-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .bug-btn {
+            margin-top: 0;
+            width: auto;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 99, 132, 0.45);
+            background: rgba(255, 99, 132, 0.14);
+            color: #ffe6ea;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .bug-btn:hover {
+            background: rgba(255, 99, 132, 0.24);
+            border-color: rgba(255, 99, 132, 0.72);
+            transform: translateY(-1px);
+        }
+
         .info-box ol {
             padding-left: 18px;
             margin: 8px 0 0;
@@ -770,10 +814,12 @@
         const CLOUDINARY_UPLOAD_PRESET = 'alerts_preset';
         const MAX_FILE_SIZE = 25 * 1024 * 1024;
         const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE';
+        const DISCORD_BUG_CHANNEL_URL = 'https://discord.gg/bZWKAa7CDx';
 
         let uploadedFileUrl = '';
         let uploadedSoundUrl = '';
         let selectedEventType = 'generico';
+        let lastBugReportText = '';
         let activeEffects = {
             vibrate: false,
             bounce: false,
@@ -863,10 +909,106 @@
 
         const getTwitchChannel = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
 
+        const escapeHtml = (value = '') => value
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+
+        const buildBugCode = () => {
+            const ts = new Date();
+            const y = ts.getFullYear();
+            const m = String(ts.getMonth() + 1).padStart(2, '0');
+            const d = String(ts.getDate()).padStart(2, '0');
+            const h = String(ts.getHours()).padStart(2, '0');
+            const min = String(ts.getMinutes()).padStart(2, '0');
+            const sec = String(ts.getSeconds()).padStart(2, '0');
+            const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+            return `IWY-${y}${m}${d}-${h}${min}${sec}-${rand}`;
+        };
+
+        const buildBugReport = (message, bugCode) => {
+            const canal = canalInput?.value?.trim()?.toLowerCase() || getTwitchChannel() || 'sin-canal';
+            const ev = selectedEventType || 'generico';
+            const tipo = tipoSelect?.value || 'desconocido';
+            return [
+                'Reporte de bug - InteractiveWithYou',
+                `Codigo: ${bugCode}`,
+                `Mensaje: ${message}`,
+                `Canal: ${canal}`,
+                `Evento seleccionado: ${ev}`,
+                `Tipo de alerta: ${tipo}`,
+                `URL: ${window.location.href}`,
+                `UA: ${navigator.userAgent}`,
+                `Fecha: ${new Date().toISOString()}`
+            ].join('\n');
+        };
+
+        const copyTextToClipboard = async (text) => {
+            if (!text) return false;
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (_) {}
+
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                ta.remove();
+                return ok;
+            } catch (_) {
+                return false;
+            }
+        };
+
         const setStatus = (message, success = true) => {
             statusBox.style.display = 'block';
             statusBox.style.borderColor = success ? 'rgba(0,255,153,0.3)' : 'rgba(255,99,132,0.3)';
-            statusBox.innerText = message;
+            if (success) {
+                statusBox.innerText = message;
+                return;
+            }
+
+            const bugCode = buildBugCode();
+            lastBugReportText = buildBugReport(String(message || 'Error desconocido'), bugCode);
+            statusBox.innerHTML = `
+                <div>${escapeHtml(String(message || 'Error desconocido'))}</div>
+                <div class="bug-report-box">
+                    <strong>¿Encontraste un bug?</strong>
+                    <span class="bug-code">Codigo: ${escapeHtml(bugCode)}</span>
+                    <div class="bug-actions">
+                        <button type="button" id="copyBugCodeBtn" class="bug-btn">Copiar codigo</button>
+                        <button type="button" id="copyBugReportBtn" class="bug-btn">Copiar reporte completo</button>
+                        <button type="button" id="openDiscordBugBtn" class="bug-btn">Abrir Discord</button>
+                    </div>
+                </div>
+            `;
+
+            const copyBugCodeBtn = document.getElementById('copyBugCodeBtn');
+            const copyBugReportBtn = document.getElementById('copyBugReportBtn');
+            const openDiscordBugBtn = document.getElementById('openDiscordBugBtn');
+
+            copyBugCodeBtn?.addEventListener('click', async () => {
+                const ok = await copyTextToClipboard(bugCode);
+                if (ok) setStatus('Codigo de bug copiado. Pegalo en Discord.');
+            });
+
+            copyBugReportBtn?.addEventListener('click', async () => {
+                const ok = await copyTextToClipboard(lastBugReportText);
+                if (ok) setStatus('Reporte completo copiado. Pegalo en Discord.');
+            });
+
+            openDiscordBugBtn?.addEventListener('click', () => {
+                window.open(DISCORD_BUG_CHANNEL_URL, '_blank', 'noopener,noreferrer');
+            });
         };
 
         // Variables globales para alertas guardadas
