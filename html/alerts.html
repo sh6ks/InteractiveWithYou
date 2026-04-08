@@ -316,6 +316,58 @@
             color: #cfc9ff;
         }
 
+        /* ── Barra de evento ── */
+        .event-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 14px;
+            background: rgba(18, 15, 37, 0.9);
+            border: 1px solid rgba(145, 71, 255, 0.28);
+            border-radius: 12px;
+        }
+
+        .event-bar-label {
+            width: 100%;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #a7a2c9;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .event-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border: 1.5px solid rgba(145, 71, 255, 0.35);
+            border-radius: 20px;
+            background: transparent;
+            color: #bdb9ff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            margin-top: 0;
+            width: auto;
+        }
+
+        .event-pill:hover {
+            border-color: rgba(145, 71, 255, 0.7);
+            background: rgba(145, 71, 255, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .event-pill.active {
+            background: #9147ff;
+            border-color: #9147ff;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(145, 71, 255, 0.45);
+        }
+
         .test-zone {
             margin-top: 14px;
             padding: 14px;
@@ -471,6 +523,20 @@
         <div id="crear" class="tab-content active">
             <!-- Formulario -->
             <div>
+
+                <!-- Barra: ¿Para qué evento es esta alerta? -->
+                <div class="event-bar">
+                    <span class="event-bar-label">¿Para qué evento es esta alerta?</span>
+                    <button type="button" class="event-pill active" data-event="generico">🔔 Genérico</button>
+                    <button type="button" class="event-pill" data-event="follow">❤️ Follow</button>
+                    <button type="button" class="event-pill" data-event="sub">⭐ Sub</button>
+                    <button type="button" class="event-pill" data-event="resub">🔄 Resub</button>
+                    <button type="button" class="event-pill" data-event="gift_sub">🎁 Gift Sub</button>
+                    <button type="button" class="event-pill" data-event="raid">🚀 Raid</button>
+                    <button type="button" class="event-pill" data-event="bits">💎 Bits</button>
+                    <button type="button" class="event-pill" data-event="channel_points">🏆 Channel Points</button>
+                </div>
+
                 <div class="field-group">
                     <label>Nombre de canal</label>
                     <input id="canal" placeholder="ej: shekssink" />
@@ -644,6 +710,7 @@
 
         let uploadedFileUrl = '';
         let uploadedSoundUrl = '';
+        let selectedEventType = 'generico';
         let activeEffects = {
             vibrate: false,
             bounce: false,
@@ -674,7 +741,17 @@
         const sampleImage = document.getElementById('sampleImage');
         const sampleVideo = document.getElementById('sampleVideo');
         const testAlertButtons = document.querySelectorAll('.test-alert-btn');
+        const eventPills = document.querySelectorAll('.event-pill');
         const newAlertButton = document.getElementById('newAlertButton');
+
+        // Barra de evento: selección de pills
+        eventPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                eventPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                selectedEventType = pill.dataset.event;
+            });
+        });
 
         // Preview
         const alertPreview = document.getElementById('alertPreview');
@@ -760,10 +837,12 @@
                     const alertId = docSnap.id;
                     const alertEl = document.createElement('div');
                     alertEl.className = 'alert-item';
+                    const eventLabels = { generico:'🔔 Genérico', follow:'❤️ Follow', sub:'⭐ Sub', resub:'🔄 Resub', gift_sub:'🎁 Gift Sub', raid:'🚀 Raid', bits:'💎 Bits', channel_points:'🏆 Channel Points' };
+                    const evLabel = eventLabels[alert.eventType] || eventLabels.generico;
                     alertEl.innerHTML = `
                         <div class="alert-item-info">
                             <div class="alert-item-title">${alert.text || 'Alerta sin título'}</div>
-                            <div class="alert-item-meta">Tipo: ${alert.type} | Duración: ${alert.duration}s | Fuente: ${alert.fuente || 'Por defecto'}</div>
+                            <div class="alert-item-meta">${evLabel} | Asset: ${alert.type} | Duración: ${alert.duration}s | Fuente: ${alert.fuente || 'Por defecto'}</div>
                         </div>
                         <div class="alert-item-actions">
                             <button class="btn-small btn-edit" onclick="editAlert('${alertId}')">Editar</button>
@@ -790,6 +869,11 @@
                 if (!alertData) return;
 
                 currentEditingAlertId = alertId;
+                // Restaurar pill de evento
+                selectedEventType = alertData.eventType || 'generico';
+                eventPills.forEach(p => {
+                    p.classList.toggle('active', p.dataset.event === selectedEventType);
+                });
                 canalInput.value = alertData.canal;
                 tipoSelect.value = alertData.type;
                 assetInput.value = alertData.assetUrl;
@@ -999,6 +1083,7 @@
             return {
                 canal,
                 type: preferredType,
+                eventType: selectedEventType,
                 assetUrl: url,
                 soundUrl,
                 text: alertText,
