@@ -171,7 +171,6 @@
             } catch (error) {
                 console.error('Error cargando configuración:', error);
                 setStatus('No se pudo cargar la configuración del widget', 'error');
-                mostrarEjemplos('Revisa la consola para más detalles.');
             }
         }
 
@@ -317,6 +316,16 @@
             return `https://${url.replace(/^\/+/, '')}`;
         }
 
+        async function fetchJsonIfOk(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) return null;
+                return await response.json();
+            } catch {
+                return null;
+            }
+        }
+
         function select7tvFile(files = []) {
             if (!Array.isArray(files) || files.length === 0) return null;
             return files.find(file => file.name === '1x.webp')
@@ -337,6 +346,43 @@
                 map[emote.name] = url;
             });
             return map;
+        }
+
+        async function fetch7tvSetById(setId) {
+            if (!setId) return {};
+            const setData = await fetchJsonIfOk(`https://7tv.io/v3/emote-sets/${encodeURIComponent(setId)}`);
+            return parse7tvEmoteSet(setData);
+        }
+
+        async function fetch7tvUserEmotes(twitchUserId, canal) {
+            const merged = {};
+            const merge = (entries) => {
+                Object.entries(entries || {}).forEach(([code, url]) => {
+                    if (!code || !url) return;
+                    merged[code] = url;
+                });
+            };
+
+            const mergeFromUserPayload = async (payload) => {
+                if (!payload) return;
+                const emoteSet = payload.emote_set;
+                merge(parse7tvEmoteSet(emoteSet));
+                if (Object.keys(merged).length === 0 && emoteSet?.id) {
+                    merge(await fetch7tvSetById(emoteSet.id));
+                }
+            };
+
+            if (twitchUserId) {
+                const userById = await fetchJsonIfOk(`https://7tv.io/v3/users/twitch/${encodeURIComponent(twitchUserId)}`);
+                await mergeFromUserPayload(userById);
+            }
+
+            if (Object.keys(merged).length === 0 && canal) {
+                const userByLogin = await fetchJsonIfOk(`https://7tv.io/v3/users/${encodeURIComponent(canal)}`);
+                await mergeFromUserPayload(userByLogin);
+            }
+
+            return merged;
         }
 
         function parseBttvList(list = []) {
@@ -385,7 +431,7 @@
 
             if (use7tv) {
                 tasks.push(
-                    fetch('https://7tv.io/v3/emote-sets/global').then(r => r.ok ? r.json() : null).then(data => merge(parse7tvEmoteSet(data))).catch(() => null)
+                    fetchJsonIfOk('https://7tv.io/v3/emote-sets/global').then(data => merge(parse7tvEmoteSet(data))).catch(() => null)
                 );
             }
 
@@ -404,7 +450,7 @@
             if (twitchUserId) {
                 if (use7tv) {
                     tasks.push(
-                        fetch(`https://7tv.io/v3/users/twitch/${encodeURIComponent(twitchUserId)}`).then(r => r.ok ? r.json() : null).then(data => merge(parse7tvEmoteSet(data?.emote_set))).catch(() => null)
+                        fetch7tvUserEmotes(twitchUserId, canal).then(merge).catch(() => null)
                     );
                 }
 
@@ -416,6 +462,12 @@
                         }).catch(() => null)
                     );
                 }
+            }
+
+            if (!twitchUserId && canal && use7tv) {
+                tasks.push(
+                    fetch7tvUserEmotes('', canal).then(merge).catch(() => null)
+                );
             }
 
             if (canal && useFfz) {
@@ -460,9 +512,25 @@
             const chunks = text.split(/(\s+)/);
             return chunks.map((chunk) => {
                 if (!chunk || /^\s+$/.test(chunk)) return escapeHtml(chunk);
-                const emoteUrl = thirdPartyEmotes?.[chunk];
+                let emoteCode = chunk;
+                let leading = '';
+                let trailing = '';
+
+                let emoteUrl = thirdPartyEmotes?.[emoteCode];
+                if (!emoteUrl) {
+                    const match = chunk.match(/^([^\w]*)([\w]+)([^\w]*)$/);
+                    if (match) {
+                        leading = match[1] || '';
+                        emoteCode = match[2] || '';
+                        trailing = match[3] || '';
+                        emoteUrl = thirdPartyEmotes?.[emoteCode];
+                    }
+                }
+
                 if (!emoteUrl) return escapeHtml(chunk);
-                return `<img class="chat-emote chat-emote-third-party" src="${escapeHtml(emoteUrl)}" alt="${escapeHtml(chunk)}" title="${escapeHtml(chunk)}" loading="lazy">`;
+                const prefix = escapeHtml(leading);
+                const suffix = escapeHtml(trailing);
+                return `${prefix}<img class="chat-emote chat-emote-third-party" src="${escapeHtml(emoteUrl)}" alt="${escapeHtml(emoteCode)}" title="${escapeHtml(emoteCode)}" loading="lazy">${suffix}`;
             }).join('');
         }
 
@@ -834,7 +902,6 @@
         if (!canalSolicitado) {
             mostrarEjemplos('Vista previa del widget. Agrega ?canal=tuCanal');
         } else {
-            mostrarEjemplos(`Conectando al chat de ${canalSolicitado}...`);
             iniciarWidget();
         }
         
