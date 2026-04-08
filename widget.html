@@ -143,6 +143,7 @@
                             config.grosorBorde,
                             twitchAssets,
                             thirdPartyEmotes,
+                            emoteProviders,
                             config.chatCommands || [],
                             config.chatTimers || [],
                             Boolean(config.sendToTwitchChat)
@@ -162,6 +163,7 @@
                             config.grosorBorde,
                             twitchAssets,
                             thirdPartyEmotes,
+                            emoteProviders,
                             config.chatCommands || [],
                             config.chatTimers || [],
                             Boolean(config.sendToTwitchChat)
@@ -518,7 +520,7 @@
 
                 let emoteUrl = thirdPartyEmotes?.[emoteCode];
                 if (!emoteUrl) {
-                    const match = chunk.match(/^([^\w]*)([\w]+)([^\w]*)$/);
+                    const match = chunk.match(/^([^A-Za-z0-9_]*)([A-Za-z0-9_]+)([^A-Za-z0-9_]*)$/);
                     if (match) {
                         leading = match[1] || '';
                         emoteCode = match[2] || '';
@@ -778,7 +780,7 @@
         }
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
-        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null, thirdPartyEmotes = {}, chatCommands = [], chatTimers = [], sendToTwitchChatEnabled = false) {
+        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null, thirdPartyEmotes = {}, emoteProviders = { sevenTv: true, bttv: true, ffz: true }, chatCommands = [], chatTimers = [], sendToTwitchChatEnabled = false) {
             setStatus(`Conectando al chat de #${canal}...`, 'info');
             const normalizedCommands = sanitizeChatCommands(chatCommands);
             const normalizedTimers = sanitizeChatTimers(chatTimers);
@@ -786,6 +788,20 @@
             const botName = 'IWY Bot';
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
             const relayEnabled = Boolean(sendToTwitchChatEnabled);
+            const thirdPartyEmoteMap = { ...(thirdPartyEmotes || {}) };
+            let roomEmotesAttempted = false;
+
+            const loadRoomEmotesIfNeeded = async (roomId) => {
+                if (roomEmotesAttempted) return;
+                if (!roomId) return;
+                roomEmotesAttempted = true;
+                try {
+                    const roomEmotes = await fetchThirdPartyEmotes(canal, roomId, emoteProviders || {});
+                    Object.assign(thirdPartyEmoteMap, roomEmotes || {});
+                } catch (error) {
+                    console.warn('No se pudieron refrescar emotes por room-id:', error);
+                }
+            };
 
             socket.addEventListener('open', () => {
                 socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership');
@@ -834,12 +850,14 @@
                         return acc;
                     }, {});
 
+                    loadRoomEmotesIfNeeded(tags['room-id']);
+
                     const login = tags['login'] || userPrefix.split('!')[0] || 'anon';
                     if (isBotUser(login)) return;
 
                     const usuario = decodeIrcTagValue(tags['display-name']) || login;
                     const colorTwitch = tags['color'] || colorBorde;
-                    const mensajeHtml = renderMessageWithEmotes(mensajeRaw, tags, thirdPartyEmotes);
+                    const mensajeHtml = renderMessageWithEmotes(mensajeRaw, tags, thirdPartyEmoteMap);
                     const avatarHtml = buildChannelAvatar(twitchAssets);
                     const badgesHtml = buildBadgeIcons(tags, twitchAssets?.badgeSets);
                     const contenedor = document.getElementById('chat');
@@ -880,7 +898,7 @@
                             commandCooldownMap.set(matchedCommand.trigger, now);
                         }
 
-                        emitBotMessage(botName, matchedCommand.response, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
+                        emitBotMessage(botName, matchedCommand.response, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmoteMap);
                         sendToTwitchChat(canal, matchedCommand.response, relayEnabled);
                         logCommandAudit(canal, matchedCommand.trigger, login, usuario, matchedCommand.permission, 'executed');
                     }
