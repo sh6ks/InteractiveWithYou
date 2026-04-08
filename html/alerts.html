@@ -458,6 +458,26 @@
             transform: translateY(-1px);
         }
 
+        .test-clear-btn {
+            margin-top: 10px;
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 99, 132, 0.4);
+            background: rgba(255, 99, 132, 0.12);
+            color: #ffdce2;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+        }
+
+        .test-clear-btn:hover {
+            background: rgba(255, 99, 132, 0.2);
+            border-color: rgba(255, 99, 132, 0.62);
+            transform: translateY(-1px);
+        }
+
         .test-picker {
             margin-top: 12px;
             padding: 12px 14px;
@@ -738,6 +758,7 @@
                         <button type="button" class="test-alert-btn" data-test-event="bits">Bits</button>
                         <button type="button" class="test-alert-btn" data-test-event="channel_points">Channel Points</button>
                     </div>
+                    <button type="button" class="test-clear-btn" id="clearTestQueueButton">Limpiar cola de pruebas pendientes</button>
                     <!-- Picker: aparece cuando hay varias alertas del mismo evento -->
                     <div class="test-picker" id="testPicker" style="display:none;">
                         <span class="test-picker-label">¿Cuál alerta de <strong id="testPickerEvent"></strong> quieres probar?</span>
@@ -852,6 +873,7 @@
         const testPicker = document.getElementById('testPicker');
         const testPickerEvent = document.getElementById('testPickerEvent');
         const testPickerOptions = document.getElementById('testPickerOptions');
+        const clearTestQueueButton = document.getElementById('clearTestQueueButton');
         const eventPills = document.querySelectorAll('.event-pill');
         const newAlertButton = document.getElementById('newAlertButton');
 
@@ -967,6 +989,34 @@
             } catch (_) {
                 return false;
             }
+        };
+
+        const clearPendingTestAlerts = async (canal) => {
+            const pendingQ = query(collection(db, 'liveAlerts'), where('canal', '==', canal));
+            const pendingSnap = await getDocs(pendingQ);
+            const staleTestDocs = pendingSnap.docs.filter(d => {
+                const dd = d.data();
+                return dd.isTest === true && dd.status === 'pending';
+            });
+
+            for (const stale of staleTestDocs) {
+                await deleteDoc(doc(db, 'liveAlerts', stale.id));
+            }
+
+            return staleTestDocs.length;
+        };
+
+        const readStoredAlertText = (data) => {
+            const candidates = [
+                data?.text,
+                data?.alertText,
+                data?.message,
+                data?.title
+            ];
+            for (const candidate of candidates) {
+                if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+            }
+            return '';
         };
 
         const setStatus = (message, success = true) => {
@@ -1407,19 +1457,23 @@
                 return;
             }
 
-            const fallbackText = testEventText[eventType] || 'Evento de prueba';
-
             try {
                 let alertData;
 
                 if (savedData) {
+                    const savedText = readStoredAlertText(savedData);
+                    if (!savedText) {
+                        setStatus('La alerta elegida no tiene texto configurado. Editala y agrega texto.', false);
+                        return;
+                    }
+
                     // Usar la alerta específica elegida en el picker
                     alertData = {
                         canal,
                         type:          savedData.type,
                         assetUrl:      savedData.assetUrl      || '',
                         soundUrl:      savedData.soundUrl      || '',
-                        text:          savedData.text || fallbackText,
+                        text:          savedText,
                         fuente:        savedData.fuente        || 'Roboto',
                         fontSize:      savedData.fontSize      || 32,
                         textColor:     savedData.textColor     || '#d9d7ff',
@@ -1467,12 +1521,18 @@
                     } else if (realAlerts.length === 1) {
                         // Solo hay una, usarla directamente
                         const saved = realAlerts[0].data();
+                        const savedText = readStoredAlertText(saved);
+                        if (!savedText) {
+                            setStatus('La alerta guardada no tiene texto configurado. Editala y agrega texto.', false);
+                            return;
+                        }
+
                         alertData = {
                             canal,
                             type:          saved.type,
                             assetUrl:      saved.assetUrl      || '',
                             soundUrl:      saved.soundUrl      || '',
-                            text:          saved.text || fallbackText,
+                            text:          savedText,
                             fuente:        saved.fuente        || 'Roboto',
                             fontSize:      saved.fontSize      || 32,
                             textColor:     saved.textColor     || '#d9d7ff',
@@ -1497,6 +1557,9 @@
                     setStatus('La alerta elegida no tiene asset válido. Editala y agrega una URL o archivo.', false);
                     return;
                 }
+
+                // Limpiar pruebas pendientes viejas para que OBS muestre solo la última prueba enviada
+                await clearPendingTestAlerts(canal);
 
                 testPicker.style.display = 'none';
                 await addDoc(collection(db, 'liveAlerts'), alertData);
@@ -1563,6 +1626,21 @@
                 const eventType = btn.dataset.testEvent || 'follow';
                 triggerTestAlert(eventType);
             });
+        });
+
+        clearTestQueueButton.addEventListener('click', async () => {
+            try {
+                const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
+                if (!canal) {
+                    setStatus('No se detectó canal para limpiar la cola de pruebas', false);
+                    return;
+                }
+
+                const deletedCount = await clearPendingTestAlerts(canal);
+                setStatus(`Cola limpiada. Pruebas pendientes eliminadas: ${deletedCount}`);
+            } catch (error) {
+                setStatus('Error al limpiar cola de pruebas: ' + error.message, false);
+            }
         });
 
         canalInput.addEventListener('input', updateOverlayLink);
