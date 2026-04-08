@@ -249,6 +249,78 @@
         @media (max-width: 480px) {
             .donation-grid { grid-template-columns: 1fr; }
         }
+
+        /* modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(6,4,18,0.82);
+            backdrop-filter: blur(6px);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: linear-gradient(155deg, rgba(24,20,44,0.98) 0%, rgba(14,12,28,0.99) 100%);
+            border: 1px solid rgba(145,71,255,0.36);
+            border-radius: 22px;
+            padding: 28px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.56);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px; right: 18px;
+            background: transparent;
+            border: none;
+            color: #9890c8;
+            font-size: 1.3rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 2px 6px;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal h3 { margin: 0; font-size: 1.3rem; color: #e8d8ff; }
+        .modal-sub { margin: -10px 0 0; color: #9d97c4; font-size: 0.88rem; line-height: 1.5; }
+        .pay-option {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+            border-radius: 14px;
+            padding: 14px 16px;
+            text-decoration: none;
+            color: #f3eeff;
+            transition: border-color 0.18s, background 0.18s;
+        }
+        .pay-option:hover {
+            border-color: rgba(145,71,255,0.5);
+            background: rgba(145,71,255,0.1);
+        }
+        .pay-icon { font-size: 1.8rem; line-height: 1; flex-shrink: 0; width: 36px; text-align: center; }
+        .pay-info { flex: 1; }
+        .pay-info strong { display: block; font-size: 0.97rem; }
+        .pay-info span { font-size: 0.8rem; color: #9390ba; }
+        .pay-arrow { color: #6c65a0; font-size: 0.9rem; }
+        .modal-steps {
+            border-radius: 12px;
+            background: rgba(145,71,255,0.08);
+            border: 1px solid rgba(145,71,255,0.2);
+            padding: 12px 14px;
+            font-size: 0.82rem;
+            color: #bbb5de;
+            line-height: 1.8;
+        }
+        .modal-steps strong { color: #d5caff; }
     </style>
 </head>
 <body>
@@ -300,7 +372,8 @@
                 <span class="plan-name-text">Premium</span>
                 <span class="plan-label premium-label"><i class="fa-solid fa-star"></i> Recomendado</span>
             </div>
-            <div class="plan-price" id="premiumPrice">— <span>/ próximamente</span></div>
+            <div class="plan-price" id="premiumPrice">$2 <span>USD / mes</span></div>
+            <div style="font-size:0.8rem;color:#a89fd0;margin-top:-8px;">≈ $2.300 ARS · precio de lanzamiento</div>
             <ul class="plan-features">
                 <li><i class="fa-solid fa-check check"></i> Todo lo de Free</li>
                 <li><i class="fa-solid fa-check check"></i> Bot responde en el chat real de Twitch</li>
@@ -309,8 +382,8 @@
                 <li><i class="fa-solid fa-check check"></i> Acceso anticipado a nuevas funciones</li>
             </ul>
             <div class="plan-cta">
-                <button id="btnGetPremium" class="btn btn-primary" type="button">Solicitar acceso Premium</button>
-                <p class="plan-note" id="premiumNote">El pago automático estará disponible próximamente. Por ahora contactá al owner para activarlo.</p>
+                <button id="btnGetPremium" class="btn btn-primary" type="button"><i class="fa-solid fa-star"></i> Obtener Premium — $2 USD</button>
+                <p class="plan-note" id="premiumNote">Precio de lanzamiento. Pagá por MercadoPago o PayPal y avisanos por Twitch o Contacto para activarlo.</p>
             </div>
         </div>
     </div>
@@ -320,9 +393,10 @@
         <p class="section-title"><i class="fa-solid fa-heart" style="color:#ff6b8a;margin-right:6px;"></i>Donaciones libres</p>
         <p class="section-sub">Si querés apoyar el proyecto sin una suscripción, podés hacer una donación de cualquier monto. No es obligatorio y nunca lo será. ¡Gracias de antemano!</p>
         <div style="margin-bottom:18px;padding:13px 15px;border-radius:12px;background:rgba(255,200,60,0.08);border:1px solid rgba(255,200,60,0.22);color:#ffd87a;font-size:0.85rem;line-height:1.65;">
-            <strong>¿Cómo se activa el Premium?</strong> Los pagos por estos links son libres y manuales. Una vez que hagas tu aporte,
-            <strong>contactá al owner</strong> por Twitch o por la sección de Contacto indicando tu nombre de usuario de Twitch o tu email.
-            El equipo lo activa manualmente (generalmente en menos de 24hs). No hay activación automática por el momento.
+            <strong>¿Cómo se activa el Premium?</strong> Los pagos son manuales. Una vez que hagas tu aporte,
+            avisanos por <strong><a href="https://discord.gg/Xr3UspB57Z" target="_blank" rel="noopener noreferrer" style="color:#a0a8ff;">Discord</a></strong> (preferido)
+            o por el <strong><a href="https://twitch.tv/shekssink" target="_blank" rel="noopener noreferrer" style="color:#c89dff;">chat de Twitch</a></strong> si estamos en vivo,
+            indicando tu usuario de Twitch o email. Lo activamos en menos de 24hs.
         </div>
         <div class="donation-grid">
 
@@ -353,6 +427,59 @@
         </div>
     </section>
 
+</div>
+
+<!-- Modal de pago Premium -->
+<div id="paymentModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+        <button class="modal-close" id="btnCloseModal" aria-label="Cerrar">&times;</button>
+        <h3 id="modalTitle"><i class="fa-solid fa-star" style="color:#f9c840;margin-right:8px;"></i>Activar Premium &mdash; $2 USD/mes</h3>
+        <p class="modal-sub">≈ $2.300 ARS &middot; precio de lanzamiento. Elegí tu método de pago:</p>
+
+        <a id="modalMp" href="https://link.mercadopago.com.ar/interactivewithyou" target="_blank" rel="noopener noreferrer" class="pay-option">
+            <div class="pay-icon"><img src="https://http2.mlstatic.com/frontend-assets/ui-navigation/5.19.5/mercadopago/logo__large@2x.png" alt="MP" style="height:28px;object-fit:contain;"></div>
+            <div class="pay-info">
+                <strong>MercadoPago</strong>
+                <span>Argentina &middot; tarjeta, Cuenta MP, cuotas</span>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square pay-arrow"></i>
+        </a>
+
+        <a id="modalUala" href="https://uala.com.ar/sheks.uala" target="_blank" rel="noopener noreferrer" class="pay-option">
+            <div class="pay-icon">💜</div>
+            <div class="pay-info">
+                <strong>Ualá</strong>
+                <span>Argentina &middot; alias: sheks.uala</span>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square pay-arrow"></i>
+        </a>
+
+        <a id="modalPaypal" href="https://paypal.me/JuanEstebanK/2" target="_blank" rel="noopener noreferrer" class="pay-option">
+            <div class="pay-icon"><i class="fa-brands fa-paypal" style="color:#009cde;"></i></div>
+            <div class="pay-info">
+                <strong>PayPal</strong>
+                <span>Internacional &middot; desde el exterior</span>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square pay-arrow"></i>
+        </a>
+
+        <div class="modal-steps">
+            <strong>¿Cómo funciona?</strong><br>
+            1&nbsp;&middot; Hacé el pago por el método que prefieras.<br>
+            2&nbsp;&middot; Avisanos <strong>inmediatamente después</strong> por alguno de estos canales:<br>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px;">
+                <a href="https://discord.gg/Xr3UspB57Z" target="_blank" rel="noopener noreferrer"
+                   style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:rgba(88,101,242,0.18);border:1px solid rgba(88,101,242,0.38);color:#a0a8ff;font-size:0.82rem;font-weight:600;text-decoration:none;">
+                    <i class="fa-brands fa-discord"></i> Discord (preferido)
+                </a>
+                <a href="https://twitch.tv/shekssink" target="_blank" rel="noopener noreferrer"
+                   style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:rgba(145,71,255,0.18);border:1px solid rgba(145,71,255,0.38);color:#c89dff;font-size:0.82rem;font-weight:600;text-decoration:none;">
+                    <i class="fa-brands fa-twitch"></i> Chat de Twitch
+                </a>
+            </div>
+            3&nbsp;&middot; Activamos el Premium en menos de 24hs. Sin auto-renovación por ahora.
+        </div>
+    </div>
 </div>
 
 <script>
@@ -389,13 +516,7 @@
         } else {
             badge.className = 'badge-current';
             badge.innerHTML = '<i class="fa-solid fa-layer-group"></i> Plan Free';
-            btnPremium.addEventListener('click', () => {
-                if (window.parent && typeof window.parent.cargarSeccion === 'function') {
-                    window.parent.cargarSeccion('contacto');
-                } else {
-                    window.open('https://paypal.me/JuanEstebanK', '_blank');
-                }
-            });
+            btnPremium.addEventListener('click', openPaymentModal);
             document.getElementById('premiumNote').innerHTML =
                 'El pago es manual por ahora. Hacé tu aporte y luego <strong>avisá por Twitch o en Contacto</strong> para que te activemos Premium.';
         }
@@ -442,6 +563,22 @@
         document.getElementById('linkUala').href          = DONATION_LINKS.uala;
         document.getElementById('linkPaypal').href        = DONATION_LINKS.paypal;
     }
+
+    function openPaymentModal() {
+        document.getElementById('paymentModal').classList.add('open');
+    }
+
+    function closePaymentModal() {
+        document.getElementById('paymentModal').classList.remove('open');
+    }
+
+    document.getElementById('btnCloseModal').addEventListener('click', closePaymentModal);
+    document.getElementById('paymentModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closePaymentModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closePaymentModal();
+    });
 
     renderCurrentPlan();
     checkBackend();
