@@ -144,7 +144,8 @@
                             twitchAssets,
                             thirdPartyEmotes,
                             config.chatCommands || [],
-                            config.chatTimers || []
+                            config.chatTimers || [],
+                            Boolean(config.sendToTwitchChat)
                         );
                     },
                     inactive: function() {
@@ -162,7 +163,8 @@
                             twitchAssets,
                             thirdPartyEmotes,
                             config.chatCommands || [],
-                            config.chatTimers || []
+                            config.chatTimers || [],
+                            Boolean(config.sendToTwitchChat)
                         );
                     }
                 });
@@ -182,6 +184,8 @@
 
         let firstRealMessage = true;
         let timerHandles = [];
+        const CHAT_RELAY_ENDPOINT = urlParams.get('relay_endpoint') || 'https://us-central1-interactivewithyou.cloudfunctions.net/relayTwitchChatMessage';
+        const COMMAND_AUDIT_ENDPOINT = urlParams.get('command_audit_endpoint') || 'https://us-central1-interactivewithyou.cloudfunctions.net/logTwitchCommandExecution';
 
         function setStatus() {
             // Placeholder para mantener compatibilidad con el código anterior.
@@ -496,11 +500,59 @@
                     return {
                         trigger,
                         response: (item?.response || '').toString().trim(),
+                        permission: normalizeCommandPermission(item?.permission),
+                        cooldownSeconds: Math.max(0, Math.min(600, Number(item?.cooldownSeconds || 0))),
                         enabled: item?.enabled !== false
                     };
                 })
                 .filter((item) => item.trigger && item.response && item.enabled)
                 .slice(0, 30);
+        }
+
+        function normalizeCommandPermission(value) {
+            const raw = String(value || '').trim().toLowerCase();
+            if (raw === 'broadcaster') return 'owner';
+            return ['everyone', 'subscriber', 'mod', 'owner'].includes(raw) ? raw : 'everyone';
+        }
+
+        function getRoleInfo(tags, login, canal) {
+            const badgeRaw = decodeIrcTagValue(tags?.badges || '');
+            const badges = badgeRaw ? badgeRaw.split(',') : [];
+            const hasBadge = (name) => badges.some((entry) => entry.startsWith(`${name}/`));
+            const isBroadcaster = hasBadge('broadcaster') || String(login || '').toLowerCase() === String(canal || '').toLowerCase();
+            const isMod = isBroadcaster || hasBadge('moderator');
+            const isSubscriber = isMod || hasBadge('subscriber') || hasBadge('founder');
+            return { isBroadcaster, isMod, isSubscriber };
+        }
+
+        function hasPermissionForCommand(command, roleInfo) {
+            const permission = command?.permission || 'everyone';
+            if (permission === 'owner') return roleInfo.isBroadcaster;
+            if (permission === 'mod') return roleInfo.isMod;
+            if (permission === 'subscriber') return roleInfo.isSubscriber;
+            return true;
+        }
+
+        async function logCommandAudit(channel, command, login, displayName, permission, outcome) {
+            const payload = {
+                channel,
+                trigger: command,
+                userLogin: login,
+                userDisplayName: displayName,
+                permission,
+                outcome,
+                source: 'widget'
+            };
+
+            try {
+                await fetch(COMMAND_AUDIT_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (error) {
+                console.warn('No se pudo registrar auditoria de comando:', error);
+            }
         }
 
         function sanitizeChatTimers(list = []) {
@@ -543,12 +595,28 @@
             }, 10000);
         }
 
-        function startChatTimers(botName, timers, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes) {
+        async function sendToTwitchChat(canal, message, relayEnabled) {
+            if (!relayEnabled) return;
+            const content = (message || '').replace(/\r|\n/g, ' ').trim();
+            if (!content) return;
+            try {
+                await fetch(CHAT_RELAY_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel: canal, message: content })
+                });
+            } catch (error) {
+                console.warn('No se pudo enviar mensaje al chat real por relay:', error);
+            }
+        }
+
+        function startChatTimers(botName, timers, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes, canal, relayEnabled) {
             clearChatTimers();
             timers.forEach((timer) => {
                 const intervalMs = Math.max(1, Math.min(120, Number(timer.minutes || 5))) * 60 * 1000;
                 const handle = setInterval(() => {
                     emitBotMessage(botName, timer.message, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
+                    sendToTwitchChat(canal, timer.message, relayEnabled);
                 }, intervalMs);
                 timerHandles.push(handle);
             });
@@ -642,12 +710,14 @@
         }
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
-        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null, thirdPartyEmotes = {}, chatCommands = [], chatTimers = []) {
+        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null, thirdPartyEmotes = {}, chatCommands = [], chatTimers = [], sendToTwitchChatEnabled = false) {
             setStatus(`Conectando al chat de #${canal}...`, 'info');
             const normalizedCommands = sanitizeChatCommands(chatCommands);
             const normalizedTimers = sanitizeChatTimers(chatTimers);
+            const commandCooldownMap = new Map();
             const botName = 'IWY Bot';
             const socket = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+            const relayEnabled = Boolean(sendToTwitchChatEnabled);
 
             socket.addEventListener('open', () => {
                 socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership');
@@ -656,7 +726,7 @@
                 socket.send('JOIN #' + canal);
                 console.log('Socket abierto y JOIN enviado para', canal);
                 setStatus(`Conectado a #${canal}`, 'info');
-                startChatTimers(botName, normalizedTimers, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
+                startChatTimers(botName, normalizedTimers, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes, canal, relayEnabled);
             });
 
             socket.addEventListener('message', (event) => {
@@ -724,7 +794,27 @@
                     const firstToken = (mensajeRaw.trim().split(/\s+/)[0] || '').toLowerCase();
                     const matchedCommand = normalizedCommands.find((item) => item.trigger === firstToken);
                     if (matchedCommand) {
+                        const roleInfo = getRoleInfo(tags, login, canal);
+                        const permissionOk = hasPermissionForCommand(matchedCommand, roleInfo);
+                        if (!permissionOk) {
+                            logCommandAudit(canal, matchedCommand.trigger, login, usuario, matchedCommand.permission, 'denied_permission');
+                            return;
+                        }
+
+                        const cooldownMs = Math.max(0, Number(matchedCommand.cooldownSeconds || 0)) * 1000;
+                        if (cooldownMs > 0) {
+                            const lastExec = commandCooldownMap.get(matchedCommand.trigger) || 0;
+                            const now = Date.now();
+                            if (now - lastExec < cooldownMs) {
+                                logCommandAudit(canal, matchedCommand.trigger, login, usuario, matchedCommand.permission, 'cooldown');
+                                return;
+                            }
+                            commandCooldownMap.set(matchedCommand.trigger, now);
+                        }
+
                         emitBotMessage(botName, matchedCommand.response, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes);
+                        sendToTwitchChat(canal, matchedCommand.response, relayEnabled);
+                        logCommandAudit(canal, matchedCommand.trigger, login, usuario, matchedCommand.permission, 'executed');
                     }
                 });
             });

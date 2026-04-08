@@ -123,6 +123,53 @@
             gap: 10px;
             margin-top: 14px;
         }
+        .user-input-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .user-input-row input {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(9,8,18,0.8);
+            color: #f3efff;
+            padding: 11px 12px;
+            font-size: 0.92rem;
+        }
+        .chip-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 32px;
+        }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(145,71,255,0.4);
+            background: rgba(145,71,255,0.16);
+            color: #f5eeff;
+            font-size: 0.8rem;
+        }
+        .chip button {
+            border: none;
+            background: transparent;
+            color: #ffe2ef;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .subhint {
+            margin-top: 8px;
+            color: #a9a2ca;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
         button {
             border: none;
             border-radius: 12px;
@@ -176,6 +223,20 @@
             </div>
             <div class="status" id="statusLine"></div>
         </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <strong>Usuarios premium manuales</strong>
+                <span>Acceso premium sin pago</span>
+            </div>
+
+            <div class="user-input-row">
+                <input id="premiumUserInput" type="text" placeholder="Ej: shekssink o amigo@mail.com o uid_firebase">
+                <button class="btn-reset" id="btnAddUser" type="button">Agregar</button>
+            </div>
+            <div id="premiumUsersList" class="chip-wrap"></div>
+            <p class="subhint">Podés agregar login de Twitch, email de Google o UID de Firebase. La comparación es exacta en minúsculas.</p>
+        </section>
     </div>
 
     <script>
@@ -183,6 +244,12 @@
         const btnSave = document.getElementById('btnSave');
         const btnReset = document.getElementById('btnReset');
         const statusLine = document.getElementById('statusLine');
+        const premiumUserInput = document.getElementById('premiumUserInput');
+        const btnAddUser = document.getElementById('btnAddUser');
+        const premiumUsersList = document.getElementById('premiumUsersList');
+        let manualPremiumUsers = [];
+
+        const sanitizePremiumUser = (value) => String(value || '').trim().toLowerCase();
 
         const showStatus = (message, type = '') => {
             statusLine.className = `status ${type}`.trim();
@@ -199,6 +266,7 @@
         const render = () => {
             const config = getConfig();
             featureGrid.innerHTML = '';
+            manualPremiumUsers = Array.isArray(config.premiumUsers) ? config.premiumUsers.map(sanitizePremiumUser).filter(Boolean) : [];
             config.features.forEach((feature) => {
                 const item = document.createElement('div');
                 item.className = 'feature-item';
@@ -211,6 +279,25 @@
                 `;
                 featureGrid.appendChild(item);
             });
+            renderPremiumUsers();
+        };
+
+        const renderPremiumUsers = () => {
+            premiumUsersList.innerHTML = '';
+            if (manualPremiumUsers.length === 0) {
+                premiumUsersList.innerHTML = '<span class="pill">Sin usuarios cargados</span>';
+                return;
+            }
+
+            manualPremiumUsers.forEach((identifier, index) => {
+                const chip = document.createElement('span');
+                chip.className = 'chip';
+                chip.innerHTML = `
+                    <span>${identifier}</span>
+                    <button type="button" data-index="${index}" aria-label="Quitar usuario">×</button>
+                `;
+                premiumUsersList.appendChild(chip);
+            });
         };
 
         const getSelectedPremiumFeatures = () => {
@@ -222,12 +309,48 @@
             try {
                 showStatus('Guardando configuración...');
                 const selected = getSelectedPremiumFeatures();
-                await window.parent.savePremiumConfig(selected);
+                await window.parent.savePremiumConfig({
+                    paidFeatures: selected,
+                    premiumUsers: manualPremiumUsers
+                });
                 showStatus('Configuración guardada correctamente.', 'ok');
                 render();
             } catch (error) {
                 showStatus(error.message || 'No se pudo guardar la configuración.', 'error');
             }
+        });
+
+        btnAddUser.addEventListener('click', () => {
+            const normalized = sanitizePremiumUser(premiumUserInput.value);
+            if (!normalized) {
+                showStatus('Escribí un usuario/email/uid válido.', 'error');
+                return;
+            }
+            if (manualPremiumUsers.includes(normalized)) {
+                showStatus('Ese identificador ya está en la lista.', 'error');
+                return;
+            }
+            manualPremiumUsers.push(normalized);
+            premiumUserInput.value = '';
+            renderPremiumUsers();
+            showStatus('Usuario agregado (falta Guardar cambios).', 'ok');
+        });
+
+        premiumUserInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                btnAddUser.click();
+            }
+        });
+
+        premiumUsersList.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement)) return;
+            const index = Number(target.dataset.index);
+            if (!Number.isInteger(index) || index < 0 || index >= manualPremiumUsers.length) return;
+            manualPremiumUsers.splice(index, 1);
+            renderPremiumUsers();
+            showStatus('Usuario quitado (falta Guardar cambios).', 'ok');
         });
 
         btnReset.addEventListener('click', () => {

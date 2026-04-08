@@ -192,6 +192,21 @@
                 <label for="cmdResponse">Respuesta del bot</label>
                 <textarea id="cmdResponse" placeholder="Seguime en IG/TikTok: @tuusuario"></textarea>
             </div>
+            <div class="inline">
+                <div class="row" style="margin-bottom:0;">
+                    <label for="cmdPermission">Permiso</label>
+                    <select id="cmdPermission">
+                        <option value="everyone">Todos</option>
+                        <option value="subscriber">Solo subs</option>
+                        <option value="mod">Solo mods</option>
+                        <option value="owner">Solo owner</option>
+                    </select>
+                </div>
+                <div class="row" style="margin-bottom:0;">
+                    <label for="cmdCooldown">Cooldown (seg)</label>
+                    <input id="cmdCooldown" type="number" min="0" max="600" step="1" value="0">
+                </div>
+            </div>
             <div class="row">
                 <label><input id="cmdEnabled" type="checkbox" checked> Habilitado</label>
             </div>
@@ -224,6 +239,10 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
+        <div class="row" style="margin-bottom:4px;">
+            <label><input id="sendToTwitchChat" type="checkbox"> Enviar respuestas de comandos también al chat real de Twitch <strong>(Premium)</strong></label>
+        </div>
+        <p class="hint" id="chatSendHint">Esta opción usa conexión segura por backend. Asegurate de haber iniciado sesión con Twitch al menos una vez para vincular el bot.</p>
         <div class="actions">
             <button id="saveBtn" type="button">Guardar configuración</button>
             <button id="reloadBtn" class="secondary" type="button">Recargar</button>
@@ -251,6 +270,8 @@
 
         const cmdTrigger = document.getElementById('cmdTrigger');
         const cmdResponse = document.getElementById('cmdResponse');
+        const cmdPermission = document.getElementById('cmdPermission');
+        const cmdCooldown = document.getElementById('cmdCooldown');
         const cmdEnabled = document.getElementById('cmdEnabled');
         const commandsListEl = document.getElementById('commandsList');
 
@@ -263,13 +284,75 @@
         const addTimerBtn = document.getElementById('addTimerBtn');
         const saveBtn = document.getElementById('saveBtn');
         const reloadBtn = document.getElementById('reloadBtn');
+        const sendToTwitchChatInput = document.getElementById('sendToTwitchChat');
+        const chatSendHint = document.getElementById('chatSendHint');
         const statusEl = document.getElementById('status');
+
+        sendToTwitchChatInput.addEventListener('change', async (event) => {
+            if (!event.target.checked) {
+                document.getElementById('backendBanner')?.remove();
+                return;
+            }
+            if (!canUseRealChatCommands) return;
+            const available = await checkBackendBeforeEnable();
+            if (!available) {
+                showBackendOfflineBanner();
+            }
+        });
 
         let canalActual = '';
         let commands = [];
         let timers = [];
+        let canUseRealChatCommands = false;
 
         const getTwitchChannelFromStorage = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
+
+        function resolvePlanContextFromParent() {
+            if (window.parent && typeof window.parent.getCurrentUserPlanContext === 'function') {
+                return window.parent.getCurrentUserPlanContext();
+            }
+            return { plan: 'free', isOwner: false, canUseRealChatCommands: false };
+        }
+
+        function applyRealChatPremiumState() {
+            sendToTwitchChatInput.disabled = !canUseRealChatCommands;
+            if (!canUseRealChatCommands) {
+                sendToTwitchChatInput.checked = false;
+                chatSendHint.innerHTML = 'Disponible solo en <strong>Premium</strong>. Tus comandos y timers seguirán funcionando en pantalla para todos los planes. <a href="#" id="goToPagos" style="color:#c084fc;">Ver planes &rarr;</a>';
+                document.getElementById('goToPagos')?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (window.parent && typeof window.parent.cargarSeccion === 'function') {
+                        window.parent.cargarSeccion('pagos');
+                    }
+                });
+                return;
+            }
+            chatSendHint.textContent = 'Premium activo: al habilitarlo, también se enviarán respuestas al chat real de Twitch cuando el backend esté disponible.';
+        }
+
+        async function checkBackendBeforeEnable() {
+            if (!window.parent || typeof window.parent.checkBackendAvailability !== 'function') return true;
+            const backend = await window.parent.checkBackendAvailability();
+            return backend?.available === true;
+        }
+
+        function showBackendOfflineBanner() {
+            const existing = document.getElementById('backendBanner');
+            if (existing) return;
+            const banner = document.createElement('div');
+            banner.id = 'backendBanner';
+            banner.style.cssText = 'margin-top:10px;padding:12px 14px;border-radius:12px;background:rgba(255,150,50,0.12);border:1px solid rgba(255,150,50,0.36);color:#ffd580;font-size:0.88rem;line-height:1.6;';
+            banner.innerHTML = `
+                <strong>⚠ Backend no disponible</strong><br>
+                La opción de enviar mensajes al chat real de Twitch requiere el backend en la nube (Firebase Blaze / hosting propio).
+                En este momento el servicio no está activo, por lo que los mensajes <em>solo se mostrarán en el overlay</em>.<br>
+                <span style="color:#f9a220;">Cuando el backend esté desplegado, esta opción funcionará automáticamente.</span>
+                <button type="button" id="closeBanner" style="float:right;background:transparent;border:none;color:#ffd580;font-size:1.1rem;cursor:pointer;margin-top:-2px;">×</button>
+            `;
+            banner.querySelector('#closeBanner').addEventListener('click', () => banner.remove());
+            const bottomCard = saveBtn.closest('.card');
+            if (bottomCard) bottomCard.prepend(banner); else statusEl.before(banner);
+        }
 
         function setStatus(message, type = '') {
             statusEl.textContent = message;
@@ -288,10 +371,18 @@
                 .map((item) => ({
                     trigger: normalizeTrigger(item?.trigger || ''),
                     response: (item?.response || '').toString().trim(),
+                    permission: normalizePermission(item?.permission),
+                    cooldownSeconds: Math.max(0, Math.min(600, Number(item?.cooldownSeconds || 0))),
                     enabled: item?.enabled !== false
                 }))
                 .filter((item) => item.trigger && item.response)
                 .slice(0, 30);
+        }
+
+        function normalizePermission(value) {
+            const raw = String(value || '').trim().toLowerCase();
+            if (raw === 'broadcaster') return 'owner';
+            return ['everyone', 'subscriber', 'mod', 'owner'].includes(raw) ? raw : 'everyone';
         }
 
         function sanitizeTimers(list = []) {
@@ -321,6 +412,7 @@
                         <span class="pill ${item.enabled ? '' : 'off'}">${item.enabled ? 'Activo' : 'Pausado'}</span>
                     </div>
                     <div class="meta">${item.response}</div>
+                    <div class="hint">Permiso: <strong>${item.permission}</strong>${item.cooldownSeconds > 0 ? ` · Cooldown: ${item.cooldownSeconds}s` : ''}</div>
                     <div class="actions">
                         <button type="button" data-action="toggle" data-index="${index}" class="secondary">${item.enabled ? 'Pausar' : 'Activar'}</button>
                         <button type="button" data-action="delete" data-index="${index}" class="secondary">Eliminar</button>
@@ -367,6 +459,7 @@
                 const data = snap.exists() ? snap.data() : {};
                 commands = sanitizeCommands(data.chatCommands || []);
                 timers = sanitizeTimers(data.chatTimers || []);
+                sendToTwitchChatInput.checked = canUseRealChatCommands ? Boolean(data.sendToTwitchChat) : false;
                 renderCommands();
                 renderTimers();
                 setStatus('Configuración cargada.', 'ok');
@@ -386,6 +479,7 @@
                 await setDoc(doc(db, 'usuarios', canalActual), {
                     chatCommands: sanitizeCommands(commands),
                     chatTimers: sanitizeTimers(timers),
+                    sendToTwitchChat: canUseRealChatCommands && Boolean(sendToTwitchChatInput.checked),
                     ultima_actualizacion: new Date()
                 }, { merge: true });
 
@@ -394,6 +488,7 @@
                     await setDoc(doc(db, 'usuarios', user.uid), {
                         chatCommands: sanitizeCommands(commands),
                         chatTimers: sanitizeTimers(timers),
+                        sendToTwitchChat: canUseRealChatCommands && Boolean(sendToTwitchChatInput.checked),
                         ultima_actualizacion: new Date()
                     }, { merge: true });
                 }
@@ -421,12 +516,16 @@
             commands.push({
                 trigger,
                 response,
+                permission: cmdPermission.value,
+                cooldownSeconds: Math.max(0, Math.min(600, Number(cmdCooldown.value || 0))),
                 enabled: Boolean(cmdEnabled.checked)
             });
 
             commands = sanitizeCommands(commands);
             cmdTrigger.value = '';
             cmdResponse.value = '';
+            cmdPermission.value = 'everyone';
+            cmdCooldown.value = '0';
             cmdEnabled.checked = true;
             renderCommands();
             setStatus('Comando agregado (falta guardar).');
@@ -492,6 +591,9 @@
         reloadBtn.addEventListener('click', cargarConfiguracion);
 
         onAuthStateChanged(auth, async (user) => {
+            const planContext = resolvePlanContextFromParent();
+            canUseRealChatCommands = Boolean(planContext.canUseRealChatCommands);
+            applyRealChatPremiumState();
             canalActual = getTwitchChannelFromStorage() || user?.displayName?.toLowerCase() || '';
             if (!canalActual) {
                 setStatus('Iniciá sesión para usar comandos y timers.', 'err');

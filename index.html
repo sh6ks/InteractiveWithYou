@@ -60,6 +60,13 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                 </a>
             </li>
 
+            <li>
+                <a href="#" onclick="cargarSeccion('pagos')">
+                    <i class="fa-solid fa-star"></i>
+                    <span class="link_name">Premium / Donaciones</span>
+                </a>
+            </li>
+
             <li id="admin-plans-item" style="display:none;">
                 <a href="#" onclick="cargarSeccion('planes')">
                     <i class="fa-solid fa-crown"></i>
@@ -110,12 +117,14 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         const TWITCH_REDIRECT_URI = window.location.hostname.includes('vercel.app')
             ? 'https://interactive-with-you.vercel.app/'
             : `${window.location.origin}/`;
-        const TWITCH_SCOPE = 'user:read:email chat:read';
+        const TWITCH_SCOPE = 'user:read:email chat:read chat:edit';
+        const FUNCTIONS_BASE = 'https://us-central1-interactivewithyou.cloudfunctions.net';
 
         const PLAN_FREE = 'free';
         const PLAN_PREMIUM = 'premium';
         const PLAN_STORAGE_KEY = 'planTier';
         const PAID_FEATURES_STORAGE_KEY = 'paidFeaturesConfig';
+        const PREMIUM_USERS_STORAGE_KEY = 'premiumUsersConfig';
         const OWNER_TWITCH_LOGINS = ['shekssink'];
         const OWNER_GOOGLE_EMAILS = ['jeks2002@gmail.com'];
         // Opcional: agregá acá tu UID de Firebase cuando lo tengas.
@@ -135,6 +144,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             funciones: { label: 'Herramientas', tier: PLAN_FREE },
             comunidad: { label: 'Comunidad', tier: PLAN_FREE },
             contacto: { label: 'Contacto', tier: PLAN_FREE },
+            pagos: { label: 'Suscripción / Donaciones', tier: PLAN_FREE },
             planes: { label: 'Planes (Admin)', tier: PLAN_FREE }
         };
 
@@ -147,6 +157,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         let currentAuthUser = null;
         let isOwner = false;
         let paidFeaturesConfig = [...PAID_FEATURES];
+        let premiumUsersConfig = [];
 
         const getSeccionPersistida = () => {
             const seccionUrl = new URLSearchParams(window.location.search).get('seccion');
@@ -175,6 +186,13 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                 .filter((feature) => valid.has(feature));
         };
 
+        const sanitizePremiumUsers = (list) => {
+            return [...new Set((Array.isArray(list) ? list : []))]
+                .map((value) => String(value || '').trim().toLowerCase())
+                .filter((value) => value.length > 0)
+                .slice(0, 500);
+        };
+
         const applyPaidFeaturesConfig = (list) => {
             const premiumFeatures = sanitizePaidFeatures(list);
             Object.keys(FEATURE_FLAGS).forEach((key) => {
@@ -189,22 +207,48 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             localStorage.setItem(PAID_FEATURES_STORAGE_KEY, JSON.stringify(paidFeaturesConfig));
         };
 
-        const resolvePaidFeaturesConfig = async () => {
+        const applyPremiumUsersConfig = (list) => {
+            premiumUsersConfig = sanitizePremiumUsers(list);
+            localStorage.setItem(PREMIUM_USERS_STORAGE_KEY, JSON.stringify(premiumUsersConfig));
+        };
+
+        const resolveMonetizationConfig = async () => {
             try {
                 const configSnapshot = await getDoc(doc(db, 'sistema', 'planes'));
                 if (configSnapshot.exists()) {
                     const data = configSnapshot.data();
-                    return sanitizePaidFeatures(data.paidFeatures);
+                    return {
+                        paidFeatures: sanitizePaidFeatures(data.paidFeatures),
+                        premiumUsers: sanitizePremiumUsers(data.premiumUsers)
+                    };
                 }
             } catch (error) {
                 console.warn('No se pudo leer la configuración de planes desde Firestore.', error);
             }
 
             try {
-                return sanitizePaidFeatures(JSON.parse(localStorage.getItem(PAID_FEATURES_STORAGE_KEY) || '[]'));
+                return {
+                    paidFeatures: sanitizePaidFeatures(JSON.parse(localStorage.getItem(PAID_FEATURES_STORAGE_KEY) || '[]')),
+                    premiumUsers: sanitizePremiumUsers(JSON.parse(localStorage.getItem(PREMIUM_USERS_STORAGE_KEY) || '[]'))
+                };
             } catch {
-                return sanitizePaidFeatures(PAID_FEATURES);
+                return {
+                    paidFeatures: sanitizePaidFeatures(PAID_FEATURES),
+                    premiumUsers: []
+                };
             }
+        };
+
+        const isManuallyPremium = (firebaseUser = null) => {
+            const identifiers = new Set();
+            const twitchName = localStorage.getItem('nombreTwitch');
+            if (twitchName) identifiers.add(String(twitchName).trim().toLowerCase());
+            if (firebaseUser?.uid) identifiers.add(String(firebaseUser.uid).trim().toLowerCase());
+            if (firebaseUser?.email) identifiers.add(String(firebaseUser.email).trim().toLowerCase());
+            for (const identifier of identifiers) {
+                if (premiumUsersConfig.includes(identifier)) return true;
+            }
+            return false;
         };
 
         const isOwnerAccount = (firebaseUser = null) => {
@@ -243,6 +287,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
 
         window.getPremiumConfig = () => ({
             paidFeatures: [...paidFeaturesConfig],
+            premiumUsers: [...premiumUsersConfig],
             features: Object.entries(FEATURE_FLAGS)
                 .filter(([key]) => BILLABLE_FEATURES.includes(key))
                 .map(([key, value]) => ({
@@ -252,21 +297,60 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                 }))
         });
 
-        window.savePremiumConfig = async (featureList) => {
+        window.getCurrentUserPlanContext = () => ({
+            plan: currentPlan,
+            isOwner,
+            canUseRealChatCommands: isOwner || currentPlan === PLAN_PREMIUM
+        });
+
+        // Cache for backend health check (avoid flooding on every toggle)
+        let backendStatusCache = null;
+        let backendStatusCacheAt = 0;
+        const BACKEND_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+        window.checkBackendAvailability = async (force = false) => {
+            const now = Date.now();
+            if (!force && backendStatusCache !== null && (now - backendStatusCacheAt) < BACKEND_CACHE_TTL_MS) {
+                return backendStatusCache;
+            }
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 6000);
+                const response = await fetch(
+                    `${FUNCTIONS_BASE}/relayTwitchChatMessage`,
+                    { method: 'OPTIONS', signal: controller.signal }
+                );
+                clearTimeout(timeout);
+                // 204/200/405 all mean the endpoint exists and is responding
+                const available = response.status !== 404 && response.status < 500;
+                backendStatusCache = { available, checkedAt: now, httpStatus: response.status };
+                backendStatusCacheAt = now;
+                return backendStatusCache;
+            } catch {
+                backendStatusCache = { available: false, checkedAt: now, httpStatus: 0 };
+                backendStatusCacheAt = now;
+                return backendStatusCache;
+            }
+        };
+
+        window.savePremiumConfig = async (payload) => {
             if (!isOwner) {
                 throw new Error('Solo el owner puede modificar los planes.');
             }
 
-            const premiumFeatures = sanitizePaidFeatures(featureList);
+            const premiumFeatures = sanitizePaidFeatures(Array.isArray(payload) ? payload : payload?.paidFeatures);
+            const manualPremiumUsers = sanitizePremiumUsers(Array.isArray(payload) ? [] : payload?.premiumUsers);
             applyPaidFeaturesConfig(premiumFeatures);
+            applyPremiumUsersConfig(manualPremiumUsers);
 
             await setDoc(doc(db, 'sistema', 'planes'), {
                 paidFeatures: premiumFeatures,
+                premiumUsers: manualPremiumUsers,
                 updatedBy: getDisplayNameForAdmin(),
                 updatedAt: Date.now()
             }, { merge: true });
 
-            return { ok: true, paidFeatures: premiumFeatures };
+            return { ok: true, paidFeatures: premiumFeatures, premiumUsers: manualPremiumUsers };
         };
 
         const renderUpgradeRequired = (section) => {
@@ -285,6 +369,9 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         };
 
         const resolveCurrentPlan = async (firebaseUser = null) => {
+            if (isOwner) return PLAN_PREMIUM;
+            if (isManuallyPremium(firebaseUser)) return PLAN_PREMIUM;
+
             try {
                 if (firebaseUser?.uid) {
                     const userSnapshot = await getDoc(doc(db, 'usuarios', firebaseUser.uid));
@@ -323,6 +410,23 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         // Abre la ventana de autenticación de Twitch.
         window.loginTwitch = () => {
             window.open(getTwitchAuthUrl(), 'TwitchLogin', 'width=500,height=700');
+        };
+
+        const linkTwitchBotToken = async (channel, token) => {
+            if (!channel || !token) return;
+            try {
+                await fetch(`${FUNCTIONS_BASE}/storeTwitchBotToken`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        channel: channel.toLowerCase(),
+                        login: channel.toLowerCase(),
+                        accessToken: token
+                    })
+                });
+            } catch (error) {
+                console.warn('No se pudo vincular token de bot en backend:', error);
+            }
         };
 
         // Consulta información del usuario de Twitch usando el token recibido.
@@ -397,6 +501,8 @@ Panel de control principal con navegación, autenticación y carga de secciones.
 
             localStorage.setItem('nombreTwitch', user.login);
             localStorage.setItem('fotoTwitch', user.profile_image_url);
+            localStorage.setItem('twitchAccessToken', token);
+            await linkTwitchBotToken(user.login, token);
 
             if (window.opener) {
                 window.opener.location.reload();
@@ -425,8 +531,11 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         onAuthStateChanged(auth, async (user) => {
             currentAuthUser = user;
             isOwner = isOwnerAccount(user);
-            paidFeaturesConfig = await resolvePaidFeaturesConfig();
+            const monetizationConfig = await resolveMonetizationConfig();
+            paidFeaturesConfig = monetizationConfig.paidFeatures;
+            premiumUsersConfig = monetizationConfig.premiumUsers;
             applyPaidFeaturesConfig(paidFeaturesConfig);
+            applyPremiumUsersConfig(premiumUsersConfig);
             currentPlan = await resolveCurrentPlan(user);
             localStorage.setItem(PLAN_STORAGE_KEY, currentPlan);
             renderAuthState(user);
@@ -460,6 +569,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             else if (seccionFinal === 'funciones') archivo = "html/functions.html";
             else if (seccionFinal === 'comunidad') archivo = "html/comunity.html";
             else if (seccionFinal === 'contacto') archivo = "html/contacto.html";
+            else if (seccionFinal === 'pagos') archivo = "html/payments.html";
             else if (seccionFinal === 'planes') archivo = "html/plan-admin.html";
 
             if (archivo) {

@@ -1,5 +1,14 @@
 import {setGlobalOptions} from "firebase-functions";
 import {onRequest} from "firebase-functions/https";
+import {initializeApp} from "firebase-admin/app";
+import {getFirestore, FieldValue} from "firebase-admin/firestore";
+import * as tls from "node:tls";
+
+initializeApp();
+const adminDb = getFirestore();
+const channelSendHistory = new Map<string, number[]>();
+const channelLastSendAt = new Map<string, number>();
+const commandAuditHistory = new Map<string, number[]>();
 
 setGlobalOptions({maxInstances: 10});
 
@@ -72,5 +81,305 @@ export const getTwitchAppToken = onRequest(async (req, res) => {
 			error: "Unexpected error creating Twitch token",
 			details: String(error),
 		});
+	}
+});
+
+function applyCors(req: any, res: any) {
+	const origin = req.get("Origin") || "*";
+	res.set("Access-Control-Allow-Origin", origin);
+	res.set("Vary", "Origin");
+	res.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+	res.set("Access-Control-Allow-Headers", "Content-Type");
+}
+
+function getTwitchClientId() {
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	const functions = require("firebase-functions");
+	return (functions.config()?.twitch?.client_id as string | undefined) ||
+		"9cac6zpfterkbzigfr28hpil7se9y3";
+}
+
+function normalizeChannel(value: unknown) {
+	return String(value || "").trim().toLowerCase();
+}
+
+function normalizeToken(rawToken: string) {
+	if (rawToken.startsWith("oauth:")) return rawToken.slice(6);
+	return rawToken;
+}
+
+async function verifyTwitchToken(accessToken: string) {
+	const clientId = getTwitchClientId();
+	const response = await fetch("https://api.twitch.tv/helix/users", {
+		headers: {
+			"Client-ID": clientId,
+			"Authorization": `Bearer ${accessToken}`,
+		},
+	});
+
+	const payload = await response.json();
+	if (!response.ok || !payload?.data?.[0]) {
+		throw new Error(`No se pudo verificar token Twitch (${response.status})`);
+	}
+
+	const user = payload.data[0];
+	return {
+		id: String(user.id || ""),
+		login: normalizeChannel(user.login),
+		displayName: String(user.display_name || user.login || ""),
+	};
+}
+
+function sendIrcPrivmsg(login: string, accessToken: string, channel: string, message: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const socket = tls.connect(6697, "irc.chat.twitch.tv", () => {
+			socket.write(`PASS oauth:${normalizeToken(accessToken)}\r\n`);
+			socket.write(`NICK ${login}\r\n`);
+			socket.write(`JOIN #${channel}\r\n`);
+			setTimeout(() => {
+				socket.write(`PRIVMSG #${channel} :${message}\r\n`);
+				socket.write("QUIT\r\n");
+				resolve();
+				socket.end();
+			}, 650);
+		});
+
+		socket.setTimeout(6000, () => {
+			reject(new Error("Timeout enviando mensaje IRC"));
+			socket.destroy();
+		});
+
+		socket.once("error", (error) => {
+			reject(error);
+			socket.destroy();
+		});
+	});
+}
+
+/**
+ * Store/update Twitch bot credentials server-side for a channel.
+ * POST body: { channel: string, accessToken: string, login?: string }
+ */
+export const storeTwitchBotToken = onRequest(async (req, res) => {
+	applyCors(req, res);
+
+	if (req.method === "OPTIONS") {
+		res.status(204).send("");
+		return;
+	}
+
+	if (req.method !== "POST") {
+		res.status(405).json({error: "Method not allowed"});
+		return;
+	}
+
+	try {
+		const body = req.body || {};
+		const channel = normalizeChannel(body.channel);
+		const rawToken = String(body.accessToken || "").trim();
+		if (!channel || !rawToken) {
+			res.status(400).json({error: "channel y accessToken son requeridos"});
+			return;
+		}
+
+		const token = normalizeToken(rawToken);
+		const verified = await verifyTwitchToken(token);
+
+		if (body.login && normalizeChannel(body.login) !== verified.login) {
+			res.status(403).json({error: "El token no coincide con el login indicado"});
+			return;
+		}
+
+		if (channel !== verified.login) {
+			res.status(403).json({error: "Solo podés vincular el bot a tu propio canal"});
+			return;
+		}
+
+		await adminDb.collection("twitchBots").doc(channel).set({
+			channel,
+			login: verified.login,
+			displayName: verified.displayName,
+			accessToken: token,
+			source: "dashboard",
+			updatedAt: FieldValue.serverTimestamp(),
+		}, {merge: true});
+
+		await adminDb.collection("usuarios").doc(channel).set({
+			twitchBotLinked: true,
+			twitchBotLogin: verified.login,
+			updatedAt: FieldValue.serverTimestamp(),
+		}, {merge: true});
+
+		res.status(200).json({ok: true, channel, login: verified.login});
+	} catch (error) {
+		res.status(500).json({error: "No se pudo guardar token Twitch", details: String(error)});
+	}
+});
+
+/**
+ * Relay a message to Twitch chat server-side using stored bot credentials.
+ * POST body: { channel: string, message: string }
+ */
+export const relayTwitchChatMessage = onRequest(async (req, res) => {
+	applyCors(req, res);
+
+	if (req.method === "OPTIONS") {
+		res.status(204).send("");
+		return;
+	}
+
+	if (req.method !== "POST") {
+		res.status(405).json({error: "Method not allowed"});
+		return;
+	}
+
+	try {
+		const body = req.body || {};
+		const channel = normalizeChannel(body.channel);
+		const message = String(body.message || "").replace(/\r|\n/g, " ").trim();
+
+		if (!channel || !message) {
+			res.status(400).json({error: "channel y message son requeridos"});
+			return;
+		}
+
+		if (message.startsWith("/")) {
+			res.status(400).json({error: "No se permiten comandos slash en relay"});
+			return;
+		}
+
+		if (message.length > 450) {
+			res.status(400).json({error: "message demasiado largo"});
+			return;
+		}
+
+		const now = Date.now();
+		const minGapMs = 1200;
+		const lastAt = channelLastSendAt.get(channel) || 0;
+		if (now - lastAt < minGapMs) {
+			res.status(429).json({error: "Rate limit: esperá un momento antes de enviar otro mensaje"});
+			return;
+		}
+
+		const history = channelSendHistory.get(channel) || [];
+		const recent = history.filter((ts) => now - ts < 60_000);
+		if (recent.length >= 20) {
+			channelSendHistory.set(channel, recent);
+			res.status(429).json({error: "Rate limit: demasiados mensajes por minuto"});
+			return;
+		}
+
+		const cfgSnap = await adminDb.collection("usuarios").doc(channel).get();
+		const cfg = cfgSnap.exists ? cfgSnap.data() : null;
+		if (!cfg?.sendToTwitchChat) {
+			res.status(403).json({error: "sendToTwitchChat está deshabilitado para este canal"});
+			return;
+		}
+
+		const botSnap = await adminDb.collection("twitchBots").doc(channel).get();
+		if (!botSnap.exists) {
+			res.status(404).json({error: "No hay token de bot vinculado para este canal"});
+			return;
+		}
+
+		const bot = botSnap.data();
+		const login = normalizeChannel(bot?.login);
+		const accessToken = String(bot?.accessToken || "").trim();
+		if (!login || !accessToken) {
+			res.status(500).json({error: "Credenciales del bot incompletas"});
+			return;
+		}
+
+		await sendIrcPrivmsg(login, accessToken, channel, message);
+		recent.push(now);
+		channelSendHistory.set(channel, recent);
+		channelLastSendAt.set(channel, now);
+		res.status(200).json({ok: true});
+	} catch (error) {
+		res.status(500).json({error: "No se pudo enviar mensaje a Twitch", details: String(error)});
+	}
+});
+
+/**
+ * Persist command execution audit logs from widget runtime.
+ * POST body: {
+ *   channel: string,
+ *   trigger: string,
+ *   userLogin: string,
+ *   userDisplayName?: string,
+ *   permission?: string,
+ *   outcome: "executed" | "denied_permission" | "cooldown",
+ *   source?: string
+ * }
+ */
+export const logTwitchCommandExecution = onRequest(async (req, res) => {
+	applyCors(req, res);
+
+	if (req.method === "OPTIONS") {
+		res.status(204).send("");
+		return;
+	}
+
+	if (req.method !== "POST") {
+		res.status(405).json({error: "Method not allowed"});
+		return;
+	}
+
+	try {
+		const body = req.body || {};
+		const channel = normalizeChannel(body.channel);
+		const trigger = String(body.trigger || "").trim().toLowerCase();
+		const userLogin = normalizeChannel(body.userLogin);
+		const userDisplayName = String(body.userDisplayName || "").trim().slice(0, 80);
+		const permissionRaw = String(body.permission || "everyone").trim().toLowerCase();
+		const permission = permissionRaw === "broadcaster" ? "owner" : permissionRaw;
+		const outcome = String(body.outcome || "").trim().toLowerCase();
+		const source = String(body.source || "widget").trim().toLowerCase().slice(0, 24);
+
+		if (!channel || !trigger || !userLogin || !outcome) {
+			res.status(400).json({error: "channel, trigger, userLogin y outcome son requeridos"});
+			return;
+		}
+
+		if (!trigger.startsWith("!") || trigger.length > 32) {
+			res.status(400).json({error: "trigger invalido"});
+			return;
+		}
+
+		if (!["executed", "denied_permission", "cooldown"].includes(outcome)) {
+			res.status(400).json({error: "outcome invalido"});
+			return;
+		}
+
+		if (!["everyone", "subscriber", "mod", "owner"].includes(permission)) {
+			res.status(400).json({error: "permission invalido"});
+			return;
+		}
+
+		const now = Date.now();
+		const history = commandAuditHistory.get(channel) || [];
+		const recent = history.filter((ts) => now - ts < 60_000);
+		if (recent.length >= 120) {
+			commandAuditHistory.set(channel, recent);
+			res.status(429).json({error: "Rate limit de auditoria excedido"});
+			return;
+		}
+
+		await adminDb.collection("twitchCommandLogs").add({
+			channel,
+			trigger,
+			userLogin,
+			userDisplayName,
+			permission,
+			outcome,
+			source,
+			createdAt: FieldValue.serverTimestamp(),
+		});
+
+		recent.push(now);
+		commandAuditHistory.set(channel, recent);
+		res.status(200).json({ok: true});
+	} catch (error) {
+		res.status(500).json({error: "No se pudo guardar auditoria", details: String(error)});
 	}
 });

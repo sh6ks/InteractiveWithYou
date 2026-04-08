@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suscripción y Donaciones - InteractiveWithYou</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 30px;
+            background: transparent;
+            color: #f3f0ff;
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+        }
+        .wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 22px; }
+
+        /* hero */
+        .hero {
+            border-radius: 22px;
+            border: 1px solid rgba(145,71,255,0.28);
+            background: linear-gradient(140deg, rgba(145,71,255,0.2) 0%, rgba(14,12,28,0.97) 65%, rgba(8,28,46,0.96) 100%);
+            padding: 30px 28px;
+            box-shadow: 0 20px 48px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            flex-wrap: wrap;
+        }
+        .hero-text { flex: 1; min-width: 220px; }
+        .hero-text h2 { margin: 0 0 8px; font-size: 2rem; color: #e4d8ff; }
+        .hero-text p  { margin: 0; color: #b0a9d5; line-height: 1.65; }
+        .badge-current {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 16px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: 1px solid rgba(145,71,255,0.5);
+            background: rgba(145,71,255,0.22);
+            color: #d4b8ff;
+            white-space: nowrap;
+        }
+        .badge-current.premium {
+            border-color: rgba(250,200,60,0.5);
+            background: rgba(250,200,60,0.12);
+            color: #ffd95e;
+        }
+
+        /* plan grid */
+        .plan-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 18px;
+        }
+        .plan-card {
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(18,16,34,0.86);
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .plan-card.featured {
+            border-color: rgba(145,71,255,0.5);
+            background: linear-gradient(155deg, rgba(145,71,255,0.14) 0%, rgba(16,14,32,0.94) 100%);
+            box-shadow: 0 10px 32px rgba(145,71,255,0.18);
+        }
+        .plan-name {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .plan-name-text { font-size: 1.15rem; font-weight: 700; color: #f4efff; }
+        .plan-label {
+            font-size: 0.76rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #b5afd4;
+        }
+        .plan-label.premium-label {
+            background: rgba(145,71,255,0.22);
+            border-color: rgba(145,71,255,0.45);
+            color: #c89dff;
+        }
+        .plan-price {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #f9f6ff;
+            line-height: 1;
+        }
+        .plan-price span { font-size: 1rem; font-weight: 400; color: #9a93be; margin-left: 4px; }
+        .plan-features {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+        .plan-features li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.88rem;
+            color: #d2ccf0;
+            line-height: 1.4;
+        }
+        .plan-features li i { margin-top: 2px; font-size: 0.78rem; }
+        .check { color: #7af0a3; }
+        .cross { color: #f07a8a; }
+        .plan-cta {
+            margin-top: auto;
+        }
+        .btn {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            padding: 13px 16px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            color: #fff;
+            transition: opacity 0.18s ease;
+        }
+        .btn:hover { opacity: 0.88; }
+        .btn-primary { background: linear-gradient(135deg, #9147ff 0%, #6f63ff 100%); }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.16);
+            color: #cdc8ef;
+        }
+        .btn-disabled {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #7570a0;
+            cursor: default;
+        }
+        .plan-note {
+            font-size: 0.8rem;
+            color: #7c76a5;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        /* backend status */
+        .backend-status {
+            border-radius: 14px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.86rem;
+            line-height: 1.5;
+        }
+        .backend-status.checking {
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: #a9a3cb;
+        }
+        .backend-status.online {
+            border: 1px solid rgba(100,240,160,0.28);
+            background: rgba(100,240,160,0.08);
+            color: #8ff0b8;
+        }
+        .backend-status.offline {
+            border: 1px solid rgba(255,150,60,0.3);
+            background: rgba(255,150,60,0.08);
+            color: #ffd080;
+        }
+        .backend-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .dot-checking { background: #7570a0; }
+        .dot-online  { background: #64f0a0; box-shadow: 0 0 6px #64f0a0; }
+        .dot-offline { background: #ff9640; box-shadow: 0 0 6px #ff9640; }
+
+        /* donations */
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #e8d7ff;
+            margin: 0 0 6px;
+        }
+        .section-sub {
+            color: #a39ec8;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            margin: 0 0 14px;
+        }
+        .donation-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0,1fr));
+            gap: 14px;
+        }
+        .donation-card {
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(22,18,40,0.86);
+            border-radius: 16px;
+            padding: 18px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .donation-card:hover {
+            border-color: rgba(145,71,255,0.4);
+            background: rgba(145,71,255,0.1);
+        }
+        .donation-icon { font-size: 2.2rem; line-height: 1; }
+        .donation-label { font-size: 0.95rem; font-weight: 700; color: #f3eeff; }
+        .donation-sub { font-size: 0.78rem; color: #8e88b8; }
+        .donation-btn {
+            margin-top: 4px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(145,71,255,0.4);
+            background: rgba(145,71,255,0.18);
+            color: #d0a8ff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* panel */
+        .panel {
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(18,16,34,0.86);
+            padding: 20px;
+        }
+
+        @media (max-width: 760px) {
+            body { padding: 16px; }
+            .plan-grid { grid-template-columns: 1fr; }
+            .donation-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            .donation-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <!-- Hero: plan actual -->
+    <section class="hero">
+        <div class="hero-text">
+            <h2>Suscripción y Donaciones</h2>
+            <p>Apoyá el proyecto para desbloquear funciones avanzadas, o ayudá con una donación libre. Todo lo que recaudamos va a mantener y mejorar la plataforma.</p>
+        </div>
+        <div id="currentPlanBadge" class="badge-current">
+            <i class="fa-solid fa-circle-notch fa-spin"></i> Cargando plan...
+        </div>
+    </section>
+
+    <!-- Estado del backend -->
+    <div id="backendStatusBar" class="backend-status checking">
+        <span class="backend-dot dot-checking"></span>
+        <span>Verificando estado del servicio de bot en tiempo real...</span>
+    </div>
+
+    <!-- Planes -->
+    <div class="plan-grid">
+        <!-- Free -->
+        <div class="plan-card">
+            <div class="plan-name">
+                <span class="plan-name-text">Free</span>
+                <span class="plan-label">Plan actual por defecto</span>
+            </div>
+            <div class="plan-price">$0 <span>/ siempre</span></div>
+            <ul class="plan-features">
+                <li><i class="fa-solid fa-check check"></i> Widget de chat personalizado en OBS</li>
+                <li><i class="fa-solid fa-check check"></i> Comandos y timers (respuesta en overlay)</li>
+                <li><i class="fa-solid fa-check check"></i> Emotes de Twitch, 7TV, BTTV y FFZ</li>
+                <li><i class="fa-solid fa-check check"></i> Alertas en vivo personalizadas</li>
+                <li><i class="fa-solid fa-check check"></i> Sección de comunidad y contacto</li>
+                <li><i class="fa-solid fa-xmark cross"></i> Bot responde en el chat real de Twitch</li>
+                <li><i class="fa-solid fa-xmark cross"></i> Soporte prioritario</li>
+            </ul>
+            <div class="plan-cta">
+                <button class="btn btn-disabled" disabled>Plan activo</button>
+            </div>
+        </div>
+
+        <!-- Premium -->
+        <div class="plan-card featured">
+            <div class="plan-name">
+                <span class="plan-name-text">Premium</span>
+                <span class="plan-label premium-label"><i class="fa-solid fa-star"></i> Recomendado</span>
+            </div>
+            <div class="plan-price" id="premiumPrice">— <span>/ próximamente</span></div>
+            <ul class="plan-features">
+                <li><i class="fa-solid fa-check check"></i> Todo lo de Free</li>
+                <li><i class="fa-solid fa-check check"></i> Bot responde en el chat real de Twitch</li>
+                <li><i class="fa-solid fa-check check"></i> Auditoría de comandos ejecutados</li>
+                <li><i class="fa-solid fa-check check"></i> Soporte prioritario por Discord/Twitch</li>
+                <li><i class="fa-solid fa-check check"></i> Acceso anticipado a nuevas funciones</li>
+            </ul>
+            <div class="plan-cta">
+                <button id="btnGetPremium" class="btn btn-primary" type="button">Solicitar acceso Premium</button>
+                <p class="plan-note" id="premiumNote">El pago automático estará disponible próximamente. Por ahora contactá al owner para activarlo.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Donaciones -->
+    <section class="panel">
+        <p class="section-title"><i class="fa-solid fa-heart" style="color:#ff6b8a;margin-right:6px;"></i>Donaciones libres</p>
+        <p class="section-sub">Si querés apoyar el proyecto sin una suscripción, podés hacer una donación de cualquier monto. No es obligatorio y nunca lo será. ¡Gracias de antemano!</p>
+        <div style="margin-bottom:18px;padding:13px 15px;border-radius:12px;background:rgba(255,200,60,0.08);border:1px solid rgba(255,200,60,0.22);color:#ffd87a;font-size:0.85rem;line-height:1.65;">
+            <strong>¿Cómo se activa el Premium?</strong> Los pagos por estos links son libres y manuales. Una vez que hagas tu aporte,
+            <strong>contactá al owner</strong> por Twitch o por la sección de Contacto indicando tu nombre de usuario de Twitch o tu email.
+            El equipo lo activa manualmente (generalmente en menos de 24hs). No hay activación automática por el momento.
+        </div>
+        <div class="donation-grid">
+
+            <!-- MercadoPago (Argentina) -->
+            <a id="linkMercadoPago" href="#" target="_blank" rel="noopener noreferrer" class="donation-card">
+                <div class="donation-icon"><img src="https://http2.mlstatic.com/frontend-assets/ui-navigation/5.19.5/mercadopago/logo__large@2x.png" alt="MercadoPago" style="height:36px;object-fit:contain;"></div>
+                <div class="donation-label">MercadoPago</div>
+                <div class="donation-sub">Argentina · sin cuenta</div>
+                <span class="donation-btn">Pagar con MP</span>
+            </a>
+
+            <!-- Uala (Argentina) -->
+            <a id="linkUala" href="#" target="_blank" rel="noopener noreferrer" class="donation-card">
+                <div class="donation-icon">💜</div>
+                <div class="donation-label">Ualá</div>
+                <div class="donation-sub">Argentina · alias: sheks.uala</div>
+                <span class="donation-btn">Transferir por Ualá</span>
+            </a>
+
+            <!-- PayPal -->
+            <a id="linkPaypal" href="#" target="_blank" rel="noopener noreferrer" class="donation-card">
+                <div class="donation-icon"><i class="fa-brands fa-paypal" style="color:#009cde;font-size:2rem;"></i></div>
+                <div class="donation-label">PayPal</div>
+                <div class="donation-sub">Internacional · exterior</div>
+                <span class="donation-btn">Donar con PayPal</span>
+            </a>
+
+        </div>
+    </section>
+
+</div>
+
+<script>
+    // --- Plan context from parent ---
+    function getPlanContext() {
+        if (window.parent && typeof window.parent.getCurrentUserPlanContext === 'function') {
+            return window.parent.getCurrentUserPlanContext();
+        }
+        return { plan: 'free', isOwner: false, canUseRealChatCommands: false };
+    }
+
+    function renderCurrentPlan() {
+        const context = getPlanContext();
+        const badge = document.getElementById('currentPlanBadge');
+        const btnPremium = document.getElementById('btnGetPremium');
+        const premiumNote = document.getElementById('premiumNote');
+
+        if (context.isOwner) {
+            badge.className = 'badge-current premium';
+            badge.innerHTML = '<i class="fa-solid fa-crown"></i> Owner / Admin';
+            btnPremium.textContent = '✓ Ya tenés acceso completo';
+            btnPremium.className = 'btn btn-disabled';
+            btnPremium.disabled = true;
+            return;
+        }
+
+        if (context.plan === 'premium') {
+            badge.className = 'badge-current premium';
+            badge.innerHTML = '<i class="fa-solid fa-star"></i> Plan Premium activo';
+            btnPremium.textContent = '✓ Ya sos Premium';
+            btnPremium.className = 'btn btn-disabled';
+            btnPremium.disabled = true;
+            premiumNote.innerHTML = 'Tenés acceso a todas las funciones premium. Si tu plan venciera o ves algo mal, <strong>contactá al owner</strong>.';
+        } else {
+            badge.className = 'badge-current';
+            badge.innerHTML = '<i class="fa-solid fa-layer-group"></i> Plan Free';
+            btnPremium.addEventListener('click', () => {
+                if (window.parent && typeof window.parent.cargarSeccion === 'function') {
+                    window.parent.cargarSeccion('contacto');
+                } else {
+                    window.open('https://paypal.me/JuanEstebanK', '_blank');
+                }
+            });
+            document.getElementById('premiumNote').innerHTML =
+                'El pago es manual por ahora. Hacé tu aporte y luego <strong>avisá por Twitch o en Contacto</strong> para que te activemos Premium.';
+        }
+    }
+
+    // --- Backend status check ---
+    async function checkBackend() {
+        const bar = document.getElementById('backendStatusBar');
+
+        if (window.parent && typeof window.parent.checkBackendAvailability === 'function') {
+            try {
+                const result = await window.parent.checkBackendAvailability(true);
+                if (result?.available) {
+                    bar.className = 'backend-status online';
+                    bar.innerHTML = '<span class="backend-dot dot-online"></span><span><strong>Servicio online.</strong> El backend de bot está activo. Las funciones premium de chat real están operativas.</span>';
+                } else {
+                    bar.className = 'backend-status offline';
+                    bar.innerHTML = `
+                        <span class="backend-dot dot-offline"></span>
+                        <span>
+                            <strong>Servicio de bot no disponible.</strong>
+                            El backend que permite responder en el chat real de Twitch aún no está desplegado.
+                            Los comandos siguen funcionando en el overlay. Esta situación es temporal mientras se activa la infraestructura de servidor.
+                        </span>`;
+                }
+            } catch {
+                bar.className = 'backend-status offline';
+                bar.innerHTML = '<span class="backend-dot dot-offline"></span><span>No se pudo verificar el estado del servicio.</span>';
+            }
+        } else {
+            bar.remove();
+        }
+    }
+
+    // --- Donation links config ---
+    const DONATION_LINKS = {
+        mercadopago: 'https://link.mercadopago.com.ar/interactivewithyou',
+        uala:        'https://uala.com.ar/sheks.uala',
+        paypal:      'https://paypal.me/JuanEstebanK'
+    };
+
+    function applyDonationLinks() {
+        document.getElementById('linkMercadoPago').href = DONATION_LINKS.mercadopago;
+        document.getElementById('linkUala').href          = DONATION_LINKS.uala;
+        document.getElementById('linkPaypal').href        = DONATION_LINKS.paypal;
+    }
+
+    renderCurrentPlan();
+    checkBackend();
+    applyDonationLinks();
+</script>
+</body>
+</html>
