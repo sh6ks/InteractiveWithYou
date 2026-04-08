@@ -408,12 +408,13 @@
             </a>
 
             <!-- Uala (Argentina) -->
-            <a id="linkUala" href="#" target="_blank" rel="noopener noreferrer" class="donation-card">
+            <div class="donation-card" style="cursor:default;">
                 <div class="donation-icon">💜</div>
                 <div class="donation-label">Ualá</div>
-                <div class="donation-sub">Argentina · alias: sheks.uala</div>
-                <span class="donation-btn">Transferir por Ualá</span>
-            </a>
+                <div class="donation-sub">Argentina · transferí desde tu app</div>
+                <div style="margin-top:4px;padding:7px 14px;border-radius:999px;background:rgba(145,71,255,0.12);border:1px solid rgba(145,71,255,0.3);color:#d0a8ff;font-size:0.85rem;font-weight:700;letter-spacing:0.03em;">sheks.uala</div>
+                <div style="font-size:0.76rem;color:#7570a0;margin-top:2px;">Copiá el alias en tu app Ualá</div>
+            </div>
 
             <!-- PayPal -->
             <a id="linkPaypal" href="#" target="_blank" rel="noopener noreferrer" class="donation-card">
@@ -444,14 +445,13 @@
             <i class="fa-solid fa-arrow-up-right-from-square pay-arrow"></i>
         </a>
 
-        <a id="modalUala" href="https://uala.com.ar/sheks.uala" target="_blank" rel="noopener noreferrer" class="pay-option">
+        <div class="pay-option" style="cursor:default;">
             <div class="pay-icon">💜</div>
             <div class="pay-info">
                 <strong>Ualá</strong>
-                <span>Argentina &middot; alias: sheks.uala</span>
+                <span>Argentina · transferí al alias <strong style="color:#d0a8ff;">sheks.uala</strong> desde tu app</span>
             </div>
-            <i class="fa-solid fa-arrow-up-right-from-square pay-arrow"></i>
-        </a>
+        </div>
 
         <a id="modalPaypal" href="https://paypal.me/JuanEstebanK/2" target="_blank" rel="noopener noreferrer" class="pay-option">
             <div class="pay-icon"><i class="fa-brands fa-paypal" style="color:#009cde;"></i></div>
@@ -559,7 +559,6 @@
 
     function applyDonationLinks() {
         document.getElementById('linkMercadoPago').href = DONATION_LINKS.mercadopago;
-        document.getElementById('linkUala').href          = DONATION_LINKS.uala;
         document.getElementById('linkPaypal').href        = DONATION_LINKS.paypal;
     }
 
