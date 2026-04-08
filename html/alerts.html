@@ -316,6 +316,52 @@
             color: #cfc9ff;
         }
 
+        .test-zone {
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(145, 71, 255, 0.32);
+            background: rgba(18, 15, 37, 0.82);
+        }
+
+        .test-zone h4 {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+            color: #d9d7ff;
+        }
+
+        .test-zone p {
+            margin: 0 0 10px;
+            font-size: 0.83rem;
+            color: #a7a2c9;
+        }
+
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 8px;
+        }
+
+        .test-alert-btn {
+            margin-top: 0;
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid rgba(145, 71, 255, 0.42);
+            background: rgba(145, 71, 255, 0.16);
+            color: #ede9ff;
+            font-size: 0.84rem;
+            font-weight: 700;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+        }
+
+        .test-alert-btn:hover {
+            background: rgba(145, 71, 255, 0.28);
+            border-color: rgba(145, 71, 255, 0.7);
+            transform: translateY(-1px);
+        }
+
         small {
             color: #999;
             display: block;
@@ -511,6 +557,20 @@
                 <button class="btn-secondary" id="newAlertButton" style="display: none;">Nueva alerta</button>
                 <button class="btn-secondary" id="sampleImage">Prueba: Imagen</button>
                 <button class="btn-secondary" id="sampleVideo">Prueba: Video</button>
+
+                <div class="test-zone">
+                    <h4>Simular en OBS</h4>
+                    <p>Dispara eventos de prueba para validar que el overlay esté conectado y reproduzca tus alertas.</p>
+                    <div class="test-buttons">
+                        <button type="button" class="test-alert-btn" data-test-event="follow">Follow</button>
+                        <button type="button" class="test-alert-btn" data-test-event="sub">Sub</button>
+                        <button type="button" class="test-alert-btn" data-test-event="resub">Resub</button>
+                        <button type="button" class="test-alert-btn" data-test-event="gift_sub">Gift Sub</button>
+                        <button type="button" class="test-alert-btn" data-test-event="raid">Raid</button>
+                        <button type="button" class="test-alert-btn" data-test-event="bits">Bits</button>
+                        <button type="button" class="test-alert-btn" data-test-event="channel_points">Channel Points</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Preview -->
@@ -561,7 +621,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -613,6 +673,7 @@
         const openOverlay = document.getElementById('openOverlay');
         const sampleImage = document.getElementById('sampleImage');
         const sampleVideo = document.getElementById('sampleVideo');
+        const testAlertButtons = document.querySelectorAll('.test-alert-btn');
         const newAlertButton = document.getElementById('newAlertButton');
 
         // Preview
@@ -624,6 +685,17 @@
         const sampleAssets = {
             image: 'https://placekitten.com/900/500',
             video: 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
+            sound: 'https://samplelib.com/lib/preview/mp3/sample-3s.mp3'
+        };
+
+        const testEventText = {
+            follow:         'Nuevo follow de @viewer_test',
+            sub:            'Nueva suscripción de @sub_test',
+            raid:           'Raid entrante con 42 viewers',
+            bits:           'Cheer de 500 bits',
+            resub:          '@sub_test renovó su suscripción (mes 6)',
+            gift_sub:       '@gifter_test regaló 5 subs',
+            channel_points: '@viewer_test canjeó: Hydrate!'
         };
 
         const formatFileSize = (bytes) => {
@@ -916,6 +988,36 @@
         assetInput.addEventListener('input', updateMediaPreview);
 
         // Crear o actualizar alerta
+        const buildAlertPayload = (type, assetUrl, text, options = {}) => {
+            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
+            const preferredType = type || tipoSelect.value;
+            const fallbackAsset = sampleAssets[preferredType] || sampleAssets.image;
+            const url = (assetUrl || assetInput.value.trim() || fallbackAsset).trim();
+            const alertText = (text || textInput.value.trim() || 'Alerta de prueba').trim();
+            const soundUrl = options.soundUrl ?? uploadedSoundUrl ?? '';
+
+            return {
+                canal,
+                type: preferredType,
+                assetUrl: url,
+                soundUrl,
+                text: alertText,
+                fuente: fuenteSelect.value,
+                fontSize: parseInt(fontSizeInput.value),
+                textColor: textColorInput.value,
+                mediaPosition: mediaPositionSelect.value,
+                effects: {
+                    vibrate: activeEffects.vibrate,
+                    bounce: activeEffects.bounce,
+                    zoom: activeEffects.zoom
+                },
+                duration: parseInt(durationInput.value),
+                status: 'pending',
+                updatedAt: serverTimestamp(),
+                ...options.extra
+            };
+        };
+
         const createAlert = async (type, assetUrl, text) => {
             if (!auth.currentUser && !getTwitchChannel()) {
                 alert('Tenés que iniciar sesión');
@@ -923,33 +1025,13 @@
                 return;
             }
 
-            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
-            const url = assetUrl || assetInput.value.trim();
-            const alertText = text || textInput.value.trim();
-            const soundUrl = uploadedSoundUrl || '';
-
-            if (!canal || !url) {
-                setStatus('Completa todos los campos', false);
+            const alertData = buildAlertPayload(type, assetUrl, text);
+            if (!alertData.canal || !alertData.assetUrl) {
+                setStatus('Completa canal y asset para la alerta', false);
                 return;
             }
 
             try {
-                const alertData = {
-                    canal, type, assetUrl: url, soundUrl, text: alertText,
-                    fuente: fuenteSelect.value,
-                    fontSize: parseInt(fontSizeInput.value),
-                    textColor: textColorInput.value,
-                    mediaPosition: mediaPositionSelect.value,
-                    effects: {
-                        vibrate: activeEffects.vibrate,
-                        bounce: activeEffects.bounce,
-                        zoom: activeEffects.zoom
-                    },
-                    duration: parseInt(durationInput.value),
-                    status: 'pending',
-                    updatedAt: serverTimestamp()
-                };
-
                 if (currentEditingAlertId) {
                     // Actualizar alerta existente
                     await updateDoc(doc(db, 'liveAlerts', currentEditingAlertId), alertData);
@@ -974,10 +1056,72 @@
             }
         };
 
+        const triggerTestAlert = async (eventType) => {
+            if (!auth.currentUser && !getTwitchChannel()) {
+                alert('Tenés que iniciar sesión');
+                window.parent.location.href = '/index.html';
+                return;
+            }
+
+            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
+            if (!canal) {
+                setStatus('No se detectó canal para la prueba', false);
+                return;
+            }
+
+            const text = testEventText[eventType] || 'Evento de prueba';
+
+            try {
+                // Intentar cargar la última alerta real del usuario para respetar su diseño
+                let alertData = null;
+                const savedQ = query(
+                    collection(db, 'liveAlerts'),
+                    where('canal', '==', canal),
+                    where('status', '==', 'shown'),
+                    orderBy('createdAt', 'desc'),
+                    limit(1)
+                );
+                const savedSnap = await getDocs(savedQ);
+                if (!savedSnap.empty) {
+                    const saved = savedSnap.docs[0].data();
+                    alertData = {
+                        canal,
+                        type:          saved.type,
+                        assetUrl:      saved.assetUrl      || '',
+                        soundUrl:      saved.soundUrl      || '',
+                        text,
+                        fuente:        saved.fuente        || 'Roboto',
+                        fontSize:      saved.fontSize      || 32,
+                        textColor:     saved.textColor     || '#d9d7ff',
+                        mediaPosition: saved.mediaPosition || 'center',
+                        effects:       saved.effects       || { vibrate: false, bounce: false, zoom: false },
+                        duration:      saved.duration      || 8,
+                        status:       'pending',
+                        isTest:        true,
+                        testEvent:     eventType,
+                        createdAt:     serverTimestamp(),
+                        updatedAt:     serverTimestamp()
+                    };
+                } else {
+                    // Sin alertas guardadas: usar valores del formulario
+                    alertData = buildAlertPayload(tipoSelect.value, '', text, {
+                        extra: { isTest: true, testEvent: eventType }
+                    });
+                    alertData.createdAt = serverTimestamp();
+                }
+
+                await addDoc(collection(db, 'liveAlerts'), alertData);
+                setStatus(`✅ Prueba enviada: ${eventType.toUpperCase()}`);
+            } catch (error) {
+                setStatus('Error al enviar prueba: ' + error.message, false);
+            }
+        };
+
         const updateOverlayLink = () => {
             const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
             const url = canal ? `${window.location.origin}/html/overlay.html?canal=${canal}` : `${window.location.origin}/html/overlay.html`;
             overlayLinkInput.value = url;
+            return url;
         };
 
         onAuthStateChanged(auth, (user) => {
@@ -1038,6 +1182,14 @@
             updateMediaPreview();
             createAlert('video', sampleAssets.video, 'Prueba');
         });
+
+        testAlertButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const eventType = btn.dataset.testEvent || 'follow';
+                triggerTestAlert(eventType);
+            });
+        });
+
         canalInput.addEventListener('input', updateOverlayLink);
 
         cargarFuentesDeGoogle();
