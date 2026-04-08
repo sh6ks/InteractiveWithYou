@@ -149,6 +149,19 @@
             text-align: center;
             margin-top: 4px;
         }
+        .plan-refresh-wrap {
+            margin-top: 8px;
+            display: grid;
+            gap: 8px;
+        }
+        .plan-refresh-status {
+            font-size: 0.8rem;
+            text-align: center;
+            color: #9a94c2;
+            min-height: 18px;
+        }
+        .plan-refresh-status.ok { color: #8ff0b8; }
+        .plan-refresh-status.error { color: #ffb7bf; }
 
         /* backend status */
         .backend-status {
@@ -383,6 +396,10 @@
             <div class="plan-cta">
                 <button id="btnGetPremium" class="btn btn-primary" type="button"><i class="fa-solid fa-star"></i> Obtener Premium — $2 USD</button>
                 <p class="plan-note" id="premiumNote">Precio de lanzamiento. Pagá por MercadoPago o PayPal y avisanos por Twitch o Contacto para activarlo.</p>
+                <div class="plan-refresh-wrap">
+                    <button id="btnRefreshPlan" class="btn btn-outline" type="button"><i class="fa-solid fa-rotate"></i> Revalidar plan ahora</button>
+                    <p id="planRefreshStatus" class="plan-refresh-status"></p>
+                </div>
             </div>
         </div>
     </div>
@@ -496,6 +513,8 @@
         const btnPremium = document.getElementById('btnGetPremium');
         const premiumNote = document.getElementById('premiumNote');
 
+        btnPremium.onclick = null;
+
         if (context.isOwner) {
             badge.className = 'badge-current premium';
             badge.innerHTML = '<i class="fa-solid fa-crown"></i> Owner / Admin';
@@ -515,9 +534,45 @@
         } else {
             badge.className = 'badge-current';
             badge.innerHTML = '<i class="fa-solid fa-layer-group"></i> Plan Free';
-            btnPremium.addEventListener('click', openPaymentModal);
+            btnPremium.className = 'btn btn-primary';
+            btnPremium.disabled = false;
+            btnPremium.innerHTML = '<i class="fa-solid fa-star"></i> Obtener Premium — $2 USD';
+            btnPremium.onclick = openPaymentModal;
             document.getElementById('premiumNote').innerHTML =
                 'El pago es manual por ahora. Hacé tu aporte y luego <strong>avisá por Twitch o en Contacto</strong> para que te activemos Premium.';
+        }
+    }
+
+    function setPlanRefreshStatus(message, type = '') {
+        const status = document.getElementById('planRefreshStatus');
+        status.className = `plan-refresh-status ${type}`.trim();
+        status.textContent = message;
+    }
+
+    async function refreshPlanNow() {
+        const btn = document.getElementById('btnRefreshPlan');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Revalidando...';
+        setPlanRefreshStatus('Consultando configuración premium más reciente...');
+
+        try {
+            if (window.parent && typeof window.parent.refreshCurrentPlanContext === 'function') {
+                await window.parent.refreshCurrentPlanContext();
+                renderCurrentPlan();
+                const context = getPlanContext();
+                if (context.isOwner || context.plan === 'premium') {
+                    setPlanRefreshStatus('Plan actualizado: ya figura como Premium.', 'ok');
+                } else {
+                    setPlanRefreshStatus('Todavía figura como Free. Verificá que el usuario esté agregado en Planes (Admin).', 'error');
+                }
+            } else {
+                setPlanRefreshStatus('No se pudo revalidar desde el panel principal.', 'error');
+            }
+        } catch {
+            setPlanRefreshStatus('No se pudo actualizar el plan ahora. Probá en unos segundos.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Revalidar plan ahora';
         }
     }
 
@@ -574,6 +629,7 @@
     document.getElementById('paymentModal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closePaymentModal();
     });
+    document.getElementById('btnRefreshPlan').addEventListener('click', refreshPlanNow);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closePaymentModal();
     });

@@ -188,9 +188,16 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                 .filter((feature) => valid.has(feature));
         };
 
+        const normalizePremiumIdentifier = (value) => {
+            const raw = String(value || '').trim().toLowerCase();
+            if (!raw) return '';
+            // Permite cargar @usuario y tratarlo como usuario de Twitch.
+            return raw.startsWith('@') ? raw.slice(1) : raw;
+        };
+
         const sanitizePremiumUsers = (list) => {
             return [...new Set((Array.isArray(list) ? list : []))]
-                .map((value) => String(value || '').trim().toLowerCase())
+                .map((value) => normalizePremiumIdentifier(value))
                 .filter((value) => value.length > 0)
                 .slice(0, 500);
         };
@@ -244,9 +251,9 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         const isManuallyPremium = (firebaseUser = null) => {
             const identifiers = new Set();
             const twitchName = localStorage.getItem('nombreTwitch');
-            if (twitchName) identifiers.add(String(twitchName).trim().toLowerCase());
-            if (firebaseUser?.uid) identifiers.add(String(firebaseUser.uid).trim().toLowerCase());
-            if (firebaseUser?.email) identifiers.add(String(firebaseUser.email).trim().toLowerCase());
+            if (twitchName) identifiers.add(normalizePremiumIdentifier(twitchName));
+            if (firebaseUser?.uid) identifiers.add(normalizePremiumIdentifier(firebaseUser.uid));
+            if (firebaseUser?.email) identifiers.add(normalizePremiumIdentifier(firebaseUser.email));
             for (const identifier of identifiers) {
                 if (premiumUsersConfig.includes(identifier)) return true;
             }
@@ -306,6 +313,20 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             isOwner,
             canUseRealChatCommands: isOwner || currentPlan === PLAN_PREMIUM
         });
+
+        window.refreshCurrentPlanContext = async () => {
+            const firebaseUser = currentAuthUser;
+            isOwner = isOwnerAccount(firebaseUser);
+            const monetizationConfig = await resolveMonetizationConfig();
+            paidFeaturesConfig = monetizationConfig.paidFeatures;
+            premiumUsersConfig = monetizationConfig.premiumUsers;
+            applyPaidFeaturesConfig(paidFeaturesConfig);
+            applyPremiumUsersConfig(premiumUsersConfig);
+            currentPlan = await resolveCurrentPlan(firebaseUser);
+            localStorage.setItem(PLAN_STORAGE_KEY, currentPlan);
+            renderAuthState(firebaseUser, true);
+            return window.getCurrentUserPlanContext();
+        };
 
         // Cache for backend health check (avoid flooding on every toggle)
         let backendStatusCache = null;
@@ -464,7 +485,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         };
 
         // Actualiza el UI del dashboard según si el usuario está autenticado.
-        const renderAuthState = (firebaseUser = null) => {
+        const renderAuthState = (firebaseUser = null, keepCurrentSection = false) => {
             const nombreTwitch = localStorage.getItem('nombreTwitch');
             const fotoTwitch = localStorage.getItem('fotoTwitch');
             const planBadge = currentPlan === PLAN_PREMIUM ? 'Premium' : 'Free';
@@ -477,7 +498,9 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                         <span class="link_name">Salir (${nombreTwitch}) · ${planBadge}</span>
                     </a>
                 `;
-                window.cargarSeccion(getSeccionPersistida());
+                if (!keepCurrentSection) {
+                    window.cargarSeccion(getSeccionPersistida());
+                }
                 return;
             }
 
@@ -488,7 +511,9 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                         <span class="link_name">Salir · ${planBadge}</span>
                     </a>
                 `;
-                window.cargarSeccion(getSeccionPersistida());
+                if (!keepCurrentSection) {
+                    window.cargarSeccion(getSeccionPersistida());
+                }
                 return;
             }
 
