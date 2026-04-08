@@ -35,6 +35,74 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const canalSolicitado = urlParams.get('canal')?.toLowerCase();
+        const ADMIN_DEBUG_CHANNEL = 'shekssink';
+        const ADMIN_DEBUG_KEY_HASH = 'a527a1eea48b036685526e459234ea7cb0b8c52614721640cb8e489ac83595d0';
+        const ADMIN_DEBUG_STORAGE_KEY = 'iwy_admin_debug_hash';
+        let adminDebugEnabled = false;
+
+        async function sha256Hex(value) {
+            if (!window.crypto?.subtle) return '';
+            const data = new TextEncoder().encode(String(value || ''));
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function configureAdminDebug() {
+            const debugFlag = urlParams.get('debug') === '1';
+            if (!debugFlag) return;
+            if (!canalSolicitado || canalSolicitado !== ADMIN_DEBUG_CHANNEL) return;
+
+            try {
+                // Compatibilidad: si viene debug_key en URL, se migra a localStorage y ya no hace falta compartirla luego.
+                const urlDebugKey = (urlParams.get('debug_key') || '').trim();
+                if (urlDebugKey) {
+                    const urlHash = await sha256Hex(urlDebugKey);
+                    if (urlHash === ADMIN_DEBUG_KEY_HASH) {
+                        localStorage.setItem(ADMIN_DEBUG_STORAGE_KEY, urlHash);
+                    }
+                }
+
+                const savedHash = localStorage.getItem(ADMIN_DEBUG_STORAGE_KEY) || '';
+                if (savedHash === ADMIN_DEBUG_KEY_HASH) {
+                    adminDebugEnabled = true;
+                    console.info('[IWY debug] Modo admin activo para', canalSolicitado);
+                }
+            } catch {
+                adminDebugEnabled = false;
+            }
+        }
+
+        window.iwySetAdminDebugKey = async function(key) {
+            const raw = String(key || '').trim();
+            if (!raw) {
+                console.warn('[IWY debug] Falta clave');
+                return false;
+            }
+            const hash = await sha256Hex(raw);
+            if (hash !== ADMIN_DEBUG_KEY_HASH) {
+                console.warn('[IWY debug] Clave inválida');
+                return false;
+            }
+            localStorage.setItem(ADMIN_DEBUG_STORAGE_KEY, hash);
+            console.info('[IWY debug] Clave guardada localmente en este navegador/OBS');
+            return true;
+        };
+
+        window.iwyDisableAdminDebug = function() {
+            localStorage.removeItem(ADMIN_DEBUG_STORAGE_KEY);
+            adminDebugEnabled = false;
+            console.info('[IWY debug] Debug admin desactivado en este navegador/OBS');
+        };
+
+        function debugLog(...args) {
+            if (!adminDebugEnabled) return;
+            console.log('[IWY debug]', ...args);
+        }
+
+        function debugWarn(...args) {
+            if (!adminDebugEnabled) return;
+            console.warn('[IWY debug]', ...args);
+        }
 
         // Inicializa la configuración del widget y carga la fuente antes de conectar.
         async function iniciarWidget() {
@@ -520,6 +588,12 @@
             }
 
             await Promise.all(tasks);
+            debugLog('Emotes de terceros cargados', {
+                canal,
+                twitchUserId,
+                total: Object.keys(emoteMap).length,
+                providers
+            });
             return emoteMap;
         }
 
@@ -837,11 +911,18 @@
                 if (roomEmotesAttempted) return;
                 if (!roomId) return;
                 roomEmotesAttempted = true;
+                debugLog('Intentando refresh de emotes por room-id', roomId);
                 try {
                     const roomEmotes = await fetchThirdPartyEmotes(canal, roomId, emoteProviders || {});
                     Object.assign(thirdPartyEmoteMap, roomEmotes || {});
+                    debugLog('Refresh por room-id completado', {
+                        roomId,
+                        added: Object.keys(roomEmotes || {}).length,
+                        total: Object.keys(thirdPartyEmoteMap).length
+                    });
                 } catch (error) {
                     console.warn('No se pudieron refrescar emotes por room-id:', error);
+                    debugWarn('Fallo refresh de emotes por room-id', roomId, error?.message || error);
                 }
             };
 
@@ -849,11 +930,18 @@
                 if (!senderId) return;
                 if (loadedSenderEmoteIds.has(senderId)) return;
                 loadedSenderEmoteIds.add(senderId);
+                debugLog('Intentando carga de emotes por user-id emisor', senderId);
                 try {
                     const senderEmotes = await fetchAggregatedThirdPartyEmotes(senderId, emoteProviders || {});
                     Object.assign(thirdPartyEmoteMap, senderEmotes || {});
+                    debugLog('Carga por user-id completada', {
+                        senderId,
+                        added: Object.keys(senderEmotes || {}).length,
+                        total: Object.keys(thirdPartyEmoteMap).length
+                    });
                 } catch (error) {
                     console.warn('No se pudieron cargar emotes del emisor:', error);
+                    debugWarn('Fallo carga de emotes por user-id', senderId, error?.message || error);
                 }
             };
 
@@ -912,6 +1000,12 @@
 
                     const usuario = decodeIrcTagValue(tags['display-name']) || login;
                     const colorTwitch = tags['color'] || colorBorde;
+                    debugLog('Procesando mensaje', {
+                        login,
+                        roomId: tags['room-id'] || '',
+                        userId: tags['user-id'] || '',
+                        emoteMapSize: Object.keys(thirdPartyEmoteMap).length
+                    });
                     const mensajeHtml = renderMessageWithEmotes(mensajeRaw, tags, thirdPartyEmoteMap);
                     const avatarHtml = buildChannelAvatar(twitchAssets);
                     const badgesHtml = buildBadgeIcons(tags, twitchAssets?.badgeSets);
@@ -972,11 +1066,16 @@
             });
         }
 
-        if (!canalSolicitado) {
-            mostrarEjemplos('Vista previa del widget. Agrega ?canal=tuCanal');
-        } else {
-            iniciarWidget();
+        async function bootWidget() {
+            await configureAdminDebug();
+            if (!canalSolicitado) {
+                mostrarEjemplos('Vista previa del widget. Agrega ?canal=tuCanal');
+            } else {
+                iniciarWidget();
+            }
         }
+
+        bootWidget();
         
     </script>
 </body>
