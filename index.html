@@ -474,6 +474,40 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             }
         };
 
+        const syncStoredTwitchTokenToFirestore = async () => {
+            const canal = localStorage.getItem('nombreTwitch')?.toLowerCase();
+            const token = localStorage.getItem('twitchAccessToken');
+            if (!canal || !token) return false;
+
+            let firebaseUid = auth.currentUser?.uid || localStorage.getItem('firebaseUid');
+            if (!firebaseUid) {
+                try {
+                    const anonCred = await signInAnonymously(auth);
+                    firebaseUid = anonCred.user.uid;
+                } catch (e) {
+                    console.warn('[IWY] No se pudo iniciar sesión anónima para sync Twitch token:', e);
+                    return false;
+                }
+            }
+
+            if (!firebaseUid) return false;
+            localStorage.setItem('firebaseUid', firebaseUid);
+
+            try {
+                await setDoc(doc(db, 'twitchBots', canal), {
+                    channel: canal,
+                    login: canal,
+                    accessToken: token,
+                    uid: firebaseUid,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+                return true;
+            } catch (err) {
+                console.warn('[IWY] No se pudo sincronizar token Twitch en Firestore:', err);
+                return false;
+            }
+        };
+
         // Consulta información del usuario de Twitch usando el token recibido.
         const fetchTwitchUser = async (token) => {
             const response = await fetch('https://api.twitch.tv/helix/users', {
@@ -552,32 +586,8 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             localStorage.setItem('fotoTwitch', user.profile_image_url);
             localStorage.setItem('twitchAccessToken', token);
 
-            // Asegura una sesión Firebase (Google si ya inició sesión, anónima si no).
-            let firebaseUid = auth.currentUser?.uid;
-            if (!firebaseUid) {
-                try {
-                    const anonCred = await signInAnonymously(auth);
-                    firebaseUid = anonCred.user.uid;
-                } catch (e) {
-                    console.warn('[IWY] No se pudo iniciar sesión anónima:', e);
-                }
-            }
-            if (firebaseUid) localStorage.setItem('firebaseUid', firebaseUid);
-
-            // Guarda el token en Firestore para que el overlay EventSub WebSocket lo use.
-            if (firebaseUid) {
-                try {
-                    await setDoc(doc(db, 'twitchBots', user.login.toLowerCase()), {
-                        channel: user.login.toLowerCase(),
-                        login: user.login.toLowerCase(),
-                        accessToken: token,
-                        uid: firebaseUid,
-                        updatedAt: serverTimestamp()
-                    }, { merge: true });
-                } catch (err) {
-                    console.warn('[IWY] No se pudo guardar token en Firestore:', err);
-                }
-            }
+            // Guarda/sincroniza el token en Firestore para que el overlay EventSub WebSocket lo use.
+            await syncStoredTwitchTokenToFirestore();
 
             await linkTwitchBotToken(user.login, token);
 
@@ -609,6 +619,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             currentAuthUser = user;
             isOwner = isOwnerAccount(user);
             if (user) localStorage.setItem('firebaseUid', user.uid);
+            await syncStoredTwitchTokenToFirestore();
             const monetizationConfig = await resolveMonetizationConfig();
             paidFeaturesConfig = monetizationConfig.paidFeatures;
             premiumUsersConfig = monetizationConfig.premiumUsers;
