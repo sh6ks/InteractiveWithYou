@@ -541,7 +541,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, getDoc, setDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -618,6 +618,26 @@
             return uid;
         };
         const getCanal = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
+        const getTwitchToken = () => localStorage.getItem('twitchAccessToken') || '';
+
+        const ensureTwitchTokenPersisted = async (canal) => {
+            const token = String(getTwitchToken() || '').trim();
+            if (!canal || !token) return false;
+            const uid = await requireUid();
+            if (!uid) return false;
+            try {
+                await setDoc(doc(db, 'twitchBots', canal), {
+                    channel: canal,
+                    login: canal,
+                    accessToken: token,
+                    uid,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+                return true;
+            } catch (_) {
+                return false;
+            }
+        };
 
         const statusBox = document.getElementById('statusBox');
         const redeemList = document.getElementById('redeemList');
@@ -865,6 +885,9 @@
             }
 
             try {
+                // Auto-repair: si ya hay token en sesión del navegador, persístelo en Firestore.
+                await ensureTwitchTokenPersisted(canal);
+
                 // Verifica si el token está almacenado en Firestore (guardado al hacer login).
                 const botSnap = await getDoc(doc(db, 'twitchBots', canal));
                 const overlaySnap = await getDoc(doc(db, 'overlayPresence', canal));
