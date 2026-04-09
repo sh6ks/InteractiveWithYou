@@ -511,6 +511,8 @@
 
         const auth = getAuth(app);
         let currentUid = localStorage.getItem('firebaseUid') || null;
+        let authInitErrorCode = '';
+        let authInitErrorMessage = '';
         // Sincroniza uid con el estado de Firebase Auth.
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -523,10 +525,26 @@
             signInAnonymously(auth).then((cred) => {
                 currentUid = cred.user.uid;
                 localStorage.setItem('firebaseUid', cred.user.uid);
-            }).catch(() => {});
+            }).catch((err) => {
+                authInitErrorCode = String(err?.code || '');
+                authInitErrorMessage = String(err?.message || '');
+                console.warn('[IWY] Firebase anonymous auth failed:', err);
+            });
         }
 
         const getUid = () => auth.currentUser?.uid || currentUid || localStorage.getItem('firebaseUid') || null;
+        const getUidErrorHint = () => {
+            if (authInitErrorCode.includes('auth/operation-not-allowed')) {
+                return 'Firebase Anonymous Auth esta desactivado. Activalo en Firebase Console > Authentication > Sign-in method > Anonymous.';
+            }
+            if (authInitErrorCode.includes('auth/unauthorized-domain')) {
+                return 'Dominio no autorizado en Firebase Auth. Agrega este dominio en Authentication > Settings > Authorized domains.';
+            }
+            if (authInitErrorMessage) {
+                return `Detalle Firebase Auth: ${authInitErrorMessage}`;
+            }
+            return 'No se pudo validar tu sesion de Firebase. Recarga la pagina e intenta de nuevo.';
+        };
         const requireUid = async () => {
             let uid = getUid();
             if (uid) return uid;
@@ -537,7 +555,10 @@
                     currentUid = uid;
                     localStorage.setItem('firebaseUid', uid);
                 }
-            } catch (_) {}
+            } catch (err) {
+                authInitErrorCode = String(err?.code || '');
+                authInitErrorMessage = String(err?.message || '');
+            }
             return uid;
         };
         const getCanal = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
@@ -1095,7 +1116,7 @@
 
             const uid = await requireUid();
             if (!uid) {
-                redeemList.innerHTML = '<div class="item"><div class="item-title">Esperando autenticacion de Firebase. Recarga la pagina e intenta de nuevo.</div></div>';
+                redeemList.innerHTML = `<div class="item"><div class="item-title">${getUidErrorHint()}</div></div>`;
                 return;
             }
             const q = query(collection(db, 'channelPointRedeems'), where('canal', '==', canal), where('uid', '==', uid));
@@ -1372,7 +1393,7 @@
             const canal = getCanal();
             if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
             const uid = await requireUid();
-            if (!uid) return showStatus('No se pudo validar tu sesion Firebase. Recarga e intenta de nuevo.', false);
+            if (!uid) return showStatus(getUidErrorHint(), false);
             const canonicalName = redeemName.value.trim();
             redeemReward.value = canonicalName;
             if (!canonicalName || !redeemAssetUrl.value.trim()) {
@@ -1460,7 +1481,7 @@
                 const canal = getCanal();
                 if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
                 const uid = await requireUid();
-                if (!uid) return showStatus('No se pudo validar tu sesion Firebase. Recarga e intenta de nuevo.', false);
+                if (!uid) return showStatus(getUidErrorHint(), false);
                 const urls = await resolveRainEmoteUrls();
                 const requestedCount = Math.max(10, Number(rainCount.value) || 30);
                 const requestedSize = Math.max(16, Math.min(96, Number(rainEmoteSize.value) || 40));
@@ -1528,7 +1549,7 @@
                 const canal = getCanal();
                 if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
                 const uid = await requireUid();
-                if (!uid) return showStatus('No se pudo validar tu sesion Firebase. Recarga e intenta de nuevo.', false);
+                if (!uid) return showStatus(getUidErrorHint(), false);
                 const urls = await resolveRainEmoteUrls();
                 const requestedCount = Math.max(10, Number(rainCount.value) || 30);
                 const requestedSize = Math.max(16, Math.min(96, Number(rainEmoteSize.value) || 40));
@@ -1569,7 +1590,7 @@
                 const canal = getCanal();
                 if (!canal) return showStatus('Inicia sesión con Twitch para reparar canjes.', false);
                 const uid = await requireUid();
-                if (!uid) return showStatus('No se pudo validar tu sesion Firebase. Recarga e intenta de nuevo.', false);
+                if (!uid) return showStatus(getUidErrorHint(), false);
 
                 const targetId = selectedRedeemType === 'emote_rain' && selectedRedeemId
                     ? selectedRedeemId
