@@ -94,6 +94,7 @@
         // Script del overlay: recibe alertas pendientes desde Firestore y las muestra visualmente.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, addDoc, getDocs, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -106,6 +107,12 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+        let overlayUid = null;
+        // El overlay necesita sesión Firebase para escribir alertas/efectos a Firestore.
+        signInAnonymously(auth).then((cred) => {
+            overlayUid = cred.user.uid;
+        }).catch(() => {});
 
         const urlParams = new URLSearchParams(window.location.search);
         const canalParam = urlParams.get('canal')?.toLowerCase();
@@ -142,6 +149,8 @@
                 extra ? `Info: ${extra}` : ''
             ].filter(Boolean).join('\n');
         };
+
+        const getOverlayUid = () => overlayUid || auth.currentUser?.uid || null;
 
         const inferAnimation = (data) => {
             if (data.animation) return data.animation;
@@ -531,8 +540,11 @@
             if (String(redeem.redeemType || '').toLowerCase() === 'emote_rain') {
                 const urls = Array.isArray(cfg.emoteUrls) ? cfg.emoteUrls.filter(Boolean) : [];
                 if (!urls.length) return;
+                const uid = getOverlayUid();
+                if (!uid) return;
                 await addDoc(collection(db, 'liveEffects'), {
                     canal: canalParam,
+                    uid,
                     status: 'pending',
                     effectType: 'emote_rain',
                     duration: Math.max(3, Number(cfg.duration) || 8),
@@ -550,8 +562,11 @@
 
             const assetUrl = String(cfg.assetUrl || '').trim();
             if (!assetUrl) return;
+            const uid = getOverlayUid();
+            if (!uid) return;
             await addDoc(collection(db, 'liveAlerts'), {
                 canal: canalParam,
+                uid,
                 type: String(cfg.type || 'image'),
                 eventType: 'channel_points',
                 nombre: String(redeem.nombre || 'Canje de puntos').trim(),

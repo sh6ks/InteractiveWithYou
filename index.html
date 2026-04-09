@@ -92,7 +92,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
     <script type="module">
         // Script principal: inicializa Firebase, gestiona autenticación, sidebar y carga de secciones.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Configuración de Firebase para autenticación y acceso a datos.
@@ -552,16 +552,31 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             localStorage.setItem('fotoTwitch', user.profile_image_url);
             localStorage.setItem('twitchAccessToken', token);
 
+            // Asegura una sesión Firebase (Google si ya inició sesión, anónima si no).
+            let firebaseUid = auth.currentUser?.uid;
+            if (!firebaseUid) {
+                try {
+                    const anonCred = await signInAnonymously(auth);
+                    firebaseUid = anonCred.user.uid;
+                } catch (e) {
+                    console.warn('[IWY] No se pudo iniciar sesión anónima:', e);
+                }
+            }
+            if (firebaseUid) localStorage.setItem('firebaseUid', firebaseUid);
+
             // Guarda el token en Firestore para que el overlay EventSub WebSocket lo use.
-            try {
-                await setDoc(doc(db, 'twitchBots', user.login.toLowerCase()), {
-                    channel: user.login.toLowerCase(),
-                    login: user.login.toLowerCase(),
-                    accessToken: token,
-                    updatedAt: serverTimestamp()
-                }, { merge: true });
-            } catch (err) {
-                console.warn('[IWY] No se pudo guardar token en Firestore:', err);
+            if (firebaseUid) {
+                try {
+                    await setDoc(doc(db, 'twitchBots', user.login.toLowerCase()), {
+                        channel: user.login.toLowerCase(),
+                        login: user.login.toLowerCase(),
+                        accessToken: token,
+                        uid: firebaseUid,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+                } catch (err) {
+                    console.warn('[IWY] No se pudo guardar token en Firestore:', err);
+                }
             }
 
             await linkTwitchBotToken(user.login, token);
@@ -593,6 +608,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         onAuthStateChanged(auth, async (user) => {
             currentAuthUser = user;
             isOwner = isOwnerAccount(user);
+            if (user) localStorage.setItem('firebaseUid', user.uid);
             const monetizationConfig = await resolveMonetizationConfig();
             paidFeaturesConfig = monetizationConfig.paidFeatures;
             premiumUsersConfig = monetizationConfig.premiumUsers;

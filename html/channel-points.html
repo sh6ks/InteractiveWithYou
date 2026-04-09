@@ -491,6 +491,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -508,6 +509,24 @@
         const CLOUDINARY_UPLOAD_PRESET = 'alerts_preset';
         const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
+        const auth = getAuth(app);
+        let currentUid = localStorage.getItem('firebaseUid') || null;
+        // Sincroniza uid con el estado de Firebase Auth.
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUid = user.uid;
+                localStorage.setItem('firebaseUid', user.uid);
+            }
+        });
+        // Garantiza una sesión (anónima si no hay Google auth) para poder escribir a Firestore.
+        if (!auth.currentUser) {
+            signInAnonymously(auth).then((cred) => {
+                currentUid = cred.user.uid;
+                localStorage.setItem('firebaseUid', cred.user.uid);
+            }).catch(() => {});
+        }
+
+        const getUid = () => auth.currentUser?.uid || currentUid || localStorage.getItem('firebaseUid') || null;
         const getCanal = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
 
         const statusBox = document.getElementById('statusBox');
@@ -637,6 +656,7 @@
                 if (!urls.length) return showStatus('Ese canje no tiene emotes configurados.', false);
                 await addDoc(collection(db, 'liveEffects'), {
                     canal,
+                    uid: getUid(),
                     status: 'pending',
                     effectType: 'emote_rain',
                     duration: Math.max(3, Number(cfg.duration) || 8),
@@ -656,6 +676,7 @@
             if (!assetUrl) return showStatus('Ese canje media no tiene asset URL.', false);
             await addDoc(collection(db, 'liveAlerts'), {
                 canal,
+                uid: getUid(),
                 type: String(cfg.type || 'image'),
                 eventType: 'channel_points',
                 nombre: data?.nombre || 'Canje de media',
@@ -1059,7 +1080,10 @@
                 return;
             }
 
-            const q = query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
+            const uid = getUid();
+            const q = uid
+                ? query(collection(db, 'channelPointRedeems'), where('canal', '==', canal), where('uid', '==', uid))
+                : query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
             const snap = await getDocs(q);
             if (snap.empty) {
                 redeemList.innerHTML = '<div class="item"><div class="item-title">No hay canjes guardados todavía.</div></div>';
@@ -1117,7 +1141,11 @@
         };
 
         const getExistingRainRedeemDoc = async (canal) => {
-            const snap = await getDocs(query(collection(db, 'channelPointRedeems'), where('canal', '==', canal)));
+            const uid = getUid();
+            const q = uid
+                ? query(collection(db, 'channelPointRedeems'), where('canal', '==', canal), where('uid', '==', uid))
+                : query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
+            const snap = await getDocs(q);
             const rainDoc = snap.docs.find((d) => String(d.data()?.redeemType || '').toLowerCase() === 'emote_rain');
             return rainDoc || null;
         };
@@ -1224,7 +1252,10 @@
             const normalizeReward = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
             const fallbackLocalSim = async () => {
-                const redeemsQuery = query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
+                const uid = getUid();
+                const redeemsQuery = uid
+                    ? query(collection(db, 'channelPointRedeems'), where('canal', '==', canal), where('uid', '==', uid))
+                    : query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
                 const redeemsSnap = await getDocs(redeemsQuery);
                 const rewardKey = normalizeReward(payload.rewardName);
 
@@ -1249,6 +1280,7 @@
 
                     await addDoc(collection(db, 'liveEffects'), {
                         canal,
+                        uid: getUid(),
                         rewardName: payload.rewardName,
                         triggeredBy: {
                             userLogin: payload.userLogin,
@@ -1276,6 +1308,7 @@
 
                 await addDoc(collection(db, 'liveAlerts'), {
                     canal,
+                    uid: getUid(),
                     rewardName: payload.rewardName,
                     triggeredBy: {
                         userLogin: payload.userLogin,
@@ -1333,6 +1366,7 @@
 
             const payload = {
                 canal,
+                uid: getUid(),
                 redeemType: 'media',
                 nombre: canonicalName,
                 rewardName: canonicalName,
@@ -1377,6 +1411,7 @@
 
             await addDoc(collection(db, 'liveAlerts'), {
                 canal,
+                uid: getUid(),
                 type: redeemType.value,
                 eventType: 'channel_points',
                 nombre: redeemName.value.trim() || 'Canje de media',
@@ -1420,6 +1455,7 @@
 
                 const payload = {
                     canal,
+                    uid: getUid(),
                     redeemType: 'emote_rain',
                     nombre: canonicalName,
                     rewardName: canonicalName,

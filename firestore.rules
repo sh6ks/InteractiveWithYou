@@ -2,9 +2,12 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Configuración de chat widget (config.html, commands.html) ──────────────
     match /usuarios/{docId} {
       allow read: if true;
-      allow write: if request.resource.data.canal is string
+      allow write: if request.auth != null
+        && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0
         && request.resource.data.canal.size() <= 40
         && request.resource.data.color is string
@@ -42,39 +45,68 @@ service cloud.firestore {
         );
     }
 
-    // Tokens de Twitch – el overlay lee esto para abrir el WebSocket de EventSub.
+    // ── Tokens de Twitch – solo el dueño (uid match) puede escribir ────────────
     match /twitchBots/{channel} {
       allow read: if true;
-      allow write: if request.resource.data.accessToken is string
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.accessToken is string
         && request.resource.data.accessToken.size() > 0
         && request.resource.data.channel is string
         && request.resource.data.channel.size() > 0;
+      allow update: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
     }
 
-    // Canjes configurados – lectura pública (overlay y dashboard la necesitan).
+    // ── Canjes configurados – solo el dueño puede escribir/eliminar ───────────
     match /channelPointRedeems/{docId} {
       allow read: if true;
-      allow write: if request.resource.data.canal is string
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0
         && request.resource.data.canal.size() <= 40;
+      allow update: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
     }
 
-    // Alertas y efectos en vivo – escritura desde overlay/dashboard, lectura desde overlay.
+    // ── Alertas y efectos en vivo – cualquier usuario autenticado puede escribir
+    // (incluye anónimos del overlay en OBS)
     match /liveAlerts/{docId} {
       allow read: if true;
-      allow write: if request.resource.data.canal is string
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0;
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
     }
 
     match /liveEffects/{docId} {
       allow read: if true;
-      allow write: if request.resource.data.canal is string
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0;
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
     }
 
-    // Regla de respaldo para el resto de colecciones (comandos, bots, etc.)
+    // ── Resto de colecciones (comandos, bots, etc.) – requiere autenticación ───
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 6, 1);
+      allow read, write: if request.auth != null;
     }
   }
 }

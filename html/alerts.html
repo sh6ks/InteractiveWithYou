@@ -814,7 +814,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -828,6 +828,9 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        if (!auth.currentUser) {
+            signInAnonymously(auth).catch(() => {});
+        }
 
         const CLOUDINARY_CLOUD_NAME = 'dbzcmpwrn';
         const CLOUDINARY_UPLOAD_PRESET = 'alerts_preset';
@@ -1347,6 +1350,7 @@
             const url = (assetUrl || assetInput.value.trim() || fallbackAsset).trim();
             const alertText = (text || textInput.value.trim() || 'Alerta de prueba').trim();
             const soundUrl = options.soundUrl ?? uploadedSoundUrl ?? '';
+            const uid = auth.currentUser?.uid || localStorage.getItem('firebaseUid') || null;
 
             return {
                 canal,
@@ -1463,6 +1467,7 @@
                     // Usar la alerta específica elegida en el picker
                     alertData = {
                         canal,
+                        uid: auth.currentUser?.uid || localStorage.getItem('firebaseUid') || null,
                         type:          savedData.type,
                         assetUrl:      savedData.assetUrl      || '',
                         soundUrl:      savedData.soundUrl      || '',
@@ -1522,6 +1527,7 @@
 
                         alertData = {
                             canal,
+                            uid: auth.currentUser?.uid || localStorage.getItem('firebaseUid') || null,
                             type:          saved.type,
                             assetUrl:      saved.assetUrl      || '',
                             soundUrl:      saved.soundUrl      || '',
