@@ -56,7 +56,10 @@ service cloud.firestore {
         && request.resource.data.channel.size() > 0;
       allow update: if request.auth != null
         && request.resource.data.uid == request.auth.uid
-        && resource.data.uid == request.auth.uid;
+        && (
+          resource.data.uid == request.auth.uid
+          || !('uid' in resource.data)
+        );
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;
     }
@@ -71,7 +74,10 @@ service cloud.firestore {
         && request.resource.data.canal.size() <= 40;
       allow update: if request.auth != null
         && request.resource.data.uid == request.auth.uid
-        && resource.data.uid == request.auth.uid;
+        && (
+          resource.data.uid == request.auth.uid
+          || !('uid' in resource.data)
+        );
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;
     }
