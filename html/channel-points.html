@@ -485,7 +485,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -552,10 +552,119 @@
             canal: true
         };
 
+        let selectedRedeemId = '';
+        let selectedRedeemType = '';
+
         const showStatus = (message, ok = true) => {
             statusBox.style.display = 'block';
             statusBox.classList.toggle('error', !ok);
             statusBox.textContent = message;
+        };
+
+        const setSelectedRedeem = (id = '', type = '') => {
+            selectedRedeemId = id;
+            selectedRedeemType = type;
+            document.querySelectorAll('.item').forEach((el) => {
+                el.style.borderColor = 'rgba(145,71,255,0.25)';
+                el.style.boxShadow = 'none';
+            });
+            if (id) {
+                const current = document.querySelector(`.item[data-id="${id}"]`);
+                if (current) {
+                    current.style.borderColor = 'rgba(145,71,255,0.72)';
+                    current.style.boxShadow = '0 0 0 1px rgba(145,71,255,0.45) inset';
+                }
+            }
+        };
+
+        const loadRedeemIntoForm = (id, data) => {
+            const type = String(data?.redeemType || 'media');
+            setSelectedRedeem(id, type);
+
+            if (type === 'emote_rain') {
+                setMode('emote_rain');
+                rainName.value = data?.nombre || '';
+                rainReward.value = data?.rewardName || data?.nombre || '';
+                rainDuration.value = Math.max(3, Number(data?.config?.duration) || 8);
+                rainCount.value = Math.max(10, Number(data?.config?.count) || 30);
+                rainMotion.value = data?.config?.motion || 'auto';
+
+                const cfgSources = data?.config?.emoteSources || {};
+                rainSources.sevenTv = cfgSources.sevenTv !== false;
+                rainSources.bttv = cfgSources.bttv !== false;
+                rainSources.ffz = cfgSources.ffz !== false;
+                rainSources.canal = cfgSources.canal !== false;
+                providerButtons.forEach((btn) => {
+                    const provider = btn.dataset.provider;
+                    btn.classList.toggle('active', !!rainSources[provider]);
+                });
+
+                if (rainPreviewStage.style.display !== 'none') startRainPreview();
+                showStatus(`Canje cargado para editar: ${data?.nombre || 'Lluvia de emotes'}`);
+                return;
+            }
+
+            setMode('media');
+            redeemName.value = data?.nombre || '';
+            redeemReward.value = data?.rewardName || data?.nombre || '';
+            redeemType.value = data?.config?.type || 'image';
+            redeemAssetUrl.value = data?.config?.assetUrl || '';
+            redeemSoundUrl.value = data?.config?.soundUrl || '';
+            redeemText.value = data?.config?.text || '';
+            redeemFontSize.value = Math.max(16, Number(data?.config?.fontSize) || 34);
+            redeemTextColor.value = data?.config?.textColor || '#f3efff';
+            redeemMediaPosition.value = data?.config?.mediaPosition || 'center';
+            redeemAnimation.value = data?.config?.animation || 'pulse';
+            renderMediaPreview();
+            showStatus(`Canje cargado para editar: ${data?.nombre || 'Canje de media'}`);
+        };
+
+        const testSavedRedeem = async (data) => {
+            const canal = getCanal();
+            if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
+            const type = String(data?.redeemType || 'media');
+            const cfg = data?.config || {};
+
+            if (type === 'emote_rain') {
+                const urls = Array.isArray(cfg.emoteUrls) ? cfg.emoteUrls.filter(Boolean) : [];
+                if (!urls.length) return showStatus('Ese canje no tiene emotes configurados.', false);
+                await addDoc(collection(db, 'liveEffects'), {
+                    canal,
+                    status: 'pending',
+                    effectType: 'emote_rain',
+                    duration: Math.max(3, Number(cfg.duration) || 8),
+                    count: Math.max(10, Number(cfg.count) || 30),
+                    motion: String(cfg.motion || 'auto'),
+                    emoteUrls: urls,
+                    rewardName: data?.rewardName || data?.nombre || 'Lluvia de emotes',
+                    isTest: true,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+                return showStatus(`Prueba enviada desde canje guardado (${Math.max(10, Number(cfg.count) || 30)} emotes).`);
+            }
+
+            const assetUrl = String(cfg.assetUrl || '').trim();
+            if (!assetUrl) return showStatus('Ese canje media no tiene asset URL.', false);
+            await addDoc(collection(db, 'liveAlerts'), {
+                canal,
+                type: String(cfg.type || 'image'),
+                eventType: 'channel_points',
+                nombre: data?.nombre || 'Canje de media',
+                assetUrl,
+                soundUrl: String(cfg.soundUrl || '').trim(),
+                text: String(cfg.text || '').trim(),
+                fontSize: Number(cfg.fontSize) || 34,
+                textColor: String(cfg.textColor || '#f3efff'),
+                mediaPosition: String(cfg.mediaPosition || 'center'),
+                animation: String(cfg.animation || 'pulse'),
+                status: 'pending',
+                isTest: true,
+                testEvent: 'channel_points',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+            showStatus('Prueba enviada desde canje guardado.');
         };
 
         const setBackendMode = (mode, detail = '') => {
@@ -897,23 +1006,48 @@
                 const data = d.data();
                 const item = document.createElement('div');
                 item.className = 'item';
+                item.dataset.id = d.id;
                 item.innerHTML = `
                     <div>
                         <div class="item-title">${data.nombre || 'Sin nombre'}</div>
                         <div class="item-meta">${data.redeemType === 'media' ? 'Media' : 'Lluvia de emotes'} | Reward: ${data.rewardName || '-'} | ${data.enabled ? 'Activo' : 'Inactivo'}</div>
                     </div>
                     <div class="row">
+                        <button class="btn secondary" type="button" data-action="load">Cargar</button>
+                        <button class="btn secondary" type="button" data-action="test">Probar</button>
                         <button class="btn warn" type="button">Eliminar</button>
                     </div>
                 `;
 
+                item.addEventListener('click', (evt) => {
+                    if (evt.target.closest('button')) return;
+                    loadRedeemIntoForm(d.id, data);
+                });
+
+                item.querySelector('[data-action="load"]').addEventListener('click', () => {
+                    loadRedeemIntoForm(d.id, data);
+                });
+
+                item.querySelector('[data-action="test"]').addEventListener('click', async () => {
+                    try {
+                        await testSavedRedeem(data);
+                    } catch (error) {
+                        showStatus('Error probando canje guardado: ' + (error.message || String(error)), false);
+                    }
+                });
+
                 item.querySelector('.btn.warn').addEventListener('click', async () => {
                     await deleteDoc(doc(db, 'channelPointRedeems', d.id));
+                    if (selectedRedeemId === d.id) setSelectedRedeem('', '');
                     showStatus('Canje eliminado.');
                     loadRedeems();
                 });
 
                 redeemList.appendChild(item);
+
+                if (selectedRedeemId && selectedRedeemId === d.id) {
+                    setSelectedRedeem(d.id, String(data?.redeemType || 'media'));
+                }
             });
         };
 
@@ -1125,7 +1259,7 @@
                 return showStatus('Completa nombre y URL de media.', false);
             }
 
-            await addDoc(collection(db, 'channelPointRedeems'), {
+            const payload = {
                 canal,
                 redeemType: 'media',
                 nombre: canonicalName,
@@ -1142,11 +1276,21 @@
                     animation: redeemAnimation.value || 'pulse',
                     eventType: 'channel_points'
                 },
-                createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
-            });
+            };
 
-            showStatus('Canje de media guardado.');
+            if (selectedRedeemId && selectedRedeemType === 'media') {
+                await updateDoc(doc(db, 'channelPointRedeems', selectedRedeemId), payload);
+                showStatus('Canje de media actualizado.');
+            } else {
+                const created = await addDoc(collection(db, 'channelPointRedeems'), {
+                    ...payload,
+                    createdAt: serverTimestamp()
+                });
+                setSelectedRedeem(created.id, 'media');
+                showStatus('Canje de media guardado.');
+            }
+
             loadRedeems();
         });
 
@@ -1197,7 +1341,7 @@
                     return showStatus('No se pudieron cargar emotes. Verifica sesión Twitch/fuentes activas e intenta de nuevo.', false);
                 }
 
-                await addDoc(collection(db, 'channelPointRedeems'), {
+                const payload = {
                     canal,
                     redeemType: 'emote_rain',
                     nombre: canonicalName,
@@ -1215,11 +1359,20 @@
                         },
                         emoteUrls: urls
                     },
-                    createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
-                });
+                };
 
-                showStatus(`Canje de lluvia guardado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
+                if (selectedRedeemId && selectedRedeemType === 'emote_rain') {
+                    await updateDoc(doc(db, 'channelPointRedeems', selectedRedeemId), payload);
+                    showStatus(`Canje de lluvia actualizado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
+                } else {
+                    const created = await addDoc(collection(db, 'channelPointRedeems'), {
+                        ...payload,
+                        createdAt: serverTimestamp()
+                    });
+                    setSelectedRedeem(created.id, 'emote_rain');
+                    showStatus(`Canje de lluvia guardado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
+                }
                 loadRedeems();
             } catch (error) {
                 showStatus('Error guardando canje de lluvia: ' + (error.message || String(error)), false);
