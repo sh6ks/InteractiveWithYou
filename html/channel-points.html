@@ -95,8 +95,49 @@
 
         .hint { font-size: 0.8rem; color: #b0a9d6; margin-top: 6px; }
 
+        .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .provider-btn {
+            border: 1px solid rgba(145,71,255,0.32);
+            border-radius: 10px;
+            background: rgba(14,12,28,0.82);
+            color: #c7c0ee;
+            padding: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.16s ease;
+        }
+        .provider-btn:hover {
+            border-color: rgba(145,71,255,0.62);
+            background: rgba(145,71,255,0.14);
+        }
+        .provider-btn.active {
+            border-color: #9147ff;
+            background: rgba(145,71,255,0.24);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(145,71,255,0.35) inset;
+        }
+
+        .overlay-link-box {
+            margin-top: 12px;
+            display: grid;
+            gap: 8px;
+            grid-template-columns: 1fr;
+        }
+        .overlay-link-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
     </style>
+    <link rel="stylesheet" href="../css/modern-selects.css">
 </head>
 <body>
     <div class="wrap">
@@ -104,6 +145,14 @@
             <h1>Canjes por puntos del canal</h1>
             <p>Crea canjes para que los puntos del canal disparen acciones en el overlay. Incluye media y lluvia de emotes.</p>
             <p class="hint">Nota: la ejecución automática al recibir canjes reales depende del backend de Twitch. Esta pantalla ya permite configurar todo y probarlo en OBS.</p>
+            <div class="overlay-link-box">
+                <label for="overlayLinkCanjes">Link del overlay para OBS</label>
+                <input id="overlayLinkCanjes" readonly>
+                <div class="overlay-link-actions">
+                    <button class="btn secondary" id="copyOverlayCanjes" type="button">Copiar link</button>
+                    <button class="btn secondary" id="openOverlayCanjes" type="button">Abrir overlay</button>
+                </div>
+            </div>
         </div>
 
         <div class="grid">
@@ -134,14 +183,24 @@
                     <div class="field">
                         <label>URL del media principal</label>
                         <input id="redeemAssetUrl" placeholder="https://...">
+                        <small class="hint" id="redeemAssetUploadInfo">También puedes subir archivo propio.</small>
+                    </div>
+                    <div class="field">
+                        <label>Subir media principal (imagen/video/sonido)</label>
+                        <input id="redeemAssetFile" type="file" accept="image/*,video/*,audio/*">
                     </div>
                     <div class="field">
                         <label>Sonido adicional (opcional)</label>
                         <input id="redeemSoundUrl" placeholder="https://...mp3">
+                        <small class="hint" id="redeemSoundUploadInfo">Opcional: también puedes subir un archivo de sonido.</small>
                     </div>
                     <div class="field">
-                        <label>Texto en pantalla</label>
-                        <input id="redeemText" placeholder="Gracias por el canje!">
+                        <label>Subir sonido adicional (opcional)</label>
+                        <input id="redeemSoundFile" type="file" accept="audio/*">
+                    </div>
+                    <div class="field">
+                        <label>Texto en pantalla (opcional)</label>
+                        <input id="redeemText" placeholder="Déjalo vacío si quieres solo media/sonido">
                     </div>
                     <div class="field">
                         <label>Tamaño de texto</label>
@@ -200,11 +259,24 @@
                         <input id="rainCount" type="number" min="10" max="120" value="30">
                     </div>
                     <div class="field">
-                        <label>URLs de emotes (1 por línea)</label>
-                        <textarea id="rainUrls" placeholder="https://...png\nhttps://...webp"></textarea>
+                        <label>Tipo de salida de emotes</label>
+                        <select id="rainMotion">
+                            <option value="auto" selected>Aleatoria (elige automáticamente)</option>
+                            <option value="top">Desde arriba hacia abajo</option>
+                            <option value="center_burst">Explosión desde el centro</option>
+                            <option value="random_dirs">Direcciones aleatorias</option>
+                            <option value="edges_in">Desde los bordes hacia adentro</option>
+                        </select>
                     </div>
-                    <div class="row">
-                        <button class="btn secondary" id="autofillRainBtn" type="button">Auto-cargar emotes del canal</button>
+                    <div class="field">
+                        <label>Fuentes de emotes para la lluvia</label>
+                        <div class="provider-grid">
+                            <button type="button" class="provider-btn active" data-provider="sevenTv">7TV</button>
+                            <button type="button" class="provider-btn active" data-provider="bttv">BTTV</button>
+                            <button type="button" class="provider-btn active" data-provider="ffz">FFZ</button>
+                            <button type="button" class="provider-btn active" data-provider="canal">Canal (Twitch)</button>
+                        </div>
+                        <small class="hint">Activa/desactiva fuentes: Canal usa los emotes propios de Twitch del streamer automáticamente.</small>
                     </div>
                     <div class="row">
                         <button class="btn" id="saveRainBtn" type="button">Guardar canje</button>
@@ -243,11 +315,17 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const FUNCTIONS_BASE = 'https://us-central1-interactivewithyou.cloudfunctions.net';
+        const CLOUDINARY_CLOUD_NAME = 'dbzcmpwrn';
+        const CLOUDINARY_UPLOAD_PRESET = 'alerts_preset';
+        const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
         const getCanal = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
 
         const statusBox = document.getElementById('statusBox');
         const redeemList = document.getElementById('redeemList');
+        const overlayLinkCanjes = document.getElementById('overlayLinkCanjes');
+        const copyOverlayCanjes = document.getElementById('copyOverlayCanjes');
+        const openOverlayCanjes = document.getElementById('openOverlayCanjes');
 
         const modeMedia = document.getElementById('modeMedia');
         const modeEmoteRain = document.getElementById('modeEmoteRain');
@@ -258,6 +336,10 @@
         const redeemType = document.getElementById('redeemType');
         const redeemAssetUrl = document.getElementById('redeemAssetUrl');
         const redeemSoundUrl = document.getElementById('redeemSoundUrl');
+        const redeemAssetFile = document.getElementById('redeemAssetFile');
+        const redeemSoundFile = document.getElementById('redeemSoundFile');
+        const redeemAssetUploadInfo = document.getElementById('redeemAssetUploadInfo');
+        const redeemSoundUploadInfo = document.getElementById('redeemSoundUploadInfo');
         const redeemText = document.getElementById('redeemText');
         const redeemFontSize = document.getElementById('redeemFontSize');
         const redeemTextColor = document.getElementById('redeemTextColor');
@@ -268,12 +350,94 @@
         const rainReward = document.getElementById('rainReward');
         const rainDuration = document.getElementById('rainDuration');
         const rainCount = document.getElementById('rainCount');
-        const rainUrls = document.getElementById('rainUrls');
+        const rainMotion = document.getElementById('rainMotion');
+        const providerButtons = document.querySelectorAll('.provider-btn');
+
+        const rainSources = {
+            sevenTv: true,
+            bttv: true,
+            ffz: true,
+            canal: true
+        };
 
         const showStatus = (message, ok = true) => {
             statusBox.style.display = 'block';
             statusBox.classList.toggle('error', !ok);
             statusBox.textContent = message;
+        };
+
+        const updateOverlayLink = () => {
+            const canal = getCanal();
+            const url = canal
+                ? `${window.location.origin}/html/overlay.html?canal=${encodeURIComponent(canal)}`
+                : `${window.location.origin}/html/overlay.html`;
+            overlayLinkCanjes.value = url;
+            return url;
+        };
+
+        const copyTextToClipboard = async (text) => {
+            if (!text) return false;
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (_) {}
+
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.opacity = '0';
+            document.body.appendChild(temp);
+            temp.focus();
+            temp.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(temp);
+            return ok;
+        };
+
+        const formatFileSize = (bytes) => {
+            if (!bytes) return '0 Bytes';
+            const k = 1024;
+            const units = ['Bytes', 'KB', 'MB'];
+            const idx = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(k)));
+            return `${Math.round((bytes / Math.pow(k, idx)) * 100) / 100} ${units[idx]}`;
+        };
+
+        const uploadToCloudinary = async (file, infoEl, onSuccess) => {
+            if (!file) return;
+            if (file.size > MAX_FILE_SIZE) {
+                infoEl.textContent = `Archivo muy grande: ${formatFileSize(file.size)} (máx. 25MB)`;
+                infoEl.style.color = '#ff9aa8';
+                return;
+            }
+
+            infoEl.textContent = `Subiendo ${file.name}...`;
+            infoEl.style.color = '#f0d9ff';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+                formData.append('public_id', `redeems/${Date.now()}-${file.name}`);
+
+                const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error(`Upload falló: ${response.status}`);
+                const json = await response.json();
+                const secureUrl = String(json.secure_url || '').trim();
+                if (!secureUrl) throw new Error('No se recibió URL del archivo');
+
+                onSuccess(secureUrl);
+                infoEl.textContent = `Archivo subido: ${file.name}`;
+                infoEl.style.color = '#baf7d1';
+            } catch (error) {
+                infoEl.textContent = `Error al subir: ${error.message || String(error)}`;
+                infoEl.style.color = '#ff9aa8';
+            }
         };
 
         const setMode = (mode) => {
@@ -293,6 +457,41 @@
         });
         rainName.addEventListener('input', () => {
             rainReward.value = rainName.value;
+        });
+
+        providerButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const provider = btn.dataset.provider;
+                rainSources[provider] = !rainSources[provider];
+                btn.classList.toggle('active', rainSources[provider]);
+            });
+        });
+
+        copyOverlayCanjes.addEventListener('click', async () => {
+            const ok = await copyTextToClipboard(updateOverlayLink());
+            showStatus(ok ? 'Link del overlay copiado.' : 'No se pudo copiar el link.', ok);
+        });
+
+        openOverlayCanjes.addEventListener('click', () => {
+            window.open(updateOverlayLink(), '_blank', 'noopener');
+        });
+
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'nombreTwitch') updateOverlayLink();
+        });
+
+        redeemAssetFile.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            await uploadToCloudinary(file, redeemAssetUploadInfo, (url) => {
+                redeemAssetUrl.value = url;
+            });
+        });
+
+        redeemSoundFile.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            await uploadToCloudinary(file, redeemSoundUploadInfo, (url) => {
+                redeemSoundUrl.value = url;
+            });
         });
 
         const loadRedeems = async () => {
@@ -334,10 +533,50 @@
             });
         };
 
-        const parseRainUrls = () => rainUrls.value
-            .split('\n')
-            .map(x => x.trim())
-            .filter(x => /^https?:\/\//i.test(x));
+        const getTwitchUserId = async () => {
+            const token = localStorage.getItem('twitchAccessToken');
+            if (!token) {
+                throw new Error('Inicia sesión con Twitch para cargar emotes externos');
+            }
+
+            const userRes = await fetch('https://api.twitch.tv/helix/users', {
+                headers: {
+                    'Client-ID': 'o52fubecxnt93gxjth53f6x9xv9ku6',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const userData = await userRes.json();
+            const twitchId = userData?.data?.[0]?.id;
+            if (!twitchId) throw new Error('No se pudo resolver el ID de Twitch');
+            return twitchId;
+        };
+
+        const resolveRainEmoteUrls = async () => {
+            const sourceUrls = [];
+            const useProviders = rainSources.sevenTv || rainSources.bttv || rainSources.ffz || rainSources.canal;
+
+            if (useProviders) {
+                const twitchId = await getTwitchUserId();
+                const emoRes = await fetch(`https://emotes.adamcy.pl/v1/channel/${twitchId}/emotes/all`);
+                const emoData = await emoRes.json();
+
+                const selectedProviderIds = [];
+                if (rainSources.canal) selectedProviderIds.push(0);
+                if (rainSources.bttv) selectedProviderIds.push(1);
+                if (rainSources.ffz) selectedProviderIds.push(2);
+                if (rainSources.sevenTv) selectedProviderIds.push(3);
+
+                const list = Array.isArray(emoData) ? emoData : [];
+                const externalUrls = list
+                    .filter((e) => selectedProviderIds.includes(Number(e?.provider)))
+                    .map((e) => e?.urls?.['4'] || e?.urls?.['2'] || e?.urls?.['1'])
+                    .filter(Boolean);
+
+                sourceUrls.push(...externalUrls);
+            }
+
+            return [...new Set(sourceUrls)].slice(0, 140);
+        };
 
         const simulateRealRedeem = async (rewardName) => {
             const canal = getCanal();
@@ -391,7 +630,7 @@
                     type: redeemType.value,
                     assetUrl: redeemAssetUrl.value.trim(),
                     soundUrl: redeemSoundUrl.value.trim(),
-                    text: redeemText.value.trim() || 'Canje de puntos',
+                    text: redeemText.value.trim(),
                     fontSize: Math.max(16, Number(redeemFontSize.value) || 34),
                     textColor: redeemTextColor.value || '#f3efff',
                     mediaPosition: redeemMediaPosition.value || 'center',
@@ -418,7 +657,7 @@
                 nombre: redeemName.value.trim() || 'Canje de media',
                 assetUrl: redeemAssetUrl.value.trim(),
                 soundUrl: redeemSoundUrl.value.trim(),
-                text: redeemText.value.trim() || `Canje: ${redeemName.value.trim() || 'Puntos del canal'}`,
+                text: redeemText.value.trim(),
                 fontSize: Math.max(16, Number(redeemFontSize.value) || 34),
                 textColor: redeemTextColor.value || '#f3efff',
                 mediaPosition: redeemMediaPosition.value || 'center',
@@ -444,11 +683,11 @@
         document.getElementById('saveRainBtn').addEventListener('click', async () => {
             const canal = getCanal();
             if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
-            const urls = parseRainUrls();
+            const urls = await resolveRainEmoteUrls();
             const canonicalName = rainName.value.trim();
             rainReward.value = canonicalName;
             if (!canonicalName || urls.length === 0) {
-                return showStatus('Completa nombre y al menos una URL de emote.', false);
+                return showStatus('Completa nombre y selecciona al menos una fuente con emotes.', false);
             }
 
             await addDoc(collection(db, 'channelPointRedeems'), {
@@ -460,6 +699,13 @@
                 config: {
                     duration: Math.max(3, Number(rainDuration.value) || 8),
                     count: Math.max(10, Number(rainCount.value) || 30),
+                    motion: rainMotion.value || 'auto',
+                    emoteSources: {
+                        sevenTv: !!rainSources.sevenTv,
+                        bttv: !!rainSources.bttv,
+                        ffz: !!rainSources.ffz,
+                        canal: !!rainSources.canal
+                    },
                     emoteUrls: urls
                 },
                 createdAt: serverTimestamp(),
@@ -473,8 +719,8 @@
         document.getElementById('testRainBtn').addEventListener('click', async () => {
             const canal = getCanal();
             if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
-            const urls = parseRainUrls();
-            if (urls.length === 0) return showStatus('Agrega al menos una URL de emote para la prueba.', false);
+            const urls = await resolveRainEmoteUrls();
+            if (urls.length === 0) return showStatus('No se encontraron emotes con las fuentes seleccionadas.', false);
 
             await addDoc(collection(db, 'liveEffects'), {
                 canal,
@@ -482,6 +728,7 @@
                 effectType: 'emote_rain',
                 duration: Math.max(3, Number(rainDuration.value) || 8),
                 count: Math.max(10, Number(rainCount.value) || 30),
+                motion: rainMotion.value || 'auto',
                 emoteUrls: urls,
                 rewardName: rainName.value.trim() || 'Lluvia de emotes',
                 isTest: true,
@@ -500,37 +747,7 @@
             }
         });
 
-        document.getElementById('autofillRainBtn').addEventListener('click', async () => {
-            const token = localStorage.getItem('twitchAccessToken');
-            const canal = getCanal();
-            if (!token || !canal) return showStatus('Para auto-cargar emotes, inicia sesión con Twitch en esta cuenta.', false);
-
-            try {
-                const userRes = await fetch('https://api.twitch.tv/helix/users', {
-                    headers: {
-                        'Client-ID': 'o52fubecxnt93gxjth53f6x9xv9ku6',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                const userData = await userRes.json();
-                const twitchId = userData?.data?.[0]?.id;
-                if (!twitchId) return showStatus('No se pudo resolver el ID de Twitch.', false);
-
-                const emoRes = await fetch(`https://emotes.adamcy.pl/v1/channel/${twitchId}/emotes/all`);
-                const emoData = await emoRes.json();
-                const urls = (Array.isArray(emoData) ? emoData : [])
-                    .map(e => e?.urls?.['4'] || e?.urls?.['2'] || e?.urls?.['1'])
-                    .filter(Boolean)
-                    .slice(0, 45);
-
-                if (urls.length === 0) return showStatus('No se encontraron emotes para auto-cargar.', false);
-                rainUrls.value = urls.join('\n');
-                showStatus(`Se cargaron ${urls.length} emotes del canal.`);
-            } catch (error) {
-                showStatus('Error al auto-cargar emotes: ' + error.message, false);
-            }
-        });
-
+        updateOverlayLink();
         loadRedeems();
     </script>
 </body>

@@ -50,19 +50,12 @@
         }
         .fall-emote {
             position: absolute;
-            top: -60px;
+            top: 0;
+            left: 0;
             width: 40px;
             height: 40px;
             object-fit: contain;
             filter: drop-shadow(0 0 8px rgba(0,0,0,0.4));
-            animation-name: emoteFall;
-            animation-timing-function: linear;
-            animation-fill-mode: forwards;
-        }
-        @keyframes emoteFall {
-            from { transform: translateY(-70px) rotate(0deg); opacity: 0; }
-            10% { opacity: 1; }
-            to { transform: translateY(120vh) rotate(380deg); opacity: 0.95; }
         }
         .debug-hud {
             position: fixed;
@@ -193,15 +186,17 @@
                 audio.style.display = 'none';
                 media.appendChild(audio);
 
-                const soundText = document.createElement('div');
-                soundText.className = 'sound-only';
-                soundText.innerText = data.text || 'Reproduciendo sonido...';
-                media.appendChild(soundText);
+                if (String(data.text || '').trim()) {
+                    const soundText = document.createElement('div');
+                    soundText.className = 'sound-only';
+                    soundText.innerText = data.text;
+                    media.appendChild(soundText);
+                }
             }
 
             const text = document.createElement('div');
             text.className = 'alert-text';
-            text.innerText = data.text || '¡Alerta en vivo!';
+            text.innerText = String(data.text || '').trim();
             text.style.fontFamily = data.fuente || 'Poppins, sans-serif';
             text.style.fontSize = `${Number(data.fontSize) || 32}px`;
             text.style.color = data.textColor || '#f7f3ff';
@@ -232,7 +227,7 @@
             }
 
             body.appendChild(media);
-            body.appendChild(text);
+            if (text.innerText) body.appendChild(text);
 
             if (data.soundUrl && data.type !== 'sound') {
                 const extraAudio = document.createElement('audio');
@@ -268,6 +263,11 @@
             const durationSec = Math.max(3, Number(data.duration) || 8);
             const count = Math.max(8, Number(data.count) || 30);
             const urls = Array.isArray(data.emoteUrls) ? data.emoteUrls.filter(Boolean) : [];
+            const allowedMotions = ['top', 'center_burst', 'random_dirs', 'edges_in'];
+            const rawMotion = String(data.motion || 'top').toLowerCase();
+            const motion = rawMotion === 'auto'
+                ? allowedMotions[Math.floor(Math.random() * allowedMotions.length)]
+                : (allowedMotions.includes(rawMotion) ? rawMotion : 'top');
             if (!urls.length) {
                 effectActive = false;
                 await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' }).catch(() => {});
@@ -278,16 +278,96 @@
             layer.className = 'effect-layer';
             container.appendChild(layer);
 
+            const width = Math.max(layer.clientWidth, window.innerWidth || 1280);
+            const height = Math.max(layer.clientHeight, window.innerHeight || 720);
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            const randomBetween = (min, max) => min + Math.random() * (max - min);
+
+            const getTrajectory = (kind) => {
+                if (kind === 'center_burst') {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.max(width, height) * randomBetween(0.45, 0.85);
+                    return {
+                        startX: centerX + randomBetween(-30, 30),
+                        startY: centerY + randomBetween(-30, 30),
+                        endX: centerX + Math.cos(angle) * radius,
+                        endY: centerY + Math.sin(angle) * radius
+                    };
+                }
+
+                if (kind === 'edges_in') {
+                    const edge = Math.floor(Math.random() * 4);
+                    if (edge === 0) {
+                        return { startX: randomBetween(0, width), startY: -80, endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                    }
+                    if (edge === 1) {
+                        return { startX: width + 80, startY: randomBetween(0, height), endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                    }
+                    if (edge === 2) {
+                        return { startX: randomBetween(0, width), startY: height + 80, endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                    }
+                    return { startX: -80, startY: randomBetween(0, height), endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                }
+
+                if (kind === 'random_dirs') {
+                    const startX = randomBetween(width * 0.2, width * 0.8);
+                    const startY = randomBetween(height * 0.2, height * 0.8);
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = randomBetween(Math.min(width, height) * 0.2, Math.max(width, height) * 0.55);
+                    return {
+                        startX,
+                        startY,
+                        endX: startX + Math.cos(angle) * distance,
+                        endY: startY + Math.sin(angle) * distance
+                    };
+                }
+
+                const startX = randomBetween(0, width);
+                return {
+                    startX,
+                    startY: -90,
+                    endX: startX + randomBetween(-130, 130),
+                    endY: height + 120
+                };
+            };
+
             for (let i = 0; i < count; i++) {
                 const img = document.createElement('img');
                 img.className = 'fall-emote';
                 img.src = urls[Math.floor(Math.random() * urls.length)];
-                img.style.left = `${Math.random() * 96}%`;
-                img.style.animationDuration = `${1.8 + Math.random() * 2.8}s`;
-                img.style.animationDelay = `${Math.random() * (durationSec * 0.7)}s`;
                 img.style.width = `${28 + Math.floor(Math.random() * 26)}px`;
                 img.style.height = img.style.width;
                 layer.appendChild(img);
+
+                const trajectory = getTrajectory(motion);
+                const delayMs = Math.random() * (durationSec * 700);
+                const durationMs = 1300 + Math.random() * 1800;
+                const rotation = -360 + Math.random() * 720;
+                const startScale = 0.75 + Math.random() * 0.35;
+                const endScale = 0.9 + Math.random() * 0.6;
+
+                img.animate([
+                    {
+                        transform: `translate(${trajectory.startX}px, ${trajectory.startY}px) rotate(0deg) scale(${startScale})`,
+                        opacity: 0
+                    },
+                    {
+                        transform: `translate(${trajectory.startX}px, ${trajectory.startY}px) rotate(0deg) scale(${startScale})`,
+                        opacity: 1,
+                        offset: 0.12
+                    },
+                    {
+                        transform: `translate(${trajectory.endX}px, ${trajectory.endY}px) rotate(${rotation}deg) scale(${endScale})`,
+                        opacity: 0.95
+                    }
+                ], {
+                    duration: durationMs,
+                    delay: delayMs,
+                    easing: motion === 'edges_in' ? 'cubic-bezier(0.2, 0.75, 0.25, 1)' : 'cubic-bezier(0.15, 0.8, 0.3, 1)',
+                    fill: 'forwards'
+                });
             }
 
             setTimeout(async () => {

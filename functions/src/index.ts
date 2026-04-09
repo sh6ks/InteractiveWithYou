@@ -499,11 +499,16 @@ export const processChannelPointRedeem = onRequest(async (req, res) => {
 				return;
 			}
 
+			const allowedMotions = ["auto", "top", "center_burst", "random_dirs", "edges_in"];
+			const rawMotion = String(cfg.motion || "auto").toLowerCase();
+			const motion = allowedMotions.includes(rawMotion) ? rawMotion : "auto";
+
 			await adminDb.collection("liveEffects").add({
 				...commonPayload,
 				effectType: "emote_rain",
 				duration: Math.max(3, Number(cfg.duration) || 8),
 				count: Math.max(10, Number(cfg.count) || 30),
+				motion,
 				emoteUrls,
 				status: "pending",
 				createdAt: FieldValue.serverTimestamp(),
@@ -525,7 +530,7 @@ export const processChannelPointRedeem = onRequest(async (req, res) => {
 			return;
 		}
 
-		const resolvedText = interpolateRedeemText(String(cfg.text || "Canje de puntos"), {
+		const resolvedText = interpolateRedeemText(String(cfg.text ?? ""), {
 			userDisplayName,
 			userLogin,
 			rewardName: rewardNameRaw,
