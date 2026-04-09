@@ -156,12 +156,12 @@
         const _updateOverlayPresence = async (patch = {}) => {
             if (!_overlayPresenceRef || !canalParam) return;
             const uid = getOverlayUid();
-            if (!uid) return;
             try {
                 await setDoc(_overlayPresenceRef, {
                     canal: canalParam,
-                    uid,
                     source: 'obs_overlay',
+                    hasFirebaseAuth: !!uid,
+                    ...(uid ? { uid } : {}),
                     updatedAt: serverTimestamp(),
                     ...patch
                 }, { merge: true });
