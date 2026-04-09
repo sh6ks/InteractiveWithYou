@@ -450,6 +450,7 @@
                         <button class="btn" id="saveRainBtn" type="button">Guardar canje</button>
                         <button class="btn secondary" id="testRainBtn" type="button">Probar lluvia en OBS</button>
                         <button class="btn secondary" id="simulateRainRedeemBtn" type="button">Simular canje real</button>
+                        <button class="btn secondary" id="repairRainBtn" type="button">Reparar canje guardado</button>
                     </div>
                 </div>
 
@@ -866,6 +867,30 @@
             return `${Math.round((bytes / Math.pow(k, idx)) * 100) / 100} ${units[idx]}`;
         };
 
+        const normalizeEmoteUrl = (url) => {
+            const raw = String(url || '').trim();
+            if (!raw) return '';
+            if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+            if (raw.startsWith('//')) return `https:${raw}`;
+            return `https://${raw.replace(/^\/+/, '')}`;
+        };
+
+        const pickAggregatedEmoteUrl = (item) => {
+            // Soporta ambos formatos del agregador: objeto por tamaño o array de {size,url}.
+            const urls = item?.urls;
+
+            if (Array.isArray(urls)) {
+                const preferred = urls.find((u) => u?.size === '4x' || u?.size === '2x' || u?.size === '1x') || urls[0];
+                return normalizeEmoteUrl(preferred?.url || preferred);
+            }
+
+            if (urls && typeof urls === 'object') {
+                return normalizeEmoteUrl(urls['4'] || urls['2'] || urls['1'] || urls[4] || urls[2] || urls[1]);
+            }
+
+            return normalizeEmoteUrl(item?.url);
+        };
+
         const uploadToCloudinary = async (file, infoEl, onSuccess) => {
             if (!file) return;
             if (file.size > MAX_FILE_SIZE) {
@@ -1051,6 +1076,12 @@
             });
         };
 
+        const getExistingRainRedeemDoc = async (canal) => {
+            const snap = await getDocs(query(collection(db, 'channelPointRedeems'), where('canal', '==', canal)));
+            const rainDoc = snap.docs.find((d) => String(d.data()?.redeemType || '').toLowerCase() === 'emote_rain');
+            return rainDoc || null;
+        };
+
         const getTwitchUserId = async () => {
             const canal = getCanal();
             const token = localStorage.getItem('twitchAccessToken');
@@ -1122,8 +1153,8 @@
                 const list = Array.isArray(emoData) ? emoData : [];
                 const externalUrls = list
                     .filter((e) => selectedProviderIds.includes(Number(e?.provider)))
-                    .map((e) => e?.urls?.['4'] || e?.urls?.['2'] || e?.urls?.['1'])
-                    .filter(Boolean);
+                    .map((e) => pickAggregatedEmoteUrl(e))
+                    .filter((url) => !!url && !url.includes('[object Object]'));
 
                 sourceUrls.push(...externalUrls);
             }
@@ -1366,12 +1397,19 @@
                     await updateDoc(doc(db, 'channelPointRedeems', selectedRedeemId), payload);
                     showStatus(`Canje de lluvia actualizado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
                 } else {
-                    const created = await addDoc(collection(db, 'channelPointRedeems'), {
-                        ...payload,
-                        createdAt: serverTimestamp()
-                    });
-                    setSelectedRedeem(created.id, 'emote_rain');
-                    showStatus(`Canje de lluvia guardado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
+                    const existingRain = await getExistingRainRedeemDoc(canal);
+                    if (existingRain) {
+                        await updateDoc(doc(db, 'channelPointRedeems', existingRain.id), payload);
+                        setSelectedRedeem(existingRain.id, 'emote_rain');
+                        showStatus(`Ya existía una lluvia para este canal; se actualizó esa configuración. Saldrán ${requestedCount} emotes (pool: ${urls.length}).`);
+                    } else {
+                        const created = await addDoc(collection(db, 'channelPointRedeems'), {
+                            ...payload,
+                            createdAt: serverTimestamp()
+                        });
+                        setSelectedRedeem(created.id, 'emote_rain');
+                        showStatus(`Canje de lluvia guardado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
+                    }
                 }
                 loadRedeems();
             } catch (error) {
@@ -1412,6 +1450,52 @@
                 await simulateRealRedeem(rainName.value);
             } catch (error) {
                 showStatus('Error simulando canje real: ' + error.message, false);
+            }
+        });
+
+        document.getElementById('repairRainBtn').addEventListener('click', async () => {
+            try {
+                const canal = getCanal();
+                if (!canal) return showStatus('Inicia sesión con Twitch para reparar canjes.', false);
+
+                const targetId = selectedRedeemType === 'emote_rain' && selectedRedeemId
+                    ? selectedRedeemId
+                    : (await getExistingRainRedeemDoc(canal))?.id;
+
+                if (!targetId) {
+                    return showStatus('No hay canje de lluvia guardado para reparar en este canal.', false);
+                }
+
+                const urls = await resolveRainEmoteUrls();
+                if (!urls.length) {
+                    return showStatus('No se pudieron recargar emotes para reparar el canje.', false);
+                }
+
+                const requestedCount = Math.max(10, Number(rainCount.value) || 30);
+
+                await updateDoc(doc(db, 'channelPointRedeems', targetId), {
+                    rewardName: rainName.value.trim() || 'Lluvia de emotes',
+                    nombre: rainName.value.trim() || 'Lluvia de emotes',
+                    config: {
+                        duration: Math.max(3, Number(rainDuration.value) || 8),
+                        count: requestedCount,
+                        motion: rainMotion.value || 'auto',
+                        emoteSources: {
+                            sevenTv: !!rainSources.sevenTv,
+                            bttv: !!rainSources.bttv,
+                            ffz: !!rainSources.ffz,
+                            canal: !!rainSources.canal
+                        },
+                        emoteUrls: urls
+                    },
+                    updatedAt: serverTimestamp()
+                });
+
+                setSelectedRedeem(targetId, 'emote_rain');
+                showStatus(`Canje de lluvia reparado. Saldrán ${requestedCount} emotes (pool reparado: ${urls.length}).`);
+                loadRedeems();
+            } catch (error) {
+                showStatus('Error reparando canje de lluvia: ' + (error.message || String(error)), false);
             }
         });
 

@@ -262,7 +262,16 @@
             const data = docSnap.data();
             const durationSec = Math.max(3, Number(data.duration) || 8);
             const count = Math.max(8, Number(data.count) || 30);
-            const urls = Array.isArray(data.emoteUrls) ? data.emoteUrls.filter(Boolean) : [];
+            const normalizeEmoteUrl = (url) => {
+                const raw = String(url || '').trim();
+                if (!raw || raw.includes('[object Object]')) return '';
+                if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+                if (raw.startsWith('//')) return `https:${raw}`;
+                return `https://${raw.replace(/^\/+/, '')}`;
+            };
+            const urls = Array.isArray(data.emoteUrls)
+                ? data.emoteUrls.map(normalizeEmoteUrl).filter(Boolean)
+                : [];
             const allowedMotions = ['top', 'center_burst', 'random_dirs', 'edges_in'];
             const rawMotion = String(data.motion || 'top').toLowerCase();
             const motion = rawMotion === 'auto'
@@ -337,6 +346,8 @@
                 const img = document.createElement('img');
                 img.className = 'fall-emote';
                 img.src = urls[Math.floor(Math.random() * urls.length)];
+                img.referrerPolicy = 'no-referrer';
+                img.onerror = () => img.remove();
                 img.style.width = `${28 + Math.floor(Math.random() * 26)}px`;
                 img.style.height = img.style.width;
                 layer.appendChild(img);
