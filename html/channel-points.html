@@ -134,6 +134,44 @@
             gap: 8px;
             flex-wrap: wrap;
         }
+        .backend-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(145,71,255,0.34);
+            background: rgba(26,20,44,0.72);
+            font-size: 0.78rem;
+            color: #d8d2ff;
+            width: fit-content;
+        }
+        .backend-indicator .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #8a83b7;
+            box-shadow: 0 0 0 3px rgba(138,131,183,0.18);
+        }
+        .backend-indicator.online {
+            border-color: rgba(61, 212, 146, 0.5);
+            background: rgba(22, 50, 39, 0.65);
+            color: #cdf8e6;
+        }
+        .backend-indicator.online .dot {
+            background: #33d18b;
+            box-shadow: 0 0 0 3px rgba(51,209,139,0.2);
+        }
+        .backend-indicator.local {
+            border-color: rgba(255, 193, 7, 0.55);
+            background: rgba(60, 44, 17, 0.66);
+            color: #ffe8b3;
+        }
+        .backend-indicator.local .dot {
+            background: #ffc42e;
+            box-shadow: 0 0 0 3px rgba(255,196,46,0.2);
+        }
 
         .preview-shell {
             margin-top: 14px;
@@ -274,6 +312,10 @@
             <div class="overlay-link-box">
                 <label for="overlayLinkCanjes">Link del overlay para OBS</label>
                 <input id="overlayLinkCanjes" readonly>
+                <div id="backendIndicator" class="backend-indicator">
+                    <span class="dot"></span>
+                    <span id="backendIndicatorText">Backend: sin verificar</span>
+                </div>
                 <div class="overlay-link-actions">
                     <button class="btn secondary" id="copyOverlayCanjes" type="button">Copiar link</button>
                     <button class="btn secondary" id="openOverlayCanjes" type="button">Abrir overlay</button>
@@ -468,6 +510,8 @@
         const overlayLinkCanjes = document.getElementById('overlayLinkCanjes');
         const copyOverlayCanjes = document.getElementById('copyOverlayCanjes');
         const openOverlayCanjes = document.getElementById('openOverlayCanjes');
+        const backendIndicator = document.getElementById('backendIndicator');
+        const backendIndicatorText = document.getElementById('backendIndicatorText');
 
         const modeMedia = document.getElementById('modeMedia');
         const modeEmoteRain = document.getElementById('modeEmoteRain');
@@ -512,6 +556,21 @@
             statusBox.style.display = 'block';
             statusBox.classList.toggle('error', !ok);
             statusBox.textContent = message;
+        };
+
+        const setBackendMode = (mode, detail = '') => {
+            backendIndicator.classList.remove('online', 'local');
+            if (mode === 'online') {
+                backendIndicator.classList.add('online');
+                backendIndicatorText.textContent = detail ? `Backend: online (${detail})` : 'Backend: online';
+                return;
+            }
+            if (mode === 'local') {
+                backendIndicator.classList.add('local');
+                backendIndicatorText.textContent = detail ? `Fallback local (${detail})` : 'Fallback local activo';
+                return;
+            }
+            backendIndicatorText.textContent = 'Backend: sin verificar';
         };
 
         const animationClassMap = {
@@ -859,21 +918,40 @@
         };
 
         const getTwitchUserId = async () => {
+            const canal = getCanal();
             const token = localStorage.getItem('twitchAccessToken');
-            if (!token) {
+
+            // Reutiliza cache local si existe.
+            const cachedId = localStorage.getItem('twitchUserId');
+            if (cachedId) return cachedId;
+
+            if (token) {
+                const clientIds = ['9cac6zpfterkbzigfr28hpil7se9y3', 'o52fubecxnt93gxjth53f6x9xv9ku6'];
+                for (const clientId of clientIds) {
+                    try {
+                        const userRes = await fetch('https://api.twitch.tv/helix/users', {
+                            headers: {
+                                'Client-ID': clientId,
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        if (!userRes.ok) continue;
+                        const userData = await userRes.json();
+                        const twitchId = userData?.data?.[0]?.id;
+                        if (twitchId) {
+                            localStorage.setItem('twitchUserId', twitchId);
+                            return twitchId;
+                        }
+                    } catch (_) {}
+                }
+            }
+
+            if (!canal) {
                 throw new Error('Inicia sesión con Twitch para cargar emotes externos');
             }
 
-            const userRes = await fetch('https://api.twitch.tv/helix/users', {
-                headers: {
-                    'Client-ID': 'o52fubecxnt93gxjth53f6x9xv9ku6',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const userData = await userRes.json();
-            const twitchId = userData?.data?.[0]?.id;
-            if (!twitchId) throw new Error('No se pudo resolver el ID de Twitch');
-            return twitchId;
+            // Fallback: el agregador suele aceptar login además de ID en muchos casos.
+            return canal;
         };
 
         const resolveRainEmoteUrls = async () => {
@@ -881,9 +959,25 @@
             const useProviders = rainSources.sevenTv || rainSources.bttv || rainSources.ffz || rainSources.canal;
 
             if (useProviders) {
-                const twitchId = await getTwitchUserId();
-                const emoRes = await fetch(`https://emotes.adamcy.pl/v1/channel/${twitchId}/emotes/all`);
-                const emoData = await emoRes.json();
+                const twitchIdentity = await getTwitchUserId();
+                let emoData = [];
+
+                const attempts = [
+                    `https://emotes.adamcy.pl/v1/channel/${encodeURIComponent(twitchIdentity)}/emotes/all`,
+                    `https://emotes.adamcy.pl/v1/channel/${encodeURIComponent(getCanal())}/emotes/all`
+                ];
+
+                for (const endpoint of attempts) {
+                    try {
+                        const emoRes = await fetch(endpoint);
+                        if (!emoRes.ok) continue;
+                        const json = await emoRes.json();
+                        if (Array.isArray(json) && json.length) {
+                            emoData = json;
+                            break;
+                        }
+                    } catch (_) {}
+                }
 
                 const selectedProviderIds = [];
                 if (rainSources.canal) selectedProviderIds.push(0);
@@ -922,18 +1016,104 @@
                 source: 'dashboard-sim'
             };
 
-            const response = await fetch(`${FUNCTIONS_BASE}/processChannelPointRedeem`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const json = await response.json();
+            const normalizeReward = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-            if (!response.ok) {
-                throw new Error(json?.error || 'No se pudo procesar canje');
+            const fallbackLocalSim = async () => {
+                const redeemsQuery = query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
+                const redeemsSnap = await getDocs(redeemsQuery);
+                const rewardKey = normalizeReward(payload.rewardName);
+
+                if (redeemsSnap.empty) throw new Error('No hay canjes configurados para este canal');
+
+                const match = redeemsSnap.docs.find((docSnap) => {
+                    const data = docSnap.data();
+                    const enabled = data?.enabled !== false;
+                    const key = normalizeReward(data?.rewardName || data?.nombre);
+                    return enabled && key && key === rewardKey;
+                });
+
+                if (!match) throw new Error('No hay coincidencia para ese rewardName');
+
+                const redeem = match.data();
+                const cfg = redeem?.config || {};
+                const redeemType = String(redeem?.redeemType || 'media').toLowerCase();
+
+                if (redeemType === 'emote_rain') {
+                    const emoteUrls = Array.isArray(cfg.emoteUrls) ? cfg.emoteUrls.filter(Boolean) : [];
+                    if (!emoteUrls.length) throw new Error('El canje emote_rain no tiene emoteUrls');
+
+                    await addDoc(collection(db, 'liveEffects'), {
+                        canal,
+                        rewardName: payload.rewardName,
+                        triggeredBy: {
+                            userLogin: payload.userLogin,
+                            userDisplayName: payload.userDisplayName,
+                            userInput: '',
+                            source: payload.source
+                        },
+                        effectType: 'emote_rain',
+                        duration: Math.max(3, Number(cfg.duration) || 8),
+                        count: Math.max(10, Number(cfg.count) || 30),
+                        motion: String(cfg.motion || 'auto'),
+                        emoteUrls,
+                        status: 'pending',
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+
+                    return { type: 'emote_rain', matchedReward: redeem.rewardName || redeem.nombre || payload.rewardName };
+                }
+
+                const mediaType = String(cfg.type || 'image').toLowerCase();
+                const assetUrl = String(cfg.assetUrl || '').trim();
+                if (!assetUrl) throw new Error('El canje media no tiene assetUrl');
+
+                await addDoc(collection(db, 'liveAlerts'), {
+                    canal,
+                    rewardName: payload.rewardName,
+                    triggeredBy: {
+                        userLogin: payload.userLogin,
+                        userDisplayName: payload.userDisplayName,
+                        userInput: '',
+                        source: payload.source
+                    },
+                    type: ['image', 'video', 'sound'].includes(mediaType) ? mediaType : 'image',
+                    eventType: 'channel_points',
+                    nombre: String(redeem?.nombre || 'Canje de puntos').trim() || 'Canje de puntos',
+                    assetUrl,
+                    soundUrl: String(cfg.soundUrl || '').trim(),
+                    text: String(cfg.text || '').trim(),
+                    fontSize: Number(cfg.fontSize) || 34,
+                    textColor: String(cfg.textColor || '#f3efff'),
+                    mediaPosition: String(cfg.mediaPosition || 'center'),
+                    animation: String(cfg.animation || 'pulse'),
+                    status: 'pending',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+
+                return { type: 'media', matchedReward: redeem.rewardName || redeem.nombre || payload.rewardName };
+            };
+
+            try {
+                const response = await fetch(`${FUNCTIONS_BASE}/processChannelPointRedeem`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(json?.error || `HTTP ${response.status}`);
+                }
+
+                setBackendMode('online', 'simulación remota');
+                showStatus(`Canje real simulado OK (${json.type}). Reward matched: ${json.matchedReward}`);
+            } catch (networkOrHttpError) {
+                const fallback = await fallbackLocalSim();
+                setBackendMode('local', 'simulación local');
+                showStatus(`Canje simulado en modo local (${fallback.type}). Reward matched: ${fallback.matchedReward}. Motivo fallback: ${networkOrHttpError.message || networkOrHttpError}`);
             }
-
-            showStatus(`Canje real simulado OK (${json.type}). Reward matched: ${json.matchedReward}`);
         };
 
         document.getElementById('saveMediaBtn').addEventListener('click', async () => {
@@ -1006,62 +1186,70 @@
         });
 
         document.getElementById('saveRainBtn').addEventListener('click', async () => {
-            const canal = getCanal();
-            if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
-            const urls = await resolveRainEmoteUrls();
-            const canonicalName = rainName.value.trim();
-            rainReward.value = canonicalName;
-            if (!canonicalName || urls.length === 0) {
-                return showStatus('Completa nombre y selecciona al menos una fuente con emotes.', false);
-            }
+            try {
+                const canal = getCanal();
+                if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
+                const urls = await resolveRainEmoteUrls();
+                const canonicalName = rainName.value.trim();
+                rainReward.value = canonicalName;
+                if (!canonicalName || urls.length === 0) {
+                    return showStatus('No se pudieron cargar emotes. Verifica sesión Twitch/fuentes activas e intenta de nuevo.', false);
+                }
 
-            await addDoc(collection(db, 'channelPointRedeems'), {
-                canal,
-                redeemType: 'emote_rain',
-                nombre: canonicalName,
-                rewardName: canonicalName,
-                enabled: true,
-                config: {
-                    duration: Math.max(3, Number(rainDuration.value) || 8),
-                    count: Math.max(10, Number(rainCount.value) || 30),
-                    motion: rainMotion.value || 'auto',
-                    emoteSources: {
-                        sevenTv: !!rainSources.sevenTv,
-                        bttv: !!rainSources.bttv,
-                        ffz: !!rainSources.ffz,
-                        canal: !!rainSources.canal
+                await addDoc(collection(db, 'channelPointRedeems'), {
+                    canal,
+                    redeemType: 'emote_rain',
+                    nombre: canonicalName,
+                    rewardName: canonicalName,
+                    enabled: true,
+                    config: {
+                        duration: Math.max(3, Number(rainDuration.value) || 8),
+                        count: Math.max(10, Number(rainCount.value) || 30),
+                        motion: rainMotion.value || 'auto',
+                        emoteSources: {
+                            sevenTv: !!rainSources.sevenTv,
+                            bttv: !!rainSources.bttv,
+                            ffz: !!rainSources.ffz,
+                            canal: !!rainSources.canal
+                        },
+                        emoteUrls: urls
                     },
-                    emoteUrls: urls
-                },
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-            });
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
 
-            showStatus('Canje de lluvia de emotes guardado.');
-            loadRedeems();
+                showStatus(`Canje de lluvia guardado con ${urls.length} emotes.`);
+                loadRedeems();
+            } catch (error) {
+                showStatus('Error guardando canje de lluvia: ' + (error.message || String(error)), false);
+            }
         });
 
         document.getElementById('testRainBtn').addEventListener('click', async () => {
-            const canal = getCanal();
-            if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
-            const urls = await resolveRainEmoteUrls();
-            if (urls.length === 0) return showStatus('No se encontraron emotes con las fuentes seleccionadas.', false);
+            try {
+                const canal = getCanal();
+                if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
+                const urls = await resolveRainEmoteUrls();
+                if (urls.length === 0) return showStatus('No se encontraron emotes con las fuentes seleccionadas.', false);
 
-            await addDoc(collection(db, 'liveEffects'), {
-                canal,
-                status: 'pending',
-                effectType: 'emote_rain',
-                duration: Math.max(3, Number(rainDuration.value) || 8),
-                count: Math.max(10, Number(rainCount.value) || 30),
-                motion: rainMotion.value || 'auto',
-                emoteUrls: urls,
-                rewardName: rainName.value.trim() || 'Lluvia de emotes',
-                isTest: true,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-            });
+                await addDoc(collection(db, 'liveEffects'), {
+                    canal,
+                    status: 'pending',
+                    effectType: 'emote_rain',
+                    duration: Math.max(3, Number(rainDuration.value) || 8),
+                    count: Math.max(10, Number(rainCount.value) || 30),
+                    motion: rainMotion.value || 'auto',
+                    emoteUrls: urls,
+                    rewardName: rainName.value.trim() || 'Lluvia de emotes',
+                    isTest: true,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
 
-            showStatus('Prueba de lluvia enviada al overlay.');
+                showStatus(`Prueba de lluvia enviada al overlay (${urls.length} emotes).`);
+            } catch (error) {
+                showStatus('Error enviando prueba de lluvia: ' + (error.message || String(error)), false);
+            }
         });
 
         document.getElementById('simulateRainRedeemBtn').addEventListener('click', async () => {
