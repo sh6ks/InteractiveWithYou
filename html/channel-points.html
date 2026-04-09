@@ -168,6 +168,51 @@
             background: rgba(60, 44, 17, 0.66);
             color: #ffe8b3;
         }
+
+        .connection-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .connection-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(145,71,255,0.32);
+            background: rgba(17,14,33,0.8);
+            color: #d8d2ff;
+            padding: 6px 10px;
+            font-size: 0.78rem;
+            width: fit-content;
+        }
+        .connection-pill::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #8a83b7;
+            box-shadow: 0 0 0 3px rgba(138,131,183,0.18);
+        }
+        .connection-pill.ok {
+            border-color: rgba(61, 212, 146, 0.5);
+            background: rgba(22, 50, 39, 0.65);
+            color: #cdf8e6;
+        }
+        .connection-pill.ok::before {
+            background: #33d18b;
+            box-shadow: 0 0 0 3px rgba(51,209,139,0.2);
+        }
+        .connection-pill.warn {
+            border-color: rgba(255, 193, 7, 0.55);
+            background: rgba(60, 44, 17, 0.66);
+            color: #ffe8b3;
+        }
+        .connection-pill.warn::before {
+            background: #ffc107;
+            box-shadow: 0 0 0 3px rgba(255,193,7,0.2);
+        }
         .backend-indicator.local .dot {
             background: #ffc42e;
             box-shadow: 0 0 0 3px rgba(255,196,46,0.2);
@@ -316,9 +361,15 @@
                     <span class="dot"></span>
                     <span id="backendIndicatorText">Backend: sin verificar</span>
                 </div>
+                <div class="connection-grid">
+                    <div id="twitchConnPill" class="connection-pill warn">Twitch: pendiente</div>
+                    <div id="firebaseConnPill" class="connection-pill warn">Firebase: pendiente</div>
+                </div>
+                <small class="hint" id="authGuideText">Conecta Twitch y Firebase para guardar canjes y disparar pruebas en OBS.</small>
                 <div class="overlay-link-actions">
                     <button class="btn secondary" id="copyOverlayCanjes" type="button">Copiar link</button>
                     <button class="btn secondary" id="openOverlayCanjes" type="button">Abrir overlay</button>
+                    <button class="btn secondary" id="firebaseAuthBtn" type="button" style="display:none;">Conectar Firebase</button>
                 </div>
             </div>
         </div>
@@ -524,6 +575,7 @@
                 currentUid = user.uid;
                 localStorage.setItem('firebaseUid', user.uid);
             }
+            window.dispatchEvent(new Event('iwy-auth-updated'));
             if (!authStateReadyResolved) {
                 authStateReadyResolved = true;
                 resolveAuthStateReady(user || null);
@@ -574,6 +626,10 @@
         const openOverlayCanjes = document.getElementById('openOverlayCanjes');
         const backendIndicator = document.getElementById('backendIndicator');
         const backendIndicatorText = document.getElementById('backendIndicatorText');
+        const twitchConnPill = document.getElementById('twitchConnPill');
+        const firebaseConnPill = document.getElementById('firebaseConnPill');
+        const authGuideText = document.getElementById('authGuideText');
+        const firebaseAuthBtn = document.getElementById('firebaseAuthBtn');
 
         const modeMedia = document.getElementById('modeMedia');
         const modeEmoteRain = document.getElementById('modeEmoteRain');
@@ -623,6 +679,56 @@
             statusBox.classList.toggle('error', !ok);
             statusBox.textContent = message;
         };
+
+        const setConnPill = (el, ok, text) => {
+            if (!el) return;
+            el.classList.remove('ok', 'warn');
+            el.classList.add(ok ? 'ok' : 'warn');
+            el.textContent = text;
+        };
+
+        const updateConnectionUi = () => {
+            const canal = getCanal();
+            const uid = getUid();
+            const twitchOk = !!canal;
+            const firebaseOk = !!uid;
+
+            setConnPill(twitchConnPill, twitchOk, twitchOk ? `Twitch: conectado (${canal})` : 'Twitch: pendiente');
+            setConnPill(firebaseConnPill, firebaseOk, firebaseOk ? 'Firebase: conectado' : 'Firebase: pendiente');
+
+            if (firebaseAuthBtn) {
+                firebaseAuthBtn.style.display = firebaseOk ? 'none' : 'inline-flex';
+            }
+
+            if (!twitchOk) {
+                authGuideText.textContent = 'Primero inicia sesion con Twitch para vincular tus canjes reales del canal.';
+                return;
+            }
+
+            if (!firebaseOk) {
+                authGuideText.textContent = `${getUidErrorHint()} Usa el boton "Conectar Firebase" para completar el acceso del panel.`;
+                return;
+            }
+
+            authGuideText.textContent = 'Listo: Twitch y Firebase conectados. Puedes guardar canjes, probar en OBS y usar canjes reales.';
+        };
+
+        firebaseAuthBtn.addEventListener('click', () => {
+            try {
+                if (window.parent && typeof window.parent.login === 'function') {
+                    window.parent.login();
+                    showStatus('Abriendo login de Firebase/Google...', true);
+                    return;
+                }
+            } catch (_) {}
+
+            window.location.href = `${window.location.origin}/index.html`;
+        });
+
+        window.addEventListener('iwy-auth-updated', () => {
+            updateConnectionUi();
+            loadRedeems().catch(() => {});
+        });
 
         const setSelectedRedeem = (id = '', type = '') => {
             selectedRedeemId = id;
@@ -1643,6 +1749,7 @@
         updateOverlayLink();
         setMode('media');
         renderMediaPreview();
+        updateConnectionUi();
         loadRedeems();
         ensureRealRedeemSubscription({ silent: true });
     </script>
