@@ -250,48 +250,10 @@
             margin: 0;
         }
 
-        .effects-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .effect-btn {
-            padding: 8px 14px;
-            border: 2px solid rgba(145, 71, 255, 0.4);
-            border-radius: 8px;
-            background: #120f25;
-            color: #bdb9ff;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .effect-btn span {
-            display: inline-block;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .effect-btn:hover {
-            border-color: #9147ff;
-            background: rgba(145, 71, 255, 0.1);
-        }
-
-        .effect-btn.active {
-            background: #9147ff;
-            color: white;
-            border-color: #9147ff;
-            box-shadow: 0 0 12px rgba(145, 71, 255, 0.5);
-        }
-
-        .effect-btn.active span {
-            opacity: 1;
+        .animation-hint {
+            font-size: 0.78rem;
+            color: #a7a2c9;
+            margin-top: 2px;
         }
 
         .range-value {
@@ -612,9 +574,43 @@
             50% { transform: scale(1.35); }
         }
 
+        @keyframes slideLeft {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(-18px); }
+        }
+
+        @keyframes pulseSoft {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        @keyframes rotateSwing {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-4deg); }
+            75% { transform: rotate(4deg); }
+        }
+
+        @keyframes floatY {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-14px); }
+        }
+
+        @keyframes shakeHard {
+            0%,100% { transform: translateX(0); }
+            20% { transform: translateX(-9px); }
+            40% { transform: translateX(9px); }
+            60% { transform: translateX(-7px); }
+            80% { transform: translateX(7px); }
+        }
+
         .effect-vibrate { animation: vibrate 0.4s infinite; }
         .effect-bounce { animation: bounce 0.7s infinite; }
         .effect-zoom { animation: zoomAnim 0.9s infinite; }
+        .effect-slide-left { animation: slideLeft 0.8s infinite; }
+        .effect-pulse { animation: pulseSoft 0.85s infinite; }
+        .effect-rotate { animation: rotateSwing 0.9s infinite; }
+        .effect-float { animation: floatY 1.2s ease-in-out infinite; }
+        .effect-shake-hard { animation: shakeHard 0.35s infinite; }
 
         @media (max-width: 1200px) {
             .container-main { grid-template-columns: 1fr; }
@@ -713,18 +709,19 @@
                 </div>
 
                 <div class="field-group">
-                    <label>Efectos (selecciona múltiples)</label>
-                    <div class="effects-buttons">
-                        <button type="button" class="effect-btn" data-effect="vibrate">
-                            <span>✓</span> Vibrar
-                        </button>
-                        <button type="button" class="effect-btn" data-effect="bounce">
-                            <span>✓</span> Rebotar
-                        </button>
-                        <button type="button" class="effect-btn" data-effect="zoom">
-                            <span>✓</span> Zoom
-                        </button>
-                    </div>
+                    <label>Animación de la imagen/video</label>
+                    <select id="animationSelect">
+                        <option value="none">Sin animación</option>
+                        <option value="vibrate">Vibrar</option>
+                        <option value="bounce">Rebotar</option>
+                        <option value="zoom">Zoom</option>
+                        <option value="slide-left">Deslizar izquierda</option>
+                        <option value="pulse">Pulso suave</option>
+                        <option value="rotate">Giro suave</option>
+                        <option value="float">Flotar</option>
+                        <option value="shake-hard">Sacudida fuerte</option>
+                    </select>
+                    <small class="animation-hint">La animación se aplica solo al media (imagen/video), no al texto.</small>
                 </div>
 
                 <div class="field-group">
@@ -840,12 +837,8 @@
         let uploadedFileUrl = '';
         let uploadedSoundUrl = '';
         let selectedEventType = 'generico';
+        let selectedAnimation = 'none';
         let lastBugReportText = '';
-        let activeEffects = {
-            vibrate: false,
-            bounce: false,
-            zoom: false
-        };
 
         // DOM
         const canalInput = document.getElementById('canal');
@@ -862,7 +855,7 @@
         const textColorInput = document.getElementById('textColor');
         const durationInput = document.getElementById('duration');
         const mediaPositionSelect = document.getElementById('mediaPosition');
-        const effectBtns = document.querySelectorAll('.effect-btn');
+        const animationSelect = document.getElementById('animationSelect');
         const createButton = document.getElementById('createButton');
         const statusBox = document.getElementById('status');
         const overlayLinkInput = document.getElementById('overlayLink');
@@ -1160,18 +1153,9 @@
                 textColorInput.value = alertData.textColor || '#d9d7ff';
                 durationInput.value = alertData.duration || 8;
                 mediaPositionSelect.value = alertData.mediaPosition || 'center';
-
-                if (alertData.effects) {
-                    activeEffects = alertData.effects;
-                    effectBtns.forEach(btn => {
-                        const effect = btn.dataset.effect;
-                        if (activeEffects[effect]) {
-                            btn.classList.add('active');
-                        } else {
-                            btn.classList.remove('active');
-                        }
-                    });
-                }
+                selectedAnimation = alertData.animation
+                    || (alertData.effects?.vibrate ? 'vibrate' : alertData.effects?.bounce ? 'bounce' : alertData.effects?.zoom ? 'zoom' : 'none');
+                animationSelect.value = selectedAnimation;
 
                 previewMedia.src = alertData.assetUrl;
                 previewVideo.src = alertData.assetUrl;
@@ -1235,14 +1219,27 @@
 
         // Actualizar preview
         const updatePreview = () => {
-            const effects = [];
-            if (activeEffects.vibrate) effects.push('effect-vibrate');
-            if (activeEffects.bounce) effects.push('effect-bounce');
-            if (activeEffects.zoom) effects.push('effect-zoom');
+            const animationClassMap = {
+                vibrate: 'effect-vibrate',
+                bounce: 'effect-bounce',
+                zoom: 'effect-zoom',
+                'slide-left': 'effect-slide-left',
+                pulse: 'effect-pulse',
+                rotate: 'effect-rotate',
+                float: 'effect-float',
+                'shake-hard': 'effect-shake-hard'
+            };
+            const animationClass = animationClassMap[selectedAnimation] || '';
+            const allClasses = Object.values(animationClassMap);
 
             const position = mediaPositionSelect.value;
-            alertPreview.className = effects.join(' ');
             alertPreview.querySelector('.alert-content').className = `alert-content position-${position}`;
+            previewMedia.classList.remove(...allClasses);
+            previewVideo.classList.remove(...allClasses);
+            if (animationClass) {
+                previewMedia.classList.add(animationClass);
+                previewVideo.classList.add(animationClass);
+            }
             previewText.textContent = textInput.value || 'Texto de la alerta';
             previewText.style.fontSize = fontSizeInput.value + 'px';
             previewText.style.fontFamily = `'${fuenteSelect.value}', sans-serif`;
@@ -1325,15 +1322,9 @@
         // Listeners
         assetFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], false));
         soundFileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0], true));
-        // Listeners para efectos (botones)
-        effectBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const effect = btn.dataset.effect;
-                activeEffects[effect] = !activeEffects[effect];
-                btn.classList.toggle('active');
-                updatePreview();
-            });
+        animationSelect.addEventListener('change', () => {
+            selectedAnimation = animationSelect.value || 'none';
+            updatePreview();
         });
 
         fontSizeInput.addEventListener('input', () => {
@@ -1368,10 +1359,11 @@
                 fontSize: parseInt(fontSizeInput.value),
                 textColor: textColorInput.value,
                 mediaPosition: mediaPositionSelect.value,
+                animation: selectedAnimation,
                 effects: {
-                    vibrate: activeEffects.vibrate,
-                    bounce: activeEffects.bounce,
-                    zoom: activeEffects.zoom
+                    vibrate: selectedAnimation === 'vibrate',
+                    bounce: selectedAnimation === 'bounce',
+                    zoom: selectedAnimation === 'zoom'
                 },
                 duration: parseInt(durationInput.value),
                 status: 'pending',
@@ -1602,8 +1594,8 @@
             textColorInput.value = '#d9d7ff';
             durationInput.value = '8';
             mediaPositionSelect.value = 'center';
-            activeEffects = { vibrate: false, bounce: false, zoom: false };
-            effectBtns.forEach(btn => btn.classList.remove('active'));
+            selectedAnimation = 'none';
+            animationSelect.value = 'none';
             fileInfoSpan.style.display = 'none';
             soundInfoSpan.style.display = 'none';
             previewMedia.style.display = 'none';
