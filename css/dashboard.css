@@ -193,10 +193,12 @@ h1 {
 .nav-links li .sub-menu li a {
     color: #efeff1 !important; 
     font-size: 15px;
-    padding: 8px 0;
+    padding: 8px 14px 8px 0;
     display: block;
     transition: all 0.3s ease;
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.35;
+    word-break: break-word;
 }
 
 .nav-links li .sub-menu li a:hover {

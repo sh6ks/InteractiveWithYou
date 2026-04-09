@@ -98,7 +98,7 @@
         .card-chat     { --accent: rgba(145,71,255,.6);  --glow: rgba(145,71,255,.22); }
         .card-alertas  { --accent: rgba(251,146,60,.65); --glow: rgba(251,146,60,.2); }
         .card-comandos { --accent: rgba(74,222,128,.6); --glow: rgba(74,222,128,.18); }
-        .card-canjes   { --accent: rgba(59,130,246,.62); --glow: rgba(59,130,246,.2); }
+        .card-canjes   { --accent: rgba(244,114,182,.62); --glow: rgba(244,114,182,.2); }
 
         .card-preview {
             position: absolute;
@@ -357,6 +357,79 @@
             50% { opacity: 0; }
         }
 
+        .preview-redeems {
+            background: linear-gradient(170deg, rgba(244,114,182,.28) 0%, rgba(168,85,247,.2) 48%, transparent 88%);
+        }
+
+        .redeem-chip {
+            position: absolute;
+            left: 14px;
+            top: 16px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #ffd7e9;
+            border-radius: 999px;
+            padding: 5px 10px;
+            border: 1px solid rgba(244,114,182,.42);
+            background: rgba(49,20,43,.55);
+        }
+
+        .redeem-track {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            top: 52px;
+            height: 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(12,8,28,.6);
+            overflow: hidden;
+        }
+
+        .redeem-fill {
+            position: absolute;
+            inset: 0;
+            width: 62%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, rgba(244,114,182,.86), rgba(168,85,247,.86));
+        }
+
+        .redeem-badge {
+            position: absolute;
+            right: 14px;
+            top: 72px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #ffe8f4;
+            border: 1px solid rgba(244,114,182,.4);
+            background: rgba(34,13,34,.62);
+            border-radius: 8px;
+            padding: 3px 7px;
+        }
+
+        .redeem-emote {
+            position: absolute;
+            font-size: 1.1rem;
+            filter: drop-shadow(0 3px 8px rgba(0,0,0,.35));
+            opacity: 0;
+        }
+
+        .r-e1 { left: 24%; top: 46%; animation-delay: 0s !important; }
+        .r-e2 { left: 48%; top: 38%; animation-delay: .26s !important; }
+        .r-e3 { left: 66%; top: 52%; animation-delay: .5s !important; }
+        .r-e4 { left: 38%; top: 60%; animation-delay: .78s !important; }
+
+        .card-funcion:hover .redeem-emote {
+            animation: redeemPop 1.25s ease-in-out infinite;
+        }
+
+        @keyframes redeemPop {
+            0% { opacity: 0; transform: translateY(8px) scale(.65); }
+            30% { opacity: .95; transform: translateY(-4px) scale(1); }
+            70% { opacity: .95; transform: translateY(-7px) scale(1.04); }
+            100% { opacity: 0; transform: translateY(-14px) scale(.9); }
+        }
+
         @media (max-width: 1100px) {
             body { padding: 20px; }
             .grid-funciones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -437,13 +510,14 @@
         </div>
 
         <div class="card-funcion card-canjes" data-feature="canjes" onclick="parent.cargarSeccion('canjes')">
-            <div class="card-preview" style="background: radial-gradient(circle at 50% 28%, rgba(59,130,246,.32) 0%, transparent 65%);">
-                <div style="position:absolute;left:16px;right:16px;top:16px;border:1px solid rgba(59,130,246,.35);background:rgba(8,16,33,.8);border-radius:12px;padding:10px;font-size:.74rem;color:#bfdbfe;">
-                    Canje: LLUVIA DE EMOTES
-                </div>
-                <div style="position:absolute;left:24px;bottom:24px;display:flex;gap:8px;font-size:1.1rem;opacity:.85;">
-                    <span>😀</span><span>🔥</span><span>💜</span><span>⚡</span>
-                </div>
+            <div class="card-preview preview-redeems">
+                <div class="redeem-chip">Canje activado</div>
+                <div class="redeem-track"><div class="redeem-fill"></div></div>
+                <div class="redeem-badge">1000 pts</div>
+                <span class="redeem-emote r-e1">💎</span>
+                <span class="redeem-emote r-e2">✨</span>
+                <span class="redeem-emote r-e3">🔥</span>
+                <span class="redeem-emote r-e4">🎉</span>
             </div>
             <div class="card-overlay"></div>
             <div class="card-body">
