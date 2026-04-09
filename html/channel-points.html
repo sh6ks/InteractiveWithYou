@@ -513,24 +513,22 @@
         let currentUid = localStorage.getItem('firebaseUid') || null;
         let authInitErrorCode = '';
         let authInitErrorMessage = '';
-        // Sincroniza uid con el estado de Firebase Auth.
+        let authStateReadyResolved = false;
+        let resolveAuthStateReady;
+        const authStateReady = new Promise((resolve) => {
+            resolveAuthStateReady = resolve;
+        });
+        // Sincroniza uid con el estado de Firebase Auth y espera la primera restauración.
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUid = user.uid;
                 localStorage.setItem('firebaseUid', user.uid);
             }
+            if (!authStateReadyResolved) {
+                authStateReadyResolved = true;
+                resolveAuthStateReady(user || null);
+            }
         });
-        // Garantiza una sesión (anónima si no hay Google auth) para poder escribir a Firestore.
-        if (!auth.currentUser) {
-            signInAnonymously(auth).then((cred) => {
-                currentUid = cred.user.uid;
-                localStorage.setItem('firebaseUid', cred.user.uid);
-            }).catch((err) => {
-                authInitErrorCode = String(err?.code || '');
-                authInitErrorMessage = String(err?.message || '');
-                console.warn('[IWY] Firebase anonymous auth failed:', err);
-            });
-        }
 
         const getUid = () => auth.currentUser?.uid || currentUid || localStorage.getItem('firebaseUid') || null;
         const getUidErrorHint = () => {
@@ -549,9 +547,12 @@
             return 'No se pudo validar tu sesion de Firebase. Recarga la pagina e intenta de nuevo.';
         };
         const requireUid = async () => {
+            // Espera a que Firebase restaure una posible sesión Google existente.
+            await authStateReady;
             let uid = getUid();
             if (uid) return uid;
             try {
+                // Solo si no hubo usuario restaurado, intenta sesión anónima como fallback.
                 const cred = await signInAnonymously(auth);
                 uid = cred.user?.uid || null;
                 if (uid) {
