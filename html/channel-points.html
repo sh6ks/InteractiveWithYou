@@ -1190,6 +1190,7 @@
                 const canal = getCanal();
                 if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
                 const urls = await resolveRainEmoteUrls();
+                const requestedCount = Math.max(10, Number(rainCount.value) || 30);
                 const canonicalName = rainName.value.trim();
                 rainReward.value = canonicalName;
                 if (!canonicalName || urls.length === 0) {
@@ -1204,7 +1205,7 @@
                     enabled: true,
                     config: {
                         duration: Math.max(3, Number(rainDuration.value) || 8),
-                        count: Math.max(10, Number(rainCount.value) || 30),
+                        count: requestedCount,
                         motion: rainMotion.value || 'auto',
                         emoteSources: {
                             sevenTv: !!rainSources.sevenTv,
@@ -1218,7 +1219,7 @@
                     updatedAt: serverTimestamp()
                 });
 
-                showStatus(`Canje de lluvia guardado con ${urls.length} emotes.`);
+                showStatus(`Canje de lluvia guardado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
                 loadRedeems();
             } catch (error) {
                 showStatus('Error guardando canje de lluvia: ' + (error.message || String(error)), false);
@@ -1230,6 +1231,7 @@
                 const canal = getCanal();
                 if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
                 const urls = await resolveRainEmoteUrls();
+                const requestedCount = Math.max(10, Number(rainCount.value) || 30);
                 if (urls.length === 0) return showStatus('No se encontraron emotes con las fuentes seleccionadas.', false);
 
                 await addDoc(collection(db, 'liveEffects'), {
@@ -1237,7 +1239,7 @@
                     status: 'pending',
                     effectType: 'emote_rain',
                     duration: Math.max(3, Number(rainDuration.value) || 8),
-                    count: Math.max(10, Number(rainCount.value) || 30),
+                    count: requestedCount,
                     motion: rainMotion.value || 'auto',
                     emoteUrls: urls,
                     rewardName: rainName.value.trim() || 'Lluvia de emotes',
@@ -1246,7 +1248,7 @@
                     updatedAt: serverTimestamp()
                 });
 
-                showStatus(`Prueba de lluvia enviada al overlay (${urls.length} emotes).`);
+                showStatus(`Prueba de lluvia enviada al overlay. Saldrán ${requestedCount} emotes (pool cargado: ${urls.length}).`);
             } catch (error) {
                 showStatus('Error enviando prueba de lluvia: ' + (error.message || String(error)), false);
             }

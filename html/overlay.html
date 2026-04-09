@@ -348,26 +348,32 @@
                 const startScale = 0.75 + Math.random() * 0.35;
                 const endScale = 0.9 + Math.random() * 0.6;
 
-                img.animate([
-                    {
-                        transform: `translate(${trajectory.startX}px, ${trajectory.startY}px) rotate(0deg) scale(${startScale})`,
-                        opacity: 0
-                    },
-                    {
-                        transform: `translate(${trajectory.startX}px, ${trajectory.startY}px) rotate(0deg) scale(${startScale})`,
-                        opacity: 1,
-                        offset: 0.12
-                    },
-                    {
-                        transform: `translate(${trajectory.endX}px, ${trajectory.endY}px) rotate(${rotation}deg) scale(${endScale})`,
-                        opacity: 0.95
-                    }
-                ], {
-                    duration: durationMs,
-                    delay: delayMs,
-                    easing: motion === 'edges_in' ? 'cubic-bezier(0.2, 0.75, 0.25, 1)' : 'cubic-bezier(0.15, 0.8, 0.3, 1)',
-                    fill: 'forwards'
-                });
+                const startTransform = `translate(${trajectory.startX}px, ${trajectory.startY}px) rotate(0deg) scale(${startScale})`;
+                const endTransform = `translate(${trajectory.endX}px, ${trajectory.endY}px) rotate(${rotation}deg) scale(${endScale})`;
+                const easing = motion === 'edges_in' ? 'cubic-bezier(0.2, 0.75, 0.25, 1)' : 'cubic-bezier(0.15, 0.8, 0.3, 1)';
+
+                img.style.transform = startTransform;
+                img.style.opacity = '0';
+
+                // OBS puede venir con un runtime sin soporte completo de WAAPI.
+                if (typeof img.animate === 'function') {
+                    img.animate([
+                        { transform: startTransform, opacity: 0 },
+                        { transform: startTransform, opacity: 1, offset: 0.12 },
+                        { transform: endTransform, opacity: 0.95 }
+                    ], {
+                        duration: durationMs,
+                        delay: delayMs,
+                        easing,
+                        fill: 'forwards'
+                    });
+                } else {
+                    setTimeout(() => {
+                        img.style.transition = `transform ${durationMs}ms ${easing}, opacity ${durationMs}ms linear`;
+                        img.style.opacity = '1';
+                        img.style.transform = endTransform;
+                    }, delayMs);
+                }
             }
 
             setTimeout(async () => {
