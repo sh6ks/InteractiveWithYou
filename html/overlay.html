@@ -93,7 +93,7 @@
     <script type="module">
         // Script del overlay: recibe alertas pendientes desde Firestore y las muestra visualmente.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, addDoc, getDocs, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -458,6 +458,181 @@
                 }
             });
         });
+
+        // ─── Twitch EventSub WebSocket (gratuito, sin Cloud Functions) ───────────
+        // El overlay se conecta directamente a Twitch y despacha los canjes a Firestore.
+        const TWITCH_CLIENT_ID = '9cac6zpfterkbzigfr28hpil7se9y3';
+        let _eswWs = null;
+        let _eswReconnectTimer = null;
+
+        const _eswGetToken = async (channel) => {
+            try {
+                const snap = await getDoc(doc(db, 'twitchBots', channel));
+                if (snap.exists()) return snap.data()?.accessToken || null;
+            } catch (_) {}
+            return null;
+        };
+
+        const _eswGetBroadcasterId = async (channel, token) => {
+            try {
+                const res = await fetch(
+                    `https://api.twitch.tv/helix/users?login=${encodeURIComponent(channel)}`,
+                    { headers: { 'Client-ID': TWITCH_CLIENT_ID, 'Authorization': `Bearer ${token}` } }
+                );
+                if (!res.ok) return null;
+                return (await res.json()).data?.[0]?.id || null;
+            } catch (_) { return null; }
+        };
+
+        const _eswSubscribe = async (sessionId, broadcasterId, token) => {
+            try {
+                const res = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+                    method: 'POST',
+                    headers: {
+                        'Client-ID': TWITCH_CLIENT_ID,
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'channel.channel_points_custom_reward_redemption.add',
+                        version: '1',
+                        condition: { broadcaster_user_id: broadcasterId },
+                        transport: { method: 'websocket', session_id: sessionId }
+                    })
+                });
+                return res.ok || res.status === 409; // 409 = ya suscrito
+            } catch (_) { return false; }
+        };
+
+        const _normalizeStr = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+        const _eswDispatch = async (event) => {
+            if (!canalParam || !event) return;
+            const rewardTitle = event.reward?.title || '';
+            if (!rewardTitle) return;
+
+            const rewardKey = _normalizeStr(rewardTitle);
+            const snap = await getDocs(query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam)));
+            if (snap.empty) return;
+
+            const match = snap.docs.find(d => {
+                const data = d.data();
+                if (data?.enabled === false) return false;
+                return _normalizeStr(data?.rewardName || data?.nombre) === rewardKey;
+            });
+            if (!match) return;
+
+            const redeem = match.data();
+            const cfg = redeem?.config || {};
+            const interpolate = (text) => String(text || '')
+                .split('{usuario}').join(event.user_name || event.user_login || '')
+                .split('{input}').join(event.user_input || '');
+
+            if (String(redeem.redeemType || '').toLowerCase() === 'emote_rain') {
+                const urls = Array.isArray(cfg.emoteUrls) ? cfg.emoteUrls.filter(Boolean) : [];
+                if (!urls.length) return;
+                await addDoc(collection(db, 'liveEffects'), {
+                    canal: canalParam,
+                    status: 'pending',
+                    effectType: 'emote_rain',
+                    duration: Math.max(3, Number(cfg.duration) || 8),
+                    count: Math.max(10, Number(cfg.count) || 30),
+                    emoteSize: Math.max(16, Math.min(96, Number(cfg.emoteSize) || 40)),
+                    motion: String(cfg.motion || 'auto'),
+                    emoteUrls: urls,
+                    rewardName: rewardTitle,
+                    redeemedBy: event.user_login || '',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+                return;
+            }
+
+            const assetUrl = String(cfg.assetUrl || '').trim();
+            if (!assetUrl) return;
+            await addDoc(collection(db, 'liveAlerts'), {
+                canal: canalParam,
+                type: String(cfg.type || 'image'),
+                eventType: 'channel_points',
+                nombre: String(redeem.nombre || 'Canje de puntos').trim(),
+                assetUrl,
+                soundUrl: String(cfg.soundUrl || '').trim(),
+                text: interpolate(String(cfg.text || '').trim()),
+                fontSize: Number(cfg.fontSize) || 34,
+                textColor: String(cfg.textColor || '#f3efff'),
+                mediaPosition: String(cfg.mediaPosition || 'center'),
+                animation: String(cfg.animation || 'pulse'),
+                status: 'pending',
+                rewardName: rewardTitle,
+                redeemedBy: event.user_login || '',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+        };
+
+        const _eswConnect = async (wsUrl = 'wss://eventsub.wss.twitch.tv/ws') => {
+            if (!canalParam) return;
+
+            const token = await _eswGetToken(canalParam);
+            if (!token) return; // Sin token guardado, nada que hacer
+
+            const broadcasterId = await _eswGetBroadcasterId(canalParam, token);
+            if (!broadcasterId) return; // Token inválido o expirado
+
+            if (_eswReconnectTimer) { clearTimeout(_eswReconnectTimer); _eswReconnectTimer = null; }
+
+            const prevWs = _eswWs;
+            let keepTimer = null;
+            let keepMs = 15000;
+
+            const resetKeep = () => {
+                if (keepTimer) clearTimeout(keepTimer);
+                keepTimer = setTimeout(() => ws.close(1001, 'keepalive timeout'), keepMs);
+            };
+
+            const ws = new WebSocket(wsUrl);
+            _eswWs = ws;
+
+            ws.addEventListener('open', () => {
+                resetKeep();
+                if (prevWs && prevWs !== ws) { try { prevWs.close(4000, 'replaced'); } catch (_) {} }
+            });
+
+            ws.addEventListener('message', async (evt) => {
+                resetKeep();
+                let msg;
+                try { msg = JSON.parse(evt.data); } catch { return; }
+                const t = msg?.metadata?.message_type;
+
+                if (t === 'session_welcome') {
+                    const session = msg.payload?.session;
+                    keepMs = (Number(session?.keepalive_timeout_seconds) || 10) * 1000 + 5000;
+                    resetKeep();
+                    if (session?.id) await _eswSubscribe(session.id, broadcasterId, token);
+                }
+
+                if (t === 'notification') {
+                    _eswDispatch(msg.payload?.event).catch(err => console.error('[IWY EventSub]', err));
+                }
+
+                if (t === 'session_reconnect') {
+                    const reconnectUrl = msg.payload?.session?.reconnect_url;
+                    if (reconnectUrl) await _eswConnect(reconnectUrl);
+                }
+            });
+
+            ws.addEventListener('close', (evt) => {
+                if (keepTimer) clearTimeout(keepTimer);
+                if (_eswWs !== ws) return;
+                _eswWs = null;
+                if (evt.code !== 4000 && canalParam) {
+                    _eswReconnectTimer = setTimeout(() => _eswConnect(), 5000);
+                }
+            });
+        };
+
+        if (canalParam) _eswConnect();
+        // ─────────────────────────────────────────────────────────────────────────
     </script>
 </body>
 </html>

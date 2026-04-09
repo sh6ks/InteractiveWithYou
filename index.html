@@ -93,7 +93,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         // Script principal: inicializa Firebase, gestiona autenticación, sidebar y carga de secciones.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Configuración de Firebase para autenticación y acceso a datos.
         const firebaseConfig = {
@@ -120,7 +120,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         const TWITCH_REDIRECT_URI = window.location.hostname.includes('vercel.app')
             ? 'https://interactive-with-you.vercel.app/'
             : `${window.location.origin}/`;
-        const TWITCH_SCOPE = 'user:read:email chat:read chat:edit';
+        const TWITCH_SCOPE = 'user:read:email chat:read chat:edit channel:read:redemptions';
         const FUNCTIONS_BASE = 'https://us-central1-interactivewithyou.cloudfunctions.net';
 
         const PLAN_FREE = 'free';
@@ -551,6 +551,19 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             localStorage.setItem('nombreTwitch', user.login);
             localStorage.setItem('fotoTwitch', user.profile_image_url);
             localStorage.setItem('twitchAccessToken', token);
+
+            // Guarda el token en Firestore para que el overlay EventSub WebSocket lo use.
+            try {
+                await setDoc(doc(db, 'twitchBots', user.login.toLowerCase()), {
+                    channel: user.login.toLowerCase(),
+                    login: user.login.toLowerCase(),
+                    accessToken: token,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+            } catch (err) {
+                console.warn('[IWY] No se pudo guardar token en Firestore:', err);
+            }
+
             await linkTwitchBotToken(user.login, token);
 
             if (window.opener) {

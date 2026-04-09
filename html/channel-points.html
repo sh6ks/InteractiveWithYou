@@ -308,7 +308,7 @@
         <div class="card">
             <h1>Canjes por puntos del canal</h1>
             <p>Crea canjes para que los puntos del canal disparen acciones en el overlay. Incluye media y lluvia de emotes.</p>
-            <p class="hint">Nota: la ejecución automática al recibir canjes reales depende del backend de Twitch. Esta pantalla ya permite configurar todo y probarlo en OBS.</p>
+            <p class="hint">Los canjes reales funcionan via Twitch WebSocket directo desde el overlay en OBS — sin costo, sin servidor. Solo necesitás tener el overlay abierto mientras transmitís.</p>
             <div class="overlay-link-box">
                 <label for="overlayLinkCanjes">Link del overlay para OBS</label>
                 <input id="overlayLinkCanjes" readonly>
@@ -490,7 +490,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
@@ -688,6 +688,37 @@
                 return;
             }
             backendIndicatorText.textContent = 'Backend: sin verificar';
+        };
+
+        const ensureRealRedeemSubscription = async ({ silent = false } = {}) => {
+            const canal = getCanal();
+            if (!canal) {
+                if (!silent) showStatus('Inicia sesión con Twitch para activar los canjes reales.', false);
+                setBackendMode('local', 'sin sesión');
+                return { ok: false, skipped: true, message: 'Falta sesión de Twitch.' };
+            }
+
+            try {
+                // Verifica si el token está almacenado en Firestore (guardado al hacer login).
+                const botSnap = await getDoc(doc(db, 'twitchBots', canal));
+                if (botSnap.exists() && botSnap.data()?.accessToken) {
+                    setBackendMode('online', 'overlay WebSocket');
+                    if (!silent) {
+                        showStatus(`Canjes reales activos para ${canal}. El overlay escucha via Twitch WebSocket (sin costo).`);
+                    }
+                    return { ok: true, skipped: false, message: 'overlay WebSocket' };
+                }
+
+                // Sin token guardado → el usuario debe iniciar sesión y recargar.
+                setBackendMode('local', 'abre overlay en OBS');
+                if (!silent) {
+                    showStatus('Para activar canjes reales: cerrá sesión, volvé a iniciarla con Twitch y asegurate que el overlay esté abierto en OBS.', false);
+                }
+                return { ok: false, skipped: false, message: 'Sin token guardado en Firestore.' };
+            } catch (error) {
+                setBackendMode('local', 'no verificado');
+                return { ok: false, skipped: false, message: error.message || String(error) };
+            }
         };
 
         const animationClassMap = {
@@ -1322,14 +1353,18 @@
 
             if (selectedRedeemId && selectedRedeemType === 'media') {
                 await updateDoc(doc(db, 'channelPointRedeems', selectedRedeemId), payload);
-                showStatus('Canje de media actualizado.');
+                const subscription = await ensureRealRedeemSubscription({ silent: true });
+                const suffix = subscription.ok ? ' Canjes reales activos.' : ` Aviso: ${subscription.message}`;
+                showStatus(`Canje de media actualizado.${suffix}`);
             } else {
                 const created = await addDoc(collection(db, 'channelPointRedeems'), {
                     ...payload,
                     createdAt: serverTimestamp()
                 });
                 setSelectedRedeem(created.id, 'media');
-                showStatus('Canje de media guardado.');
+                const subscription = await ensureRealRedeemSubscription({ silent: true });
+                const suffix = subscription.ok ? ' Canjes reales activos.' : ` Aviso: ${subscription.message}`;
+                showStatus(`Canje de media guardado.${suffix}`);
             }
 
             loadRedeems();
@@ -1407,20 +1442,26 @@
 
                 if (selectedRedeemId && selectedRedeemType === 'emote_rain') {
                     await updateDoc(doc(db, 'channelPointRedeems', selectedRedeemId), payload);
-                    showStatus(`Canje de lluvia actualizado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
+                    const subscription = await ensureRealRedeemSubscription({ silent: true });
+                    const suffix = subscription.ok ? ' Canjes reales activos.' : ` Aviso: ${subscription.message}`;
+                    showStatus(`Canje de lluvia actualizado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).${suffix}`);
                 } else {
                     const existingRain = await getExistingRainRedeemDoc(canal);
                     if (existingRain) {
                         await updateDoc(doc(db, 'channelPointRedeems', existingRain.id), payload);
                         setSelectedRedeem(existingRain.id, 'emote_rain');
-                        showStatus(`Ya existía una lluvia para este canal; se actualizó esa configuración. Saldrán ${requestedCount} emotes (pool: ${urls.length}).`);
+                        const subscription = await ensureRealRedeemSubscription({ silent: true });
+                        const suffix = subscription.ok ? ' Canjes reales activos.' : ` Aviso: ${subscription.message}`;
+                        showStatus(`Ya existía una lluvia para este canal; se actualizó esa configuración. Saldrán ${requestedCount} emotes (pool: ${urls.length}).${suffix}`);
                     } else {
                         const created = await addDoc(collection(db, 'channelPointRedeems'), {
                             ...payload,
                             createdAt: serverTimestamp()
                         });
                         setSelectedRedeem(created.id, 'emote_rain');
-                        showStatus(`Canje de lluvia guardado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).`);
+                        const subscription = await ensureRealRedeemSubscription({ silent: true });
+                        const suffix = subscription.ok ? ' Canjes reales activos.' : ` Aviso: ${subscription.message}`;
+                        showStatus(`Canje de lluvia guardado. Saldrán ${requestedCount} emotes por ejecución (pool cargado: ${urls.length}).${suffix}`);
                     }
                 }
                 loadRedeems();
@@ -1519,6 +1560,7 @@
         setMode('media');
         renderMediaPreview();
         loadRedeems();
+        ensureRealRedeemSubscription({ silent: true });
     </script>
 </body>
 </html>
