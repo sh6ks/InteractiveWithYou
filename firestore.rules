@@ -3,6 +3,19 @@ rules_version='2'
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function authCanal() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.canal
+        : null;
+    }
+
+    function isChannelOwner(channel) {
+      return request.auth != null
+        && authCanal() is string
+        && authCanal() == channel;
+    }
+
     // ── Configuración de chat widget (config.html, commands.html) ──────────────
     match /usuarios/{docId} {
       allow read: if true;
@@ -49,37 +62,42 @@ service cloud.firestore {
     match /twitchBots/{channel} {
       allow read: if true;
       allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.uid == request.auth.uid || isChannelOwner(channel))
         && request.resource.data.accessToken is string
         && request.resource.data.accessToken.size() > 0
         && request.resource.data.channel is string
         && request.resource.data.channel.size() > 0;
       allow update: if request.auth != null
-        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.uid == request.auth.uid || isChannelOwner(channel))
         && (
           resource.data.uid == request.auth.uid
           || !('uid' in resource.data)
+          || isChannelOwner(channel)
         );
       allow delete: if request.auth != null
-        && resource.data.uid == request.auth.uid;
+        && (resource.data.uid == request.auth.uid || isChannelOwner(channel));
     }
 
     // ── Canjes configurados – solo el dueño puede escribir/eliminar ───────────
     match /channelPointRedeems/{docId} {
       allow read: if true;
       allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.uid == request.auth.uid || isChannelOwner(request.resource.data.canal))
         && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0
         && request.resource.data.canal.size() <= 40;
       allow update: if request.auth != null
-        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.uid == request.auth.uid || isChannelOwner(request.resource.data.canal))
         && (
           resource.data.uid == request.auth.uid
           || !('uid' in resource.data)
+          || (resource.data.canal is string && isChannelOwner(resource.data.canal))
         );
       allow delete: if request.auth != null
-        && resource.data.uid == request.auth.uid;
+        && (
+          resource.data.uid == request.auth.uid
+          || (resource.data.canal is string && isChannelOwner(resource.data.canal))
+        );
     }
 
     // ── Alertas y efectos en vivo – cualquier usuario autenticado puede escribir
