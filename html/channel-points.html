@@ -1533,10 +1533,12 @@
 
                 setBackendMode('online', 'simulación remota');
                 showStatus(`Canje real simulado OK (${json.type}). Reward matched: ${json.matchedReward}`);
+                ensureRealRedeemSubscription({ silent: true }).catch(() => {});
             } catch (networkOrHttpError) {
                 const fallback = await fallbackLocalSim();
                 setBackendMode('local', 'simulación local');
                 showStatus(`Canje simulado en modo local (${fallback.type}). Reward matched: ${fallback.matchedReward}. Motivo fallback: ${networkOrHttpError.message || networkOrHttpError}`);
+                setTimeout(() => ensureRealRedeemSubscription({ silent: true }).catch(() => {}), 1200);
             }
         };
 

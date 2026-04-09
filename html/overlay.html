@@ -513,11 +513,16 @@
         const TWITCH_CLIENT_ID = '9cac6zpfterkbzigfr28hpil7se9y3';
         let _eswWs = null;
         let _eswReconnectTimer = null;
+        let _eswOwnerUid = null;
 
         const _eswGetToken = async (channel) => {
             try {
                 const snap = await getDoc(doc(db, 'twitchBots', channel));
-                if (snap.exists()) return snap.data()?.accessToken || null;
+                if (snap.exists()) {
+                    const data = snap.data() || {};
+                    _eswOwnerUid = data.uid || null;
+                    return data.accessToken || null;
+                }
             } catch (_) {}
             return null;
         };
@@ -567,7 +572,10 @@
             if (!rewardTitle) return;
 
             const rewardKey = _normalizeStr(rewardTitle);
-            const snap = await getDocs(query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam)));
+            const redeemsQuery = _eswOwnerUid
+                ? query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam), where('uid', '==', _eswOwnerUid))
+                : query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam));
+            const snap = await getDocs(redeemsQuery);
             if (snap.empty) return;
 
             const match = snap.docs.find(d => {
