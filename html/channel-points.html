@@ -1517,6 +1517,7 @@
 
                 await addDoc(collection(db, 'liveEffects'), {
                     canal,
+                    uid: getUid(),
                     status: 'pending',
                     effectType: 'emote_rain',
                     duration: Math.max(3, Number(rainDuration.value) || 8),
