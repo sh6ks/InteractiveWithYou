@@ -508,6 +508,7 @@ export const processChannelPointRedeem = onRequest(async (req, res) => {
 				effectType: "emote_rain",
 				duration: Math.max(3, Number(cfg.duration) || 8),
 				count: Math.max(10, Number(cfg.count) || 30),
+				emoteSize: Math.max(16, Math.min(96, Number(cfg.emoteSize) || 40)),
 				motion,
 				emoteUrls,
 				status: "pending",

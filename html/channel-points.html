@@ -427,6 +427,10 @@
                         <input id="rainCount" type="number" min="10" max="120" value="30">
                     </div>
                     <div class="field">
+                        <label>Tamaño de emotes (px)</label>
+                        <input id="rainEmoteSize" type="number" min="16" max="96" value="40">
+                    </div>
+                    <div class="field">
                         <label>Tipo de salida de emotes</label>
                         <select id="rainMotion">
                             <option value="auto" selected>Aleatoria (elige automáticamente)</option>
@@ -540,6 +544,7 @@
         const rainReward = document.getElementById('rainReward');
         const rainDuration = document.getElementById('rainDuration');
         const rainCount = document.getElementById('rainCount');
+        const rainEmoteSize = document.getElementById('rainEmoteSize');
         const rainMotion = document.getElementById('rainMotion');
         const providerButtons = document.querySelectorAll('.provider-btn');
         const rainPreviewStage = document.getElementById('rainPreviewStage');
@@ -588,6 +593,7 @@
                 rainReward.value = data?.rewardName || data?.nombre || '';
                 rainDuration.value = Math.max(3, Number(data?.config?.duration) || 8);
                 rainCount.value = Math.max(10, Number(data?.config?.count) || 30);
+                rainEmoteSize.value = Math.max(16, Math.min(96, Number(data?.config?.emoteSize) || 40));
                 rainMotion.value = data?.config?.motion || 'auto';
 
                 const cfgSources = data?.config?.emoteSources || {};
@@ -635,6 +641,7 @@
                     effectType: 'emote_rain',
                     duration: Math.max(3, Number(cfg.duration) || 8),
                     count: Math.max(10, Number(cfg.count) || 30),
+                    emoteSize: Math.max(16, Math.min(96, Number(cfg.emoteSize) || 40)),
                     motion: String(cfg.motion || 'auto'),
                     emoteUrls: urls,
                     rewardName: data?.rewardName || data?.nombre || 'Lluvia de emotes',
@@ -753,6 +760,7 @@
             const centerX = width / 2;
             const centerY = height / 2;
             const count = Math.max(8, Math.min(30, Number(rainCount.value) || 20));
+            const previewSize = Math.max(16, Math.min(96, Number(rainEmoteSize.value) || 40));
 
             rainPreviewBadge.textContent = motion === 'auto' ? 'Lluvia aleatoria' : `Lluvia: ${motion}`;
 
@@ -793,6 +801,7 @@
                 const particle = document.createElement('span');
                 particle.className = 'rain-preview-particle';
                 particle.textContent = previewEmotes[Math.floor(Math.random() * previewEmotes.length)];
+                particle.style.fontSize = `${previewSize}px`;
                 rainPreviewLayer.appendChild(particle);
 
                 const path = getTrajectory();
@@ -1003,7 +1012,7 @@
             el.addEventListener('change', renderMediaPreview);
         });
 
-        [rainMotion, rainCount, rainDuration, rainName].forEach((el) => {
+        [rainMotion, rainCount, rainDuration, rainName, rainEmoteSize].forEach((el) => {
             el.addEventListener('input', () => {
                 if (rainPreviewStage.style.display !== 'none') startRainPreview();
             });
@@ -1219,6 +1228,7 @@
                         effectType: 'emote_rain',
                         duration: Math.max(3, Number(cfg.duration) || 8),
                         count: Math.max(10, Number(cfg.count) || 30),
+                        emoteSize: Math.max(16, Math.min(96, Number(cfg.emoteSize) || 40)),
                         motion: String(cfg.motion || 'auto'),
                         emoteUrls,
                         status: 'pending',
@@ -1366,6 +1376,7 @@
                 if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
                 const urls = await resolveRainEmoteUrls();
                 const requestedCount = Math.max(10, Number(rainCount.value) || 30);
+                const requestedSize = Math.max(16, Math.min(96, Number(rainEmoteSize.value) || 40));
                 const canonicalName = rainName.value.trim();
                 rainReward.value = canonicalName;
                 if (!canonicalName || urls.length === 0) {
@@ -1381,6 +1392,7 @@
                     config: {
                         duration: Math.max(3, Number(rainDuration.value) || 8),
                         count: requestedCount,
+                        emoteSize: requestedSize,
                         motion: rainMotion.value || 'auto',
                         emoteSources: {
                             sevenTv: !!rainSources.sevenTv,
@@ -1423,6 +1435,7 @@
                 if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
                 const urls = await resolveRainEmoteUrls();
                 const requestedCount = Math.max(10, Number(rainCount.value) || 30);
+                const requestedSize = Math.max(16, Math.min(96, Number(rainEmoteSize.value) || 40));
                 if (urls.length === 0) return showStatus('No se encontraron emotes con las fuentes seleccionadas.', false);
 
                 await addDoc(collection(db, 'liveEffects'), {
@@ -1431,6 +1444,7 @@
                     effectType: 'emote_rain',
                     duration: Math.max(3, Number(rainDuration.value) || 8),
                     count: requestedCount,
+                    emoteSize: requestedSize,
                     motion: rainMotion.value || 'auto',
                     emoteUrls: urls,
                     rewardName: rainName.value.trim() || 'Lluvia de emotes',
@@ -1472,6 +1486,7 @@
                 }
 
                 const requestedCount = Math.max(10, Number(rainCount.value) || 30);
+                const requestedSize = Math.max(16, Math.min(96, Number(rainEmoteSize.value) || 40));
 
                 await updateDoc(doc(db, 'channelPointRedeems', targetId), {
                     rewardName: rainName.value.trim() || 'Lluvia de emotes',
@@ -1479,6 +1494,7 @@
                     config: {
                         duration: Math.max(3, Number(rainDuration.value) || 8),
                         count: requestedCount,
+                        emoteSize: requestedSize,
                         motion: rainMotion.value || 'auto',
                         emoteSources: {
                             sevenTv: !!rainSources.sevenTv,
