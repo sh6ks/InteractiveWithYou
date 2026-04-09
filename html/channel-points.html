@@ -534,6 +534,9 @@
 
         const getUid = () => auth.currentUser?.uid || currentUid || localStorage.getItem('firebaseUid') || null;
         const getUidErrorHint = () => {
+            if (authInitErrorCode.includes('auth/admin-restricted-operation')) {
+                return 'Firebase bloquea el login anonimo (admin-restricted-operation). Activa Anonymous en Firebase Console > Authentication > Sign-in method, o inicia sesion con Google en el dashboard.';
+            }
             if (authInitErrorCode.includes('auth/operation-not-allowed')) {
                 return 'Firebase Anonymous Auth esta desactivado. Activalo en Firebase Console > Authentication > Sign-in method > Anonymous.';
             }
