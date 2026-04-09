@@ -103,6 +103,31 @@ function normalizeChannel(value: unknown) {
 	return String(value || "").trim().toLowerCase();
 }
 
+function normalizeRewardName(value: unknown) {
+	return String(value || "")
+		.trim()
+		.toLowerCase()
+		.replace(/\s+/g, " ");
+}
+
+function interpolateRedeemText(template: string, payload: {
+	userDisplayName?: string;
+	userLogin?: string;
+	rewardName?: string;
+	userInput?: string;
+}) {
+	const safeTemplate = String(template || "").trim();
+	const userDisplayName = String(payload.userDisplayName || payload.userLogin || "viewer");
+	const rewardName = String(payload.rewardName || "Canje");
+	const userInput = String(payload.userInput || "");
+
+	return safeTemplate
+		.replaceAll("{user}", userDisplayName)
+		.replaceAll("{reward}", rewardName)
+		.replaceAll("{input}", userInput)
+		.trim();
+}
+
 function normalizeToken(rawToken: string) {
 	if (rawToken.startsWith("oauth:")) return rawToken.slice(6);
 	return rawToken;
@@ -381,5 +406,158 @@ export const logTwitchCommandExecution = onRequest(async (req, res) => {
 		res.status(200).json({ok: true});
 	} catch (error) {
 		res.status(500).json({error: "No se pudo guardar auditoria", details: String(error)});
+	}
+});
+
+/**
+ * Process a Channel Points redeem and dispatch configured overlay actions.
+ *
+ * POST body:
+ * {
+ *   channel: string,
+ *   rewardName: string,
+ *   userLogin?: string,
+ *   userDisplayName?: string,
+ *   userInput?: string,
+ *   source?: string
+ * }
+ */
+export const processChannelPointRedeem = onRequest(async (req, res) => {
+	applyCors(req, res);
+
+	if (req.method === "OPTIONS") {
+		res.status(204).send("");
+		return;
+	}
+
+	if (req.method !== "POST") {
+		res.status(405).json({error: "Method not allowed"});
+		return;
+	}
+
+	try {
+		const body = req.body || {};
+		const channel = normalizeChannel(body.channel);
+		const rewardNameRaw = String(body.rewardName || "").trim();
+		const rewardKey = normalizeRewardName(rewardNameRaw);
+		const userLogin = normalizeChannel(body.userLogin);
+		const userDisplayName = String(body.userDisplayName || "").trim().slice(0, 80);
+		const userInput = String(body.userInput || "").trim().slice(0, 250);
+		const source = String(body.source || "external").trim().toLowerCase().slice(0, 24);
+
+		if (!channel || !rewardKey) {
+			res.status(400).json({error: "channel y rewardName son requeridos"});
+			return;
+		}
+
+		// Canal-only query to avoid composite indexes, then filter in memory.
+		const redeemSnap = await adminDb.collection("channelPointRedeems")
+			.where("canal", "==", channel)
+			.get();
+
+		if (redeemSnap.empty) {
+			res.status(404).json({error: "No hay canjes configurados para este canal"});
+			return;
+		}
+
+		const matchingDoc = redeemSnap.docs.find((docSnap) => {
+			const data = docSnap.data();
+			const enabled = data?.enabled !== false;
+			const rewardName = normalizeRewardName(data?.rewardName);
+			return enabled && rewardName && rewardName === rewardKey;
+		});
+
+		if (!matchingDoc) {
+			res.status(404).json({
+				error: "No hay coincidencia para ese rewardName",
+				channel,
+				rewardName: rewardNameRaw,
+			});
+			return;
+		}
+
+		const redeem = matchingDoc.data();
+		const redeemType = String(redeem?.redeemType || "media").toLowerCase();
+		const cfg = redeem?.config || {};
+
+		const commonPayload = {
+			canal: channel,
+			rewardName: rewardNameRaw,
+			triggeredBy: {
+				userLogin,
+				userDisplayName,
+				userInput,
+				source,
+			},
+			triggeredAt: FieldValue.serverTimestamp(),
+		};
+
+		if (redeemType === "emote_rain") {
+			const emoteUrls = Array.isArray(cfg.emoteUrls) ? cfg.emoteUrls.filter(Boolean) : [];
+			if (!emoteUrls.length) {
+				res.status(400).json({error: "El canje emote_rain no tiene emoteUrls"});
+				return;
+			}
+
+			await adminDb.collection("liveEffects").add({
+				...commonPayload,
+				effectType: "emote_rain",
+				duration: Math.max(3, Number(cfg.duration) || 8),
+				count: Math.max(10, Number(cfg.count) || 30),
+				emoteUrls,
+				status: "pending",
+				createdAt: FieldValue.serverTimestamp(),
+				updatedAt: FieldValue.serverTimestamp(),
+			});
+
+			res.status(200).json({
+				ok: true,
+				type: "emote_rain",
+				matchedReward: redeem.rewardName,
+			});
+			return;
+		}
+
+		const mediaType = String(cfg.type || "image").toLowerCase();
+		const assetUrl = String(cfg.assetUrl || "").trim();
+		if (!assetUrl) {
+			res.status(400).json({error: "El canje media no tiene assetUrl"});
+			return;
+		}
+
+		const resolvedText = interpolateRedeemText(String(cfg.text || "Canje de puntos"), {
+			userDisplayName,
+			userLogin,
+			rewardName: rewardNameRaw,
+			userInput,
+		});
+
+		await adminDb.collection("liveAlerts").add({
+			...commonPayload,
+			type: ["image", "video", "sound"].includes(mediaType) ? mediaType : "image",
+			eventType: "channel_points",
+			nombre: String(redeem?.nombre || "Canje de puntos").trim() || "Canje de puntos",
+			assetUrl,
+			soundUrl: String(cfg.soundUrl || "").trim(),
+			text: resolvedText,
+			fontSize: Number(cfg.fontSize) || 34,
+			textColor: String(cfg.textColor || "#f3efff"),
+			mediaPosition: String(cfg.mediaPosition || "center"),
+			animation: String(cfg.animation || "pulse"),
+			status: "pending",
+			createdAt: FieldValue.serverTimestamp(),
+			updatedAt: FieldValue.serverTimestamp(),
+		});
+
+		res.status(200).json({
+			ok: true,
+			type: "media",
+			matchedReward: redeem.rewardName,
+		});
+	} catch (error) {
+		res.status(500).json({
+			error: "No se pudo procesar el canje de puntos",
+			details: String(error),
+		});
 	}
 });

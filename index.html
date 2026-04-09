@@ -42,6 +42,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                             <li><a href="#" onclick="cargarSeccion('chat')">Widget de Chat</a></li>
                             <li><a href="#" onclick="cargarSeccion('alerts')">Alertas en vivo</a></li>
                             <li><a href="#" onclick="cargarSeccion('comandos')">Comandos y timers</a></li>
+                            <li><a href="#" onclick="cargarSeccion('canjes')">Canjes por puntos del canal</a></li>
                         </ul>
                     </div>
                 </div>
@@ -143,6 +144,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             chat: { label: 'Widget de Chat', tier: PLAN_FREE },
             alerts: { label: 'Alertas en vivo', tier: PLAN_FREE },
             comandos: { label: 'Comandos y timers', tier: PLAN_FREE },
+            canjes: { label: 'Canjes por puntos del canal', tier: PLAN_FREE },
             funciones: { label: 'Herramientas', tier: PLAN_FREE },
             comunidad: { label: 'Comunidad', tier: PLAN_FREE },
             contacto: { label: 'Contacto', tier: PLAN_FREE },
@@ -620,6 +622,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
             else if (seccionFinal === 'chat') archivo = "html/config.html";
             else if (seccionFinal === 'alerts') archivo = "html/alerts.html";
             else if (seccionFinal === 'comandos') archivo = "html/commands.html";
+            else if (seccionFinal === 'canjes') archivo = "html/channel-points.html";
             else if (seccionFinal === 'funciones') archivo = "html/functions.html";
             else if (seccionFinal === 'comunidad') archivo = "html/comunity.html";
             else if (seccionFinal === 'contacto') archivo = "html/contacto.html";

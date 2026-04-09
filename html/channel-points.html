@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canjes por puntos del canal</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 28px;
+            color: #f3efff;
+            background: transparent;
+            font-family: 'Poppins', sans-serif;
+        }
+        .wrap { max-width: 1220px; margin: 0 auto; display: grid; gap: 16px; }
+        .card {
+            background: rgba(18,16,34,0.92);
+            border: 1px solid rgba(145,71,255,0.26);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        h1 { margin: 0; font-size: 1.6rem; }
+        p { margin: 6px 0 0; color: #b8b0de; font-size: 0.88rem; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .field { display: grid; gap: 7px; margin-bottom: 10px; }
+        label { font-size: 0.84rem; color: #d6d1ff; }
+        input, select, textarea {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid rgba(145,71,255,0.28);
+            background: rgba(10,9,21,0.8);
+            color: #fff;
+            padding: 10px 12px;
+            font: inherit;
+            outline: none;
+        }
+        textarea { min-height: 84px; resize: vertical; }
+
+        .row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #fff;
+            background: #9147ff;
+        }
+        .btn.secondary { background: #2a2640; color: #d7d2ff; }
+        .btn.warn { background: #b03d4f; }
+
+        .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .chip {
+            border: 1px solid rgba(145,71,255,0.35);
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            background: rgba(145,71,255,0.08);
+            color: #c8c2f0;
+        }
+        .chip.active { background: #9147ff; color: #fff; border-color: #9147ff; }
+
+        .status {
+            display: none;
+            margin-top: 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(0,255,153,0.34);
+            background: rgba(0,255,153,0.08);
+            color: #d7ffed;
+            padding: 10px;
+            font-size: 0.84rem;
+        }
+        .status.error {
+            border-color: rgba(255,90,120,0.45);
+            background: rgba(255,90,120,0.1);
+            color: #ffd5df;
+        }
+
+        .list { display: grid; gap: 8px; max-height: 420px; overflow: auto; }
+        .item {
+            border-radius: 12px;
+            border: 1px solid rgba(145,71,255,0.25);
+            background: rgba(13,11,27,0.85);
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+        }
+        .item-title { font-size: 0.92rem; font-weight: 700; }
+        .item-meta { font-size: 0.78rem; color: #b0a9d6; margin-top: 3px; }
+
+        .hint { font-size: 0.8rem; color: #b0a9d6; margin-top: 6px; }
+
+        @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="card">
+            <h1>Canjes por puntos del canal</h1>
+            <p>Crea canjes para que los puntos del canal disparen acciones en el overlay. Incluye media y lluvia de emotes.</p>
+            <p class="hint">Nota: la ejecución automática al recibir canjes reales depende del backend de Twitch. Esta pantalla ya permite configurar todo y probarlo en OBS.</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="chips">
+                    <button class="chip active" data-mode="media" type="button">Canje de media (imagen/video/sonido)</button>
+                    <button class="chip" data-mode="emote_rain" type="button">Lluvia de emotes</button>
+                    <button class="chip" data-mode="future" type="button">Próximamente</button>
+                </div>
+
+                <div id="modeMedia">
+                    <div class="field">
+                        <label>Nombre interno del canje</label>
+                        <input id="redeemName" placeholder="Ej: Canje Follow Explosivo" maxlength="60">
+                    </div>
+                    <div class="field">
+                        <label>Nombre del canje en Twitch (igual al de arriba)</label>
+                        <input id="redeemReward" placeholder="Se completa automáticamente" maxlength="80" readonly>
+                    </div>
+                    <div class="field">
+                        <label>Tipo de media</label>
+                        <select id="redeemType">
+                            <option value="image">Imagen</option>
+                            <option value="video">Video</option>
+                            <option value="sound">Sonido</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>URL del media principal</label>
+                        <input id="redeemAssetUrl" placeholder="https://...">
+                    </div>
+                    <div class="field">
+                        <label>Sonido adicional (opcional)</label>
+                        <input id="redeemSoundUrl" placeholder="https://...mp3">
+                    </div>
+                    <div class="field">
+                        <label>Texto en pantalla</label>
+                        <input id="redeemText" placeholder="Gracias por el canje!">
+                    </div>
+                    <div class="field">
+                        <label>Tamaño de texto</label>
+                        <input id="redeemFontSize" type="number" min="16" max="96" value="34">
+                    </div>
+                    <div class="field">
+                        <label>Color de texto</label>
+                        <input id="redeemTextColor" type="color" value="#f3efff">
+                    </div>
+                    <div class="field">
+                        <label>Posición del media</label>
+                        <select id="redeemMediaPosition">
+                            <option value="top">Arriba</option>
+                            <option value="center" selected>Centro</option>
+                            <option value="bottom">Abajo</option>
+                            <option value="left">Izquierda</option>
+                            <option value="right">Derecha</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Animación</label>
+                        <select id="redeemAnimation">
+                            <option value="none">Sin animación</option>
+                            <option value="vibrate">Vibrar</option>
+                            <option value="bounce">Rebotar</option>
+                            <option value="zoom">Zoom</option>
+                            <option value="slide-left">Deslizar izquierda</option>
+                            <option value="pulse" selected>Pulso suave</option>
+                            <option value="rotate">Giro suave</option>
+                            <option value="float">Flotar</option>
+                            <option value="shake-hard">Sacudida fuerte</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <button class="btn" id="saveMediaBtn" type="button">Guardar canje</button>
+                        <button class="btn secondary" id="testMediaBtn" type="button">Probar en OBS</button>
+                        <button class="btn secondary" id="simulateMediaRedeemBtn" type="button">Simular canje real</button>
+                    </div>
+                </div>
+
+                <div id="modeEmoteRain" style="display:none;">
+                    <div class="field">
+                        <label>Nombre interno del canje</label>
+                        <input id="rainName" placeholder="Ej: Tormenta de Emotes" maxlength="60">
+                    </div>
+                    <div class="field">
+                        <label>Nombre del canje en Twitch (igual al de arriba)</label>
+                        <input id="rainReward" placeholder="Se completa automáticamente" maxlength="80" readonly>
+                    </div>
+                    <div class="field">
+                        <label>Duración (segundos)</label>
+                        <input id="rainDuration" type="number" min="3" max="25" value="8">
+                    </div>
+                    <div class="field">
+                        <label>Cantidad de emotes</label>
+                        <input id="rainCount" type="number" min="10" max="120" value="30">
+                    </div>
+                    <div class="field">
+                        <label>URLs de emotes (1 por línea)</label>
+                        <textarea id="rainUrls" placeholder="https://...png\nhttps://...webp"></textarea>
+                    </div>
+                    <div class="row">
+                        <button class="btn secondary" id="autofillRainBtn" type="button">Auto-cargar emotes del canal</button>
+                    </div>
+                    <div class="row">
+                        <button class="btn" id="saveRainBtn" type="button">Guardar canje</button>
+                        <button class="btn secondary" id="testRainBtn" type="button">Probar lluvia en OBS</button>
+                        <button class="btn secondary" id="simulateRainRedeemBtn" type="button">Simular canje real</button>
+                    </div>
+                </div>
+
+                <div id="modeFuture" style="display:none;">
+                    <p class="hint">Aquí podremos agregar más tipos de canjes: mini-juegos, overlays temporales, sonido global, etc.</p>
+                </div>
+
+                <div class="status" id="statusBox"></div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin:0 0 10px;">Canjes guardados</h3>
+                <div class="list" id="redeemList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
+            authDomain: "interactivewithyou.firebaseapp.com",
+            projectId: "interactivewithyou",
+            storageBucket: "interactivewithyou.firebasestorage.app",
+            messagingSenderId: "220446228684",
+            appId: "1:220446228684:web:759044ab4365962d300269"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const FUNCTIONS_BASE = 'https://us-central1-interactivewithyou.cloudfunctions.net';
+
+        const getCanal = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
+
+        const statusBox = document.getElementById('statusBox');
+        const redeemList = document.getElementById('redeemList');
+
+        const modeMedia = document.getElementById('modeMedia');
+        const modeEmoteRain = document.getElementById('modeEmoteRain');
+        const modeFuture = document.getElementById('modeFuture');
+
+        const redeemName = document.getElementById('redeemName');
+        const redeemReward = document.getElementById('redeemReward');
+        const redeemType = document.getElementById('redeemType');
+        const redeemAssetUrl = document.getElementById('redeemAssetUrl');
+        const redeemSoundUrl = document.getElementById('redeemSoundUrl');
+        const redeemText = document.getElementById('redeemText');
+        const redeemFontSize = document.getElementById('redeemFontSize');
+        const redeemTextColor = document.getElementById('redeemTextColor');
+        const redeemMediaPosition = document.getElementById('redeemMediaPosition');
+        const redeemAnimation = document.getElementById('redeemAnimation');
+
+        const rainName = document.getElementById('rainName');
+        const rainReward = document.getElementById('rainReward');
+        const rainDuration = document.getElementById('rainDuration');
+        const rainCount = document.getElementById('rainCount');
+        const rainUrls = document.getElementById('rainUrls');
+
+        const showStatus = (message, ok = true) => {
+            statusBox.style.display = 'block';
+            statusBox.classList.toggle('error', !ok);
+            statusBox.textContent = message;
+        };
+
+        const setMode = (mode) => {
+            document.querySelectorAll('.chip').forEach(chip => chip.classList.toggle('active', chip.dataset.mode === mode));
+            modeMedia.style.display = mode === 'media' ? 'block' : 'none';
+            modeEmoteRain.style.display = mode === 'emote_rain' ? 'block' : 'none';
+            modeFuture.style.display = mode === 'future' ? 'block' : 'none';
+        };
+
+        document.querySelectorAll('.chip').forEach(chip => {
+            chip.addEventListener('click', () => setMode(chip.dataset.mode));
+        });
+
+        // Fuerza que el rewardName sea exactamente el mismo nombre del canje.
+        redeemName.addEventListener('input', () => {
+            redeemReward.value = redeemName.value;
+        });
+        rainName.addEventListener('input', () => {
+            rainReward.value = rainName.value;
+        });
+
+        const loadRedeems = async () => {
+            const canal = getCanal();
+            if (!canal) {
+                redeemList.innerHTML = '<div class="item"><div class="item-title">Inicia sesión con Twitch para ver tus canjes.</div></div>';
+                return;
+            }
+
+            const q = query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+                redeemList.innerHTML = '<div class="item"><div class="item-title">No hay canjes guardados todavía.</div></div>';
+                return;
+            }
+
+            redeemList.innerHTML = '';
+            snap.forEach((d) => {
+                const data = d.data();
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.innerHTML = `
+                    <div>
+                        <div class="item-title">${data.nombre || 'Sin nombre'}</div>
+                        <div class="item-meta">${data.redeemType === 'media' ? 'Media' : 'Lluvia de emotes'} | Reward: ${data.rewardName || '-'} | ${data.enabled ? 'Activo' : 'Inactivo'}</div>
+                    </div>
+                    <div class="row">
+                        <button class="btn warn" type="button">Eliminar</button>
+                    </div>
+                `;
+
+                item.querySelector('.btn.warn').addEventListener('click', async () => {
+                    await deleteDoc(doc(db, 'channelPointRedeems', d.id));
+                    showStatus('Canje eliminado.');
+                    loadRedeems();
+                });
+
+                redeemList.appendChild(item);
+            });
+        };
+
+        const parseRainUrls = () => rainUrls.value
+            .split('\n')
+            .map(x => x.trim())
+            .filter(x => /^https?:\/\//i.test(x));
+
+        const simulateRealRedeem = async (rewardName) => {
+            const canal = getCanal();
+            if (!canal) {
+                showStatus('Inicia sesión con Twitch para simular canje real.', false);
+                return;
+            }
+            if (!rewardName.trim()) {
+                showStatus('Falta el nombre exacto del reward para simular.', false);
+                return;
+            }
+
+            const payload = {
+                channel: canal,
+                rewardName: rewardName.trim(),
+                userLogin: 'viewer_test',
+                userDisplayName: 'viewer_test',
+                source: 'dashboard-sim'
+            };
+
+            const response = await fetch(`${FUNCTIONS_BASE}/processChannelPointRedeem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const json = await response.json();
+
+            if (!response.ok) {
+                throw new Error(json?.error || 'No se pudo procesar canje');
+            }
+
+            showStatus(`Canje real simulado OK (${json.type}). Reward matched: ${json.matchedReward}`);
+        };
+
+        document.getElementById('saveMediaBtn').addEventListener('click', async () => {
+            const canal = getCanal();
+            if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
+            const canonicalName = redeemName.value.trim();
+            redeemReward.value = canonicalName;
+            if (!canonicalName || !redeemAssetUrl.value.trim()) {
+                return showStatus('Completa nombre y URL de media.', false);
+            }
+
+            await addDoc(collection(db, 'channelPointRedeems'), {
+                canal,
+                redeemType: 'media',
+                nombre: canonicalName,
+                rewardName: canonicalName,
+                enabled: true,
+                config: {
+                    type: redeemType.value,
+                    assetUrl: redeemAssetUrl.value.trim(),
+                    soundUrl: redeemSoundUrl.value.trim(),
+                    text: redeemText.value.trim() || 'Canje de puntos',
+                    fontSize: Math.max(16, Number(redeemFontSize.value) || 34),
+                    textColor: redeemTextColor.value || '#f3efff',
+                    mediaPosition: redeemMediaPosition.value || 'center',
+                    animation: redeemAnimation.value || 'pulse',
+                    eventType: 'channel_points'
+                },
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+
+            showStatus('Canje de media guardado.');
+            loadRedeems();
+        });
+
+        document.getElementById('testMediaBtn').addEventListener('click', async () => {
+            const canal = getCanal();
+            if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
+            if (!redeemAssetUrl.value.trim()) return showStatus('Falta URL de media para la prueba.', false);
+
+            await addDoc(collection(db, 'liveAlerts'), {
+                canal,
+                type: redeemType.value,
+                eventType: 'channel_points',
+                nombre: redeemName.value.trim() || 'Canje de media',
+                assetUrl: redeemAssetUrl.value.trim(),
+                soundUrl: redeemSoundUrl.value.trim(),
+                text: redeemText.value.trim() || `Canje: ${redeemName.value.trim() || 'Puntos del canal'}`,
+                fontSize: Math.max(16, Number(redeemFontSize.value) || 34),
+                textColor: redeemTextColor.value || '#f3efff',
+                mediaPosition: redeemMediaPosition.value || 'center',
+                animation: redeemAnimation.value || 'pulse',
+                status: 'pending',
+                isTest: true,
+                testEvent: 'channel_points',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+
+            showStatus('Prueba enviada al overlay.');
+        });
+
+        document.getElementById('simulateMediaRedeemBtn').addEventListener('click', async () => {
+            try {
+                await simulateRealRedeem(redeemName.value);
+            } catch (error) {
+                showStatus('Error simulando canje real: ' + error.message, false);
+            }
+        });
+
+        document.getElementById('saveRainBtn').addEventListener('click', async () => {
+            const canal = getCanal();
+            if (!canal) return showStatus('Inicia sesión con Twitch para guardar canjes.', false);
+            const urls = parseRainUrls();
+            const canonicalName = rainName.value.trim();
+            rainReward.value = canonicalName;
+            if (!canonicalName || urls.length === 0) {
+                return showStatus('Completa nombre y al menos una URL de emote.', false);
+            }
+
+            await addDoc(collection(db, 'channelPointRedeems'), {
+                canal,
+                redeemType: 'emote_rain',
+                nombre: canonicalName,
+                rewardName: canonicalName,
+                enabled: true,
+                config: {
+                    duration: Math.max(3, Number(rainDuration.value) || 8),
+                    count: Math.max(10, Number(rainCount.value) || 30),
+                    emoteUrls: urls
+                },
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+
+            showStatus('Canje de lluvia de emotes guardado.');
+            loadRedeems();
+        });
+
+        document.getElementById('testRainBtn').addEventListener('click', async () => {
+            const canal = getCanal();
+            if (!canal) return showStatus('Inicia sesión con Twitch para probar.', false);
+            const urls = parseRainUrls();
+            if (urls.length === 0) return showStatus('Agrega al menos una URL de emote para la prueba.', false);
+
+            await addDoc(collection(db, 'liveEffects'), {
+                canal,
+                status: 'pending',
+                effectType: 'emote_rain',
+                duration: Math.max(3, Number(rainDuration.value) || 8),
+                count: Math.max(10, Number(rainCount.value) || 30),
+                emoteUrls: urls,
+                rewardName: rainName.value.trim() || 'Lluvia de emotes',
+                isTest: true,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+
+            showStatus('Prueba de lluvia enviada al overlay.');
+        });
+
+        document.getElementById('simulateRainRedeemBtn').addEventListener('click', async () => {
+            try {
+                await simulateRealRedeem(rainName.value);
+            } catch (error) {
+                showStatus('Error simulando canje real: ' + error.message, false);
+            }
+        });
+
+        document.getElementById('autofillRainBtn').addEventListener('click', async () => {
+            const token = localStorage.getItem('twitchAccessToken');
+            const canal = getCanal();
+            if (!token || !canal) return showStatus('Para auto-cargar emotes, inicia sesión con Twitch en esta cuenta.', false);
+
+            try {
+                const userRes = await fetch('https://api.twitch.tv/helix/users', {
+                    headers: {
+                        'Client-ID': 'o52fubecxnt93gxjth53f6x9xv9ku6',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const userData = await userRes.json();
+                const twitchId = userData?.data?.[0]?.id;
+                if (!twitchId) return showStatus('No se pudo resolver el ID de Twitch.', false);
+
+                const emoRes = await fetch(`https://emotes.adamcy.pl/v1/channel/${twitchId}/emotes/all`);
+                const emoData = await emoRes.json();
+                const urls = (Array.isArray(emoData) ? emoData : [])
+                    .map(e => e?.urls?.['4'] || e?.urls?.['2'] || e?.urls?.['1'])
+                    .filter(Boolean)
+                    .slice(0, 45);
+
+                if (urls.length === 0) return showStatus('No se encontraron emotes para auto-cargar.', false);
+                rainUrls.value = urls.join('\n');
+                showStatus(`Se cargaron ${urls.length} emotes del canal.`);
+            } catch (error) {
+                showStatus('Error al auto-cargar emotes: ' + error.message, false);
+            }
+        });
+
+        loadRedeems();
+    </script>
+</body>
+</html>

@@ -41,6 +41,29 @@
         .effect-float { animation: floatY 1.2s ease-in-out infinite; }
         .effect-shake-hard { animation: shakeHard 0.35s infinite; }
         .hidden { display: none !important; }
+        .effect-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 999;
+        }
+        .fall-emote {
+            position: absolute;
+            top: -60px;
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 8px rgba(0,0,0,0.4));
+            animation-name: emoteFall;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+        @keyframes emoteFall {
+            from { transform: translateY(-70px) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            to { transform: translateY(120vh) rotate(380deg); opacity: 0.95; }
+        }
         .debug-hud {
             position: fixed;
             left: 12px;
@@ -99,12 +122,17 @@
         const alertsQuery = canalParam
             ? query(collection(db, 'liveAlerts'), where('canal', '==', canalParam))
             : query(collection(db, 'liveAlerts'));
+        const effectsQuery = canalParam
+            ? query(collection(db, 'liveEffects'), where('canal', '==', canalParam))
+            : query(collection(db, 'liveEffects'));
 
         const container = document.getElementById('alertContainer');
         const debugHud = document.getElementById('debugHud');
         const shownIds = new Set();
+        const shownEffectIds = new Set();
         const alertQueue = [];
         let active = false;
+        let effectActive = false;
         let lastEvent = 'ninguno';
         let lastDocId = '-';
 
@@ -231,6 +259,46 @@
             await playAlert(nextDoc);
         };
 
+        const playEmoteRain = async (docSnap) => {
+            if (effectActive || shownEffectIds.has(docSnap.id)) return;
+            shownEffectIds.add(docSnap.id);
+            effectActive = true;
+
+            const data = docSnap.data();
+            const durationSec = Math.max(3, Number(data.duration) || 8);
+            const count = Math.max(8, Number(data.count) || 30);
+            const urls = Array.isArray(data.emoteUrls) ? data.emoteUrls.filter(Boolean) : [];
+            if (!urls.length) {
+                effectActive = false;
+                await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' }).catch(() => {});
+                return;
+            }
+
+            const layer = document.createElement('div');
+            layer.className = 'effect-layer';
+            container.appendChild(layer);
+
+            for (let i = 0; i < count; i++) {
+                const img = document.createElement('img');
+                img.className = 'fall-emote';
+                img.src = urls[Math.floor(Math.random() * urls.length)];
+                img.style.left = `${Math.random() * 96}%`;
+                img.style.animationDuration = `${1.8 + Math.random() * 2.8}s`;
+                img.style.animationDelay = `${Math.random() * (durationSec * 0.7)}s`;
+                img.style.width = `${28 + Math.floor(Math.random() * 26)}px`;
+                img.style.height = img.style.width;
+                layer.appendChild(img);
+            }
+
+            setTimeout(async () => {
+                layer.remove();
+                effectActive = false;
+                try {
+                    await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' });
+                } catch (_) {}
+            }, durationSec * 1000);
+        };
+
         // Reproduce la alerta y actualiza su estado a 'shown' cuando finaliza.
         const playAlert = async (docSnap) => {
             if (shownIds.has(docSnap.id)) return;
@@ -280,6 +348,15 @@
         }, (error) => {
             console.error('Error en listener de overlay:', error);
             renderDebugHud(`Error listener: ${error.message || 'desconocido'}`);
+        });
+
+        onSnapshot(effectsQuery, (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+                const data = change.doc.data();
+                if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending' && data.effectType === 'emote_rain') {
+                    playEmoteRain(change.doc);
+                }
+            });
         });
     </script>
 </body>
