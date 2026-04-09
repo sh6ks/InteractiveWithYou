@@ -151,6 +151,10 @@
         };
 
         const getOverlayUid = () => overlayUid || auth.currentUser?.uid || null;
+        const createLocalDocSnap = (data, kind = 'local') => ({
+            id: `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            data: () => data
+        });
 
         const inferAnimation = (data) => {
             if (data.animation) return data.animation;
@@ -289,7 +293,9 @@
                 : (allowedMotions.includes(rawMotion) ? rawMotion : 'top');
             if (!urls.length) {
                 effectActive = false;
-                await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' }).catch(() => {});
+                if (!String(docSnap.id || '').startsWith('local-')) {
+                    await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' }).catch(() => {});
+                }
                 return;
             }
 
@@ -403,7 +409,9 @@
                 layer.remove();
                 effectActive = false;
                 try {
-                    await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' });
+                    if (!String(docSnap.id || '').startsWith('local-')) {
+                        await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' });
+                    }
                 } catch (_) {}
             }, durationSec * 1000);
         };
@@ -436,7 +444,9 @@
                 active = false;
                 renderDebugHud('Alerta finalizada');
                 try {
-                    await updateDoc(doc(db, 'liveAlerts', docSnap.id), { status: 'shown' });
+                    if (!String(docSnap.id || '').startsWith('local-')) {
+                        await updateDoc(doc(db, 'liveAlerts', docSnap.id), { status: 'shown' });
+                    }
                 } catch (err) {
                     console.error('No se pudo actualizar el estado de la alerta', err);
                     renderDebugHud('Error actualizando status shown');
@@ -541,10 +551,8 @@
                 const urls = Array.isArray(cfg.emoteUrls) ? cfg.emoteUrls.filter(Boolean) : [];
                 if (!urls.length) return;
                 const uid = getOverlayUid();
-                if (!uid) return;
-                await addDoc(collection(db, 'liveEffects'), {
+                const effectPayload = {
                     canal: canalParam,
-                    uid,
                     status: 'pending',
                     effectType: 'emote_rain',
                     duration: Math.max(3, Number(cfg.duration) || 8),
@@ -556,17 +564,25 @@
                     redeemedBy: event.user_login || '',
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
-                });
+                };
+
+                if (uid) {
+                    await addDoc(collection(db, 'liveEffects'), {
+                        ...effectPayload,
+                        uid
+                    });
+                } else {
+                    // Fallback sin Firestore write: ejecuta el efecto directo en el overlay.
+                    await playEmoteRain(createLocalDocSnap(effectPayload, 'local-effect'));
+                }
                 return;
             }
 
             const assetUrl = String(cfg.assetUrl || '').trim();
             if (!assetUrl) return;
             const uid = getOverlayUid();
-            if (!uid) return;
-            await addDoc(collection(db, 'liveAlerts'), {
+            const alertPayload = {
                 canal: canalParam,
-                uid,
                 type: String(cfg.type || 'image'),
                 eventType: 'channel_points',
                 nombre: String(redeem.nombre || 'Canje de puntos').trim(),
@@ -582,7 +598,17 @@
                 redeemedBy: event.user_login || '',
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
-            });
+            };
+
+            if (uid) {
+                await addDoc(collection(db, 'liveAlerts'), {
+                    ...alertPayload,
+                    uid
+                });
+            } else {
+                // Fallback sin Firestore write: muestra la alerta directo.
+                enqueueAlert(createLocalDocSnap(alertPayload, 'local-alert'));
+            }
         };
 
         const _eswConnect = async (wsUrl = 'wss://eventsub.wss.twitch.tv/ws') => {

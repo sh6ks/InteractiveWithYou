@@ -867,6 +867,32 @@
                 // Verifica si el token está almacenado en Firestore (guardado al hacer login).
                 const botSnap = await getDoc(doc(db, 'twitchBots', canal));
                 if (botSnap.exists() && botSnap.data()?.accessToken) {
+                    const token = String(botSnap.data().accessToken || '');
+                    try {
+                        const validateRes = await fetch('https://id.twitch.tv/oauth2/validate', {
+                            headers: { 'Authorization': `OAuth ${token}` }
+                        });
+                        if (!validateRes.ok) {
+                            setBackendMode('local', 'token Twitch expirado');
+                            if (!silent) {
+                                showStatus('Tu token de Twitch expiró. Cierra sesión y vuelve a iniciar con Twitch para reactivar canjes reales.', false);
+                            }
+                            return { ok: false, skipped: false, message: 'Token Twitch expirado.' };
+                        }
+
+                        const tokenInfo = await validateRes.json();
+                        const scopes = Array.isArray(tokenInfo?.scopes) ? tokenInfo.scopes : [];
+                        if (!scopes.includes('channel:read:redemptions')) {
+                            setBackendMode('local', 'scope faltante');
+                            if (!silent) {
+                                showStatus('Falta permiso Twitch channel:read:redemptions. Cierra sesión y vuelve a iniciar con Twitch.', false);
+                            }
+                            return { ok: false, skipped: false, message: 'Falta scope channel:read:redemptions.' };
+                        }
+                    } catch (_) {
+                        // Si falla validate por red/CORS, seguimos con estado optimista.
+                    }
+
                     setBackendMode('online', 'overlay WebSocket');
                     if (!silent) {
                         showStatus(`Canjes reales activos para ${canal}. El overlay escucha via Twitch WebSocket (sin costo).`);
