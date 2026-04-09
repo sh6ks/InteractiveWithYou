@@ -673,6 +673,7 @@
 
         let selectedRedeemId = '';
         let selectedRedeemType = '';
+        let statusRefreshTimer = null;
 
         const showStatus = (message, ok = true) => {
             statusBox.style.display = 'block';
@@ -871,6 +872,11 @@
                 const overlayUpdatedAt = overlayData?.updatedAt?.toMillis?.() || 0;
                 const overlayAlive = overlayUpdatedAt > 0 && (Date.now() - overlayUpdatedAt) < 45000;
                 const overlayState = String(overlayData?.wsState || '').trim();
+                const overlayError = String(overlayData?.lastError || '').trim();
+                const overlayAuth = overlayData?.hasFirebaseAuth === true ? 'auth-ok' : 'sin-auth-firebase';
+                const overlayStateDetail = [overlayState || 'sin-ws-state', overlayError || '', overlayAuth]
+                    .filter(Boolean)
+                    .join(' | ');
 
                 if (botSnap.exists() && botSnap.data()?.accessToken) {
                     const token = String(botSnap.data().accessToken || '');
@@ -900,19 +906,23 @@
                     }
 
                     if (overlayAlive) {
-                        const detail = overlayState ? `OBS conectado - ${overlayState}` : 'OBS conectado';
+                        const detail = `OBS conectado - ${overlayStateDetail}`;
                         setBackendMode('online', detail);
                     } else {
-                        setBackendMode('local', 'token OK, abre overlay en OBS');
+                        setBackendMode('local', overlayStateDetail ? `token OK, OBS no activo (${overlayStateDetail})` : 'token OK, abre overlay en OBS');
                     }
                     if (!silent) {
                         if (overlayAlive) {
-                            showStatus(`Canjes reales activos para ${canal}. Overlay detectado en OBS (${overlayState || 'conectado'}).`);
+                            showStatus(`Canjes reales activos para ${canal}. Overlay detectado en OBS (${overlayStateDetail}).`);
                         } else {
                             showStatus('Token Twitch listo, pero no detecto el overlay activo en OBS. Abre/recarga el Browser Source del overlay.', false);
                         }
                     }
                     return { ok: overlayAlive, skipped: false, message: overlayAlive ? 'overlay WebSocket activo' : 'Overlay no detectado en OBS' };
+                }
+
+                if (overlayAlive) {
+                    setBackendMode('local', `OBS conectado, falta token Twitch (${overlayStateDetail})`);
                 }
 
                 // Sin token guardado → el usuario debe iniciar sesión y recargar.
@@ -1795,6 +1805,11 @@
         updateConnectionUi();
         loadRedeems();
         ensureRealRedeemSubscription({ silent: true });
+
+        // Refresca estado backend para detectar cuando OBS se abre/cierra sin recargar panel.
+        statusRefreshTimer = setInterval(() => {
+            ensureRealRedeemSubscription({ silent: true }).catch(() => {});
+        }, 10000);
     </script>
 </body>
 </html>
