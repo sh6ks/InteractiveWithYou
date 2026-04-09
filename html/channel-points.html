@@ -866,6 +866,12 @@
             try {
                 // Verifica si el token está almacenado en Firestore (guardado al hacer login).
                 const botSnap = await getDoc(doc(db, 'twitchBots', canal));
+                const overlaySnap = await getDoc(doc(db, 'overlayPresence', canal));
+                const overlayData = overlaySnap.exists() ? overlaySnap.data() : null;
+                const overlayUpdatedAt = overlayData?.updatedAt?.toMillis?.() || 0;
+                const overlayAlive = overlayUpdatedAt > 0 && (Date.now() - overlayUpdatedAt) < 45000;
+                const overlayState = String(overlayData?.wsState || '').trim();
+
                 if (botSnap.exists() && botSnap.data()?.accessToken) {
                     const token = String(botSnap.data().accessToken || '');
                     try {
@@ -893,11 +899,20 @@
                         // Si falla validate por red/CORS, seguimos con estado optimista.
                     }
 
-                    setBackendMode('online', 'overlay WebSocket');
-                    if (!silent) {
-                        showStatus(`Canjes reales activos para ${canal}. El overlay escucha via Twitch WebSocket (sin costo).`);
+                    if (overlayAlive) {
+                        const detail = overlayState ? `OBS conectado - ${overlayState}` : 'OBS conectado';
+                        setBackendMode('online', detail);
+                    } else {
+                        setBackendMode('local', 'token OK, abre overlay en OBS');
                     }
-                    return { ok: true, skipped: false, message: 'overlay WebSocket' };
+                    if (!silent) {
+                        if (overlayAlive) {
+                            showStatus(`Canjes reales activos para ${canal}. Overlay detectado en OBS (${overlayState || 'conectado'}).`);
+                        } else {
+                            showStatus('Token Twitch listo, pero no detecto el overlay activo en OBS. Abre/recarga el Browser Source del overlay.', false);
+                        }
+                    }
+                    return { ok: overlayAlive, skipped: false, message: overlayAlive ? 'overlay WebSocket activo' : 'Overlay no detectado en OBS' };
                 }
 
                 // Sin token guardado → el usuario debe iniciar sesión y recargar.

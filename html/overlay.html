@@ -93,7 +93,7 @@
     <script type="module">
         // Script del overlay: recibe alertas pendientes desde Firestore y las muestra visualmente.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, addDoc, getDocs, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, addDoc, getDocs, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -151,6 +151,34 @@
         };
 
         const getOverlayUid = () => overlayUid || auth.currentUser?.uid || null;
+        let _overlayPresenceTimer = null;
+        const _overlayPresenceRef = canalParam ? doc(db, 'overlayPresence', canalParam) : null;
+        const _updateOverlayPresence = async (patch = {}) => {
+            if (!_overlayPresenceRef || !canalParam) return;
+            const uid = getOverlayUid();
+            if (!uid) return;
+            try {
+                await setDoc(_overlayPresenceRef, {
+                    canal: canalParam,
+                    uid,
+                    source: 'obs_overlay',
+                    updatedAt: serverTimestamp(),
+                    ...patch
+                }, { merge: true });
+            } catch (_) {}
+        };
+
+        const _startOverlayPresenceHeartbeat = () => {
+            if (!canalParam) return;
+            if (_overlayPresenceTimer) clearInterval(_overlayPresenceTimer);
+            _updateOverlayPresence({
+                overlayOpen: true,
+                wsState: 'booting'
+            });
+            _overlayPresenceTimer = setInterval(() => {
+                _updateOverlayPresence({ overlayOpen: true });
+            }, 15000);
+        };
         const createLocalDocSnap = (data, kind = 'local') => ({
             id: `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             data: () => data
@@ -478,6 +506,8 @@
             });
         });
 
+        _startOverlayPresenceHeartbeat();
+
         // ─── Twitch EventSub WebSocket (gratuito, sin Cloud Functions) ───────────
         // El overlay se conecta directamente a Twitch y despacha los canjes a Firestore.
         const TWITCH_CLIENT_ID = '9cac6zpfterkbzigfr28hpil7se9y3';
@@ -519,7 +549,13 @@
                         transport: { method: 'websocket', session_id: sessionId }
                     })
                 });
-                return res.ok || res.status === 409; // 409 = ya suscrito
+                const ok = res.ok || res.status === 409; // 409 = ya suscrito
+                await _updateOverlayPresence({
+                    wsState: ok ? 'subscribed' : 'subscribe_failed',
+                    lastError: ok ? '' : `subscribe_http_${res.status}`,
+                    lastSubscribeAt: serverTimestamp()
+                });
+                return ok;
             } catch (_) { return false; }
         };
 
@@ -614,11 +650,19 @@
         const _eswConnect = async (wsUrl = 'wss://eventsub.wss.twitch.tv/ws') => {
             if (!canalParam) return;
 
+            await _updateOverlayPresence({ wsState: 'connecting', lastError: '' });
+
             const token = await _eswGetToken(canalParam);
-            if (!token) return; // Sin token guardado, nada que hacer
+            if (!token) {
+                await _updateOverlayPresence({ wsState: 'missing_token', lastError: 'missing_twitch_token' });
+                return; // Sin token guardado, nada que hacer
+            }
 
             const broadcasterId = await _eswGetBroadcasterId(canalParam, token);
-            if (!broadcasterId) return; // Token inválido o expirado
+            if (!broadcasterId) {
+                await _updateOverlayPresence({ wsState: 'invalid_token', lastError: 'invalid_or_expired_twitch_token' });
+                return; // Token inválido o expirado
+            }
 
             if (_eswReconnectTimer) { clearTimeout(_eswReconnectTimer); _eswReconnectTimer = null; }
 
@@ -637,6 +681,7 @@
             ws.addEventListener('open', () => {
                 resetKeep();
                 if (prevWs && prevWs !== ws) { try { prevWs.close(4000, 'replaced'); } catch (_) {} }
+                _updateOverlayPresence({ wsState: 'connected', lastError: '' });
             });
 
             ws.addEventListener('message', async (evt) => {
@@ -653,6 +698,7 @@
                 }
 
                 if (t === 'notification') {
+                    _updateOverlayPresence({ wsState: 'receiving', lastNotificationAt: serverTimestamp() });
                     _eswDispatch(msg.payload?.event).catch(err => console.error('[IWY EventSub]', err));
                 }
 
@@ -666,6 +712,7 @@
                 if (keepTimer) clearTimeout(keepTimer);
                 if (_eswWs !== ws) return;
                 _eswWs = null;
+                _updateOverlayPresence({ wsState: 'disconnected', lastError: `ws_close_${evt.code}` });
                 if (evt.code !== 4000 && canalParam) {
                     _eswReconnectTimer = setTimeout(() => _eswConnect(), 5000);
                 }

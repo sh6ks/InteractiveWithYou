@@ -104,6 +104,22 @@ service cloud.firestore {
         && resource.data.uid == request.auth.uid;
     }
 
+    // ── Presencia del overlay en OBS (heartbeat + estado EventSub) ────────────
+    match /overlayPresence/{channel} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.canal is string
+        && request.resource.data.canal == channel;
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.canal is string
+        && request.resource.data.canal == channel;
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
     // ── Resto de colecciones (comandos, bots, etc.) – requiere autenticación ───
     match /{document=**} {
       allow read, write: if request.auth != null;
