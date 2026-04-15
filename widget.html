@@ -272,6 +272,52 @@
             };
         }
 
+        function indexBadgeSetsIntoMap(badgeSetsTarget, sets) {
+            (sets || []).forEach((set) => {
+                const versions = {};
+                (set?.versions || []).forEach((v) => {
+                    if (!v?.id) return;
+                    versions[v.id] = v;
+                });
+                if (set?.set_id) {
+                    badgeSetsTarget[set.set_id] = versions;
+                }
+            });
+        }
+
+        // Public endpoints (no auth) used as fallback for official badge icons.
+        async function fetchPublicGlobalBadges() {
+            const data = await fetchJsonIfOk('https://badges.twitch.tv/v1/badges/global/display');
+            return data?.badge_sets || null;
+        }
+
+        async function fetchPublicChannelBadges(roomId) {
+            if (!roomId) return null;
+            const data = await fetchJsonIfOk(`https://badges.twitch.tv/v1/badges/channels/${encodeURIComponent(roomId)}/display`);
+            return data?.badge_sets || null;
+        }
+
+        function badgeSetsFromPublicPayload(globalSets, channelSets) {
+            const badgeSets = {};
+            const mergeBadgeSetsObject = (setsObject) => {
+                if (!setsObject || typeof setsObject !== 'object') return;
+                Object.entries(setsObject).forEach(([setId, setData]) => {
+                    const versions = {};
+                    const versionsObj = setData?.versions || {};
+                    Object.entries(versionsObj).forEach(([versionId, versionData]) => {
+                        if (!versionId || !versionData) return;
+                        versions[versionId] = versionData;
+                    });
+                    if (setId) badgeSets[setId] = versions;
+                });
+            };
+
+            // Global first, then channel overrides.
+            mergeBadgeSetsObject(globalSets);
+            mergeBadgeSetsObject(channelSets);
+            return badgeSets;
+        }
+
         async function fetchTwitchChannelAssets(canal, clientId, token) {
             const headers = getTwitchHeaders(clientId, token);
             const userResponse = await fetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(canal)}`, { headers });
@@ -290,22 +336,15 @@
             }
             const badgeData = await badgeResponse.json();
             const badgeSets = {};
-            function indexVersions(sets) {
-                sets?.forEach(set => {
-                    const versions = {};
-                    (set.versions || []).forEach(v => { versions[v.id] = v; });
-                    badgeSets[set.set_id] = versions;
-                });
-            }
 
             // Global badges como fallback
             const globalBadgeResponse = await fetch('https://api.twitch.tv/helix/chat/badges/global', { headers });
             if (globalBadgeResponse.ok) {
                 const globalData = await globalBadgeResponse.json();
-                indexVersions(globalData.data);
+                indexBadgeSetsIntoMap(badgeSets, globalData.data);
             }
             // Channel badges sobreescriben los globales
-            indexVersions(badgeData.data);
+            indexBadgeSetsIntoMap(badgeSets, badgeData.data);
 
             return {
                 userId: user.id,
@@ -330,7 +369,8 @@
         }
 
         function buildBadgeIcons(tags, badgeSets) {
-            const badgeString = tags['badges'] || tags['badge-info'] || tags['badges-raw'] || '';
+            // Twitch IRC provides badges as: "moderator/1,subscriber/12,..."
+            const badgeString = decodeIrcTagValue(tags?.['badges'] || tags?.['badges-raw'] || '');
             if (!badgeString) return '';
 
             return badgeString.split(',').map(entry => {
@@ -906,6 +946,38 @@
             const thirdPartyEmoteMap = { ...(thirdPartyEmotes || {}) };
             let roomEmotesAttempted = false;
             const loadedSenderEmoteIds = new Set();
+            const badgeState = {
+                globalLoaded: false,
+                channelLoadedForRoom: '',
+                globalSets: null,
+                channelSets: null,
+                badgeSets: twitchAssets?.badgeSets || {}
+            };
+
+            const ensureGlobalBadgesLoaded = async () => {
+                if (badgeState.globalLoaded) return;
+                badgeState.globalLoaded = true;
+                const globalSets = await fetchPublicGlobalBadges();
+                badgeState.globalSets = globalSets;
+                badgeState.badgeSets = badgeSetsFromPublicPayload(badgeState.globalSets, badgeState.channelSets);
+                debugLog('Badges globales cargados (public)', {
+                    totalSets: Object.keys(badgeState.badgeSets || {}).length
+                });
+            };
+
+            const ensureChannelBadgesLoaded = async (roomId) => {
+                const normalizedRoom = String(roomId || '').trim();
+                if (!normalizedRoom) return;
+                if (badgeState.channelLoadedForRoom === normalizedRoom) return;
+                badgeState.channelLoadedForRoom = normalizedRoom;
+                const channelSets = await fetchPublicChannelBadges(normalizedRoom);
+                badgeState.channelSets = channelSets;
+                badgeState.badgeSets = badgeSetsFromPublicPayload(badgeState.globalSets, badgeState.channelSets);
+                debugLog('Badges del canal cargados (public)', {
+                    roomId: normalizedRoom,
+                    totalSets: Object.keys(badgeState.badgeSets || {}).length
+                });
+            };
 
             const loadRoomEmotesIfNeeded = async (roomId) => {
                 if (roomEmotesAttempted) return;
@@ -952,6 +1024,7 @@
                 socket.send('JOIN #' + canal);
                 console.log('Socket abierto y JOIN enviado para', canal);
                 setStatus(`Conectado a #${canal}`, 'info');
+                ensureGlobalBadgesLoaded();
                 startChatTimers(botName, normalizedTimers, colorBorde, disenoMensaje, colorRecuadro, opacidadRecuadro, grosorBorde, thirdPartyEmotes, canal, relayEnabled);
             });
 
@@ -994,6 +1067,7 @@
 
                     loadRoomEmotesIfNeeded(tags['room-id']);
                     loadSenderEmotesIfNeeded(tags['user-id']);
+                    ensureChannelBadgesLoaded(tags['room-id']);
 
                     const login = tags['login'] || userPrefix.split('!')[0] || 'anon';
                     if (isBotUser(login)) return;
@@ -1008,7 +1082,7 @@
                     });
                     const mensajeHtml = renderMessageWithEmotes(mensajeRaw, tags, thirdPartyEmoteMap);
                     const avatarHtml = buildChannelAvatar(twitchAssets);
-                    const badgesHtml = buildBadgeIcons(tags, twitchAssets?.badgeSets);
+                    const badgesHtml = buildBadgeIcons(tags, badgeState.badgeSets || twitchAssets?.badgeSets);
                     const contenedor = document.getElementById('chat');
                     const div = document.createElement('div');
                     const direction = animacionDireccion || ['from-top', 'from-bottom', 'from-left', 'from-right'][Math.floor(Math.random() * 4)];

@@ -15,7 +15,7 @@
         body {
             background: transparent !important;
             margin: 0;
-            padding: 30px;
+            padding: clamp(14px, 2.6vw, 30px);
             color: white;
             font-family: 'Poppins', sans-serif;
         }
@@ -43,6 +43,12 @@
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 20px;
             overflow: visible;
+        }
+
+        @media (min-width: 1600px) {
+            .grid-funciones {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
         }
 
         .card-funcion {
