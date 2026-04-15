@@ -115,7 +115,16 @@
         }).catch(() => {});
 
         const urlParams = new URLSearchParams(window.location.search);
-        const canalParam = urlParams.get('canal')?.toLowerCase();
+        let canalParam = urlParams.get('canal')?.toLowerCase() || '';
+        // Fallback: si el overlay se abre sin ?canal=..., intentamos inferirlo desde la sesión local (OBS)
+        // Esto evita el caso donde "Probar en OBS" funciona (Firestore), pero los canjes reales (EventSub) no conectan.
+        if (!canalParam) {
+            try {
+                canalParam = (localStorage.getItem('nombreTwitch') || '').toLowerCase();
+            } catch (_) {
+                canalParam = '';
+            }
+        }
         const debugEnabled = urlParams.get('debug') === '1';
 
         // Query sin combinaciones que requieran índice compuesto
