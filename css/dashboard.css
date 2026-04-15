@@ -327,6 +327,21 @@ h1 {
         left: 0;
     }
 
+    /* Cuando abrimos el menú mobile, aseguramos que NO quede "colapsado" visualmente */
+    .sidebar.open-mobile.close {
+        width: 100%;
+    }
+
+    .sidebar.open-mobile .logo-details .logo_name {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .sidebar.open-mobile .nav-links li a .link_name {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
     .home-section {
         left: 0;
         width: 100%;
