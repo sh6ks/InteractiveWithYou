@@ -948,9 +948,10 @@
             const thirdPartyEmoteMap = { ...(thirdPartyEmotes || {}) };
             let roomEmotesAttempted = false;
             const loadedSenderEmoteIds = new Set();
+            const hasHelixBadges = Boolean(twitchAssets && Object.keys(twitchAssets.badgeSets || {}).length > 0);
             const badgeState = {
-                globalLoaded: false,
-                channelLoadedForRoom: '',
+                globalLoaded: hasHelixBadges,
+                channelLoadedForRoom: hasHelixBadges ? 'helix-loaded' : '',
                 globalSets: null,
                 channelSets: null,
                 badgeSets: twitchAssets?.badgeSets || {}
