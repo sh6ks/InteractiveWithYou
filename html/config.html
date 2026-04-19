@@ -431,6 +431,28 @@
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
     }
+
+    .badge-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.5em;
+        height: 1.5em;
+        margin-right: 0.3em;
+        padding: 0;
+        font-size: 0.85em;
+        line-height: 1.5;
+        background: transparent;
+        color: #fff;
+        vertical-align: middle;
+    }
+
+    .badge-icon img {
+        display: block;
+        width: 1em;
+        height: 1em;
+        object-fit: contain;
+    }
     </style>
     <link rel="stylesheet" href="../css/modern-selects.css">
 </head>
@@ -609,10 +631,11 @@
 
     const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE';
     const sampleMessages = [
-        { usuario: 'StreamBot', mensaje: '¡Bienvenidos al stream!', color: '#55c2ff' },
-        { usuario: 'Gamer123', mensaje: '¿Qué vamos a hacer hoy?', color: '#ffb300' },
-        { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86' },
-        { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d' }
+        { usuario: 'StreamBot', mensaje: '¡Bienvenidos al stream!', color: '#55c2ff', badges: '<span class="badge-icon badge-broadcaster" title="broadcaster"><img src="https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/1" alt="broadcaster"></span>' },
+        { usuario: 'Gamer123', mensaje: '¿Qué vamos a hacer hoy?', color: '#ffb300', badges: '<span class="badge-icon badge-subscriber" title="subscriber"><img src="https://static-cdn.jtvnw.net/badges/v1/5d9f2208-5dd8-11e7-8513-2ff4adfae661/1" alt="subscriber"></span>' },
+        { usuario: 'ViewerGirl', mensaje: 'Ese overlay se ve increíble ✨', color: '#7cff86', badges: '<span class="badge-icon badge-vip" title="vip"><img src="https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/1" alt="vip"></span>' },
+        { usuario: 'Mod', mensaje: 'Recuerden seguir y activar la campana.', color: '#ff6b8d', badges: '<span class="badge-icon badge-moderator" title="moderator"><img src="https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/1" alt="moderator"></span>' },
+        { usuario: 'HeadMod', mensaje: 'He fijado el mensaje importante.', color: '#00e5ff', badges: '<span class="badge-icon badge-lead_moderator" title="lead_moderator"><img src="https://static-cdn.jtvnw.net/badges/v1/0822047b-65e0-46f2-94a9-d1091d685d33/1" alt="lead_moderator"></span>' }
     ];
     let previewInterval = null;
     let previewIndex = 0;
@@ -800,7 +823,7 @@
         if (mapDesignClass() === 'design-solid' || mapDesignClass() === 'design-square') {
             div.style.backgroundColor = hexToRgba(inputColorRecuadro.value, Number(inputOpacidadRecuadro.value || 88) / 100);
         }
-        div.innerHTML = `<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
+        div.innerHTML = `${item.badges || ''}<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
         previewChat.appendChild(div);
         if (previewChat.children.length > 5) {
             previewChat.removeChild(previewChat.firstElementChild);

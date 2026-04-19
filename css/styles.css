@@ -211,11 +211,10 @@ body {
     min-width: 1.5em;
     height: 1.5em;
     margin-right: 0.3em;
-    padding: 0 0.32em;
-    border-radius: 0.35em;
+    padding: 0;
     font-size: 0.85em;
     line-height: 1.5;
-    background: rgba(255,255,255,0.08);
+    background: transparent;
     color: #fff;
 }
 
@@ -242,30 +241,7 @@ body {
     width: auto;
 }
 
-.badge-subscriber {
-    background: #9147ff;
-}
-
-.badge-broadcaster {
-    background: #e91916;
-}
-
-.badge-moderator {
-    background: #34a853;
-}
-
-.badge-vip {
-    background: #f9c41f;
-    color: #000;
-}
-
-.badge-founder {
-    background: #e88b2f;
-}
-
-.badge-bits {
-    background: #6441a5;
-}
+/* Backgrounds eliminados a pedido del usuario, ahora solo se muestra el icono transparente */
 
 .chat-status {
     display: inline-block;

@@ -147,6 +147,20 @@
                 let twitchAccessToken = config.twitchAccessToken || urlParams.get('access_token');
                 const twitchTokenEndpoint = config.twitchTokenEndpoint || urlParams.get('token_endpoint');
 
+                // Si no hay token, intentamos buscarlo en la colección twitchBots (guardado al loguearse)
+                if (!twitchAccessToken) {
+                    try {
+                        const botDocSnap = await getDoc(doc(db, 'twitchBots', canalSolicitado));
+                        if (botDocSnap.exists() && botDocSnap.data().accessToken) {
+                            twitchAccessToken = botDocSnap.data().accessToken;
+                            twitchClientId = twitchClientId || '9cac6zpfterkbzigfr28hpil7se9y3'; // CLIENT_ID por defecto
+                            console.log('Token de Twitch obtenido desde twitchBots exitosamente.');
+                        }
+                    } catch (e) {
+                        console.warn('No se pudo cargar token desde twitchBots:', e);
+                    }
+                }
+
                 // If token is missing in frontend config, request a short-lived token from backend.
                 if ((!twitchClientId || !twitchAccessToken) && twitchTokenEndpoint) {
                     try {
@@ -287,34 +301,22 @@
 
         // Public endpoints (no auth) used as fallback for official badge icons.
         async function fetchPublicGlobalBadges() {
-            const data = await fetchJsonIfOk('https://badges.twitch.tv/v1/badges/global/display');
-            return data?.badge_sets || null;
+            const data = await fetchJsonIfOk('https://api.ivr.fi/v2/twitch/badges/global');
+            // IVR returns an array directly, just like Twitch Helix API
+            return Array.isArray(data) ? data : null;
         }
 
         async function fetchPublicChannelBadges(roomId) {
-            if (!roomId) return null;
-            const data = await fetchJsonIfOk(`https://badges.twitch.tv/v1/badges/channels/${encodeURIComponent(roomId)}/display`);
-            return data?.badge_sets || null;
+            // IVR doesn't support channel badges, and badges.twitch.tv is dead.
+            // Return null, dependemos del token de Twitch (Helix API) para esto.
+            return null;
         }
 
         function badgeSetsFromPublicPayload(globalSets, channelSets) {
             const badgeSets = {};
-            const mergeBadgeSetsObject = (setsObject) => {
-                if (!setsObject || typeof setsObject !== 'object') return;
-                Object.entries(setsObject).forEach(([setId, setData]) => {
-                    const versions = {};
-                    const versionsObj = setData?.versions || {};
-                    Object.entries(versionsObj).forEach(([versionId, versionData]) => {
-                        if (!versionId || !versionData) return;
-                        versions[versionId] = versionData;
-                    });
-                    if (setId) badgeSets[setId] = versions;
-                });
-            };
-
-            // Global first, then channel overrides.
-            mergeBadgeSetsObject(globalSets);
-            mergeBadgeSetsObject(channelSets);
+            // Utilizamos indexBadgeSetsIntoMap porque IVR devuelve el mismo formato que Helix
+            indexBadgeSetsIntoMap(badgeSets, globalSets);
+            indexBadgeSetsIntoMap(badgeSets, channelSets);
             return badgeSets;
         }
 
