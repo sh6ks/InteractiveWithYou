@@ -247,7 +247,72 @@
                 padding: 16px;
             }
         }
+        .preview-alert-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: none;
+            pointer-events: none;
+        }
+
+        .alert-box {
+            position: absolute;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 1.5rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        /* Preview container constraints */
+        .preview-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .alert-top-center { top: 10%; left: 50%; transform: translateX(-50%); }
+        .alert-center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .alert-bottom-center { bottom: 10%; left: 50%; transform: translateX(-50%); }
+        .alert-top-left { top: 10%; left: 5%; }
+        .alert-top-right { top: 10%; right: 5%; }
+        .alert-bottom-left { bottom: 10%; left: 5%; }
+        .alert-bottom-right { bottom: 10%; right: 5%; }
+
+        /* Animations */
+        @keyframes animFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes animSlideUp { from { opacity: 0; transform: translateY(40px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
+        @keyframes animSlideLeft { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes animBounce { 0% { transform: scale(0.3) translateX(-50%); opacity: 0; } 50% { transform: scale(1.05) translateX(-50%); opacity: 1; } 70% { transform: scale(0.9) translateX(-50%); } 100% { transform: scale(1) translateX(-50%); opacity: 1; } }
+        @keyframes animZoom { from { opacity: 0; transform: scale(0.5) translateX(-50%); } to { opacity: 1; transform: scale(1) translateX(-50%); } }
+        @keyframes animGlitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+        @keyframes animNeon { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes animElastic { 0% { transform: scale(0) translateX(-50%); } 80% { transform: scale(1.1) translateX(-50%); } 100% { transform: scale(1) translateX(-50%); } }
+
+        .anim-fade { animation: animFade 0.5s ease forwards; }
+        .anim-slide-up { animation: animSlideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .anim-slide-left { animation: animSlideLeft 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .anim-bounce { animation: animBounce 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: left; }
+        .anim-zoom { animation: animZoom 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: left; }
+        .anim-glitch { animation: animGlitch 0.3s ease infinite; }
+        .anim-neon { animation: animNeon 0.1s ease 5; }
+        .anim-elastic { animation: animElastic 0.8s cubic-bezier(0.5, -0.5, 0.5, 1.5) forwards; transform-origin: left; }
+
+        .premium-opt { color: #f9c41f; font-weight: bold; background: #2b254a; }
+        .preview-btn { background: #3f3f46; margin-right: 8px; }
+        .preview-btn:hover { background: #5c5c66; }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Dancing+Script&family=Luckiest+Guy&family=Oswald:wght@500&family=Pacifico&family=Poppins:wght@400;600;700&family=Press+Start+2P&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/modern-selects.css">
 </head>
 <body>
@@ -283,11 +348,65 @@
                     <input id="cmdCooldown" type="number" min="0" max="600" step="1" value="0">
                 </div>
             </div>
+            
+            <div style="margin-top: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; background: rgba(0,0,0,0.2);">
+                <h4 style="margin: 0 0 10px; color: #a18bff; font-size: 0.9rem;">Diseño Visual en Pantalla</h4>
+                <div class="inline" style="grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="cmdAnimation">Animación</label>
+                        <select id="cmdAnimation">
+                            <option value="fade">Fade In</option>
+                            <option value="slide-up">Deslizar Arriba</option>
+                            <option value="slide-left">Deslizar Izquierda</option>
+                            <option value="bounce" class="premium-opt">Rebote 💎</option>
+                            <option value="zoom" class="premium-opt">Zoom 💎</option>
+                            <option value="glitch" class="premium-opt">Glitch 💎</option>
+                            <option value="neon" class="premium-opt">Flash Neón 💎</option>
+                            <option value="elastic" class="premium-opt">Elástico 💎</option>
+                        </select>
+                    </div>
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="cmdPosition">Posición en Pantalla</label>
+                        <select id="cmdPosition">
+                            <option value="top-center">Arriba Centro</option>
+                            <option value="center">Centro Absoluto</option>
+                            <option value="bottom-center">Abajo Centro</option>
+                            <option value="top-left">Arriba Izquierda</option>
+                            <option value="top-right">Arriba Derecha</option>
+                            <option value="bottom-left">Abajo Izquierda</option>
+                            <option value="bottom-right">Abajo Derecha</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="inline" style="grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:10px;">
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="cmdFont">Fuente</label>
+                        <select id="cmdFont">
+                            <option value="Poppins">Poppins</option>
+                            <option value="Bangers">Bangers</option>
+                            <option value="Luckiest Guy">Luckiest Guy</option>
+                            <option value="Roboto Mono">Roboto Mono</option>
+                            <option value="Dancing Script">Dancing Script</option>
+                            <option value="Oswald">Oswald</option>
+                            <option value="Pacifico">Pacifico</option>
+                        </select>
+                    </div>
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="cmdBgColor">Fondo</label>
+                        <input id="cmdBgColor" type="color" value="#9147ff" style="height:38px; padding:2px; cursor:pointer;">
+                    </div>
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="cmdTextColor">Texto</label>
+                        <input id="cmdTextColor" type="color" value="#ffffff" style="height:38px; padding:2px; cursor:pointer;">
+                    </div>
+                </div>
+            </div>
             <div class="row">
                 <label class="toggle-row" for="cmdEnabled"><input id="cmdEnabled" class="toggle-input" type="checkbox" checked><span class="toggle-switch" aria-hidden="true"></span><span class="toggle-label">Activar este comando</span></label>
                 <div class="toggle-help">Si lo desmarcás, el comando se guarda pero queda pausado.</div>
             </div>
             <div class="actions">
+                <button id="previewCommandBtn" type="button" class="preview-btn">Ver Vista Previa</button>
                 <button id="addCommandBtn" type="button">Agregar comando</button>
             </div>
             <div id="commandsList" class="list"></div>
@@ -305,11 +424,65 @@
                     <input id="timerMinutes" type="number" min="1" max="120" step="1" value="5">
                 </div>
             </div>
+
+            <div style="margin-top: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; background: rgba(0,0,0,0.2);">
+                <h4 style="margin: 0 0 10px; color: #a18bff; font-size: 0.9rem;">Diseño Visual en Pantalla</h4>
+                <div class="inline" style="grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="timerAnimation">Animación</label>
+                        <select id="timerAnimation">
+                            <option value="fade">Fade In</option>
+                            <option value="slide-up">Deslizar Arriba</option>
+                            <option value="slide-left">Deslizar Izquierda</option>
+                            <option value="bounce" class="premium-opt">Rebote 💎</option>
+                            <option value="zoom" class="premium-opt">Zoom 💎</option>
+                            <option value="glitch" class="premium-opt">Glitch 💎</option>
+                            <option value="neon" class="premium-opt">Flash Neón 💎</option>
+                            <option value="elastic" class="premium-opt">Elástico 💎</option>
+                        </select>
+                    </div>
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="timerPosition">Posición en Pantalla</label>
+                        <select id="timerPosition">
+                            <option value="top-center">Arriba Centro</option>
+                            <option value="center">Centro Absoluto</option>
+                            <option value="bottom-center">Abajo Centro</option>
+                            <option value="top-left">Arriba Izquierda</option>
+                            <option value="top-right">Arriba Derecha</option>
+                            <option value="bottom-left">Abajo Izquierda</option>
+                            <option value="bottom-right">Abajo Derecha</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="inline" style="grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:10px;">
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="timerFont">Fuente</label>
+                        <select id="timerFont">
+                            <option value="Poppins">Poppins</option>
+                            <option value="Bangers">Bangers</option>
+                            <option value="Luckiest Guy">Luckiest Guy</option>
+                            <option value="Roboto Mono">Roboto Mono</option>
+                            <option value="Dancing Script">Dancing Script</option>
+                            <option value="Oswald">Oswald</option>
+                            <option value="Pacifico">Pacifico</option>
+                        </select>
+                    </div>
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="timerBgColor">Fondo</label>
+                        <input id="timerBgColor" type="color" value="#4766ff" style="height:38px; padding:2px; cursor:pointer;">
+                    </div>
+                    <div class="row" style="margin-bottom:0;">
+                        <label for="timerTextColor">Texto</label>
+                        <input id="timerTextColor" type="color" value="#ffffff" style="height:38px; padding:2px; cursor:pointer;">
+                    </div>
+                </div>
+            </div>
             <div class="row">
                 <label class="toggle-row" for="timerEnabled"><input id="timerEnabled" class="toggle-input" type="checkbox" checked><span class="toggle-switch" aria-hidden="true"></span><span class="toggle-label">Activar este timer</span></label>
                 <div class="toggle-help">Si lo desmarcás, se guarda en pausa y no enviará mensajes hasta activarlo.</div>
             </div>
             <div class="actions">
+                <button id="previewTimerBtn" type="button" class="preview-btn">Ver Vista Previa</button>
                 <button id="addTimerBtn" type="button">Agregar timer</button>
             </div>
             <div id="timersList" class="list"></div>
@@ -326,6 +499,12 @@
             <button id="reloadBtn" class="secondary" type="button">Recargar</button>
         </div>
         <div id="status" class="status" aria-live="polite"></div>
+    </div>
+
+    <div id="previewOverlay" class="preview-alert-overlay">
+        <div class="preview-container" id="previewContainer">
+            <!-- Alerta renderizada -->
+        </div>
     </div>
 
     <script type="module">
@@ -444,6 +623,20 @@
             return clean.startsWith('!') ? clean : `!${clean}`;
         }
 
+        function normalizePermission(value) {
+            const raw = String(value || '').trim().toLowerCase();
+            if (raw === 'broadcaster') return 'owner';
+            return ['everyone', 'subscriber', 'mod', 'owner'].includes(raw) ? raw : 'everyone';
+        }
+
+        function enforcePremiumAnimation(animValue) {
+            const premiumAnims = ['bounce', 'zoom', 'glitch', 'neon', 'elastic'];
+            if (premiumAnims.includes(animValue) && !canUseRealChatCommands) {
+                return 'fade'; // Fallback to free animation
+            }
+            return animValue || 'fade';
+        }
+
         function sanitizeCommands(list = []) {
             return list
                 .map((item) => ({
@@ -451,16 +644,15 @@
                     response: (item?.response || '').toString().trim(),
                     permission: normalizePermission(item?.permission),
                     cooldownSeconds: Math.max(0, Math.min(600, Number(item?.cooldownSeconds || 0))),
-                    enabled: item?.enabled !== false
+                    enabled: item?.enabled !== false,
+                    animation: enforcePremiumAnimation(item?.animation),
+                    position: item?.position || 'top-center',
+                    font: item?.font || 'Poppins',
+                    bgColor: item?.bgColor || '#9147ff',
+                    textColor: item?.textColor || '#ffffff'
                 }))
                 .filter((item) => item.trigger && item.response)
                 .slice(0, 30);
-        }
-
-        function normalizePermission(value) {
-            const raw = String(value || '').trim().toLowerCase();
-            if (raw === 'broadcaster') return 'owner';
-            return ['everyone', 'subscriber', 'mod', 'owner'].includes(raw) ? raw : 'everyone';
         }
 
         function sanitizeTimers(list = []) {
@@ -468,7 +660,12 @@
                 .map((item) => ({
                     message: (item?.message || '').toString().trim(),
                     minutes: Math.max(1, Math.min(120, Number(item?.minutes || 5))),
-                    enabled: item?.enabled !== false
+                    enabled: item?.enabled !== false,
+                    animation: enforcePremiumAnimation(item?.animation),
+                    position: item?.position || 'top-center',
+                    font: item?.font || 'Poppins',
+                    bgColor: item?.bgColor || '#4766ff',
+                    textColor: item?.textColor || '#ffffff'
                 }))
                 .filter((item) => item.message)
                 .slice(0, 20);
@@ -490,7 +687,8 @@
                         <span class="pill ${item.enabled ? '' : 'off'}">${item.enabled ? 'Activo' : 'Pausado'}</span>
                     </div>
                     <div class="meta">${item.response}</div>
-                    <div class="hint">Permiso: <strong>${item.permission}</strong>${item.cooldownSeconds > 0 ? ` · Cooldown: ${item.cooldownSeconds}s` : ''}</div>
+                    <div class="hint">Permiso: <strong>${item.permission}</strong>${item.cooldownSeconds > 0 ? ` · Cooldown: ${item.cooldownSeconds}s` : ''} <br>
+                    <span style="font-size:0.8rem; opacity:0.8;">Anim: ${item.animation} | Pos: ${item.position} | Font: ${item.font}</span></div>
                     <div class="actions">
                         <button type="button" data-action="toggle" data-index="${index}" class="secondary">${item.enabled ? 'Pausar' : 'Activar'}</button>
                         <button type="button" data-action="delete" data-index="${index}" class="secondary">Eliminar</button>
@@ -516,6 +714,7 @@
                         <span class="pill ${item.enabled ? '' : 'off'}">${item.enabled ? 'Activo' : 'Pausado'}</span>
                     </div>
                     <div class="meta">${item.message}</div>
+                    <div class="hint"><span style="font-size:0.8rem; opacity:0.8;">Anim: ${item.animation} | Pos: ${item.position} | Font: ${item.font}</span></div>
                     <div class="actions">
                         <button type="button" data-action="toggle" data-index="${index}" class="secondary">${item.enabled ? 'Pausar' : 'Activar'}</button>
                         <button type="button" data-action="delete" data-index="${index}" class="secondary">Eliminar</button>
@@ -596,7 +795,12 @@
                 response,
                 permission: cmdPermission.value,
                 cooldownSeconds: Math.max(0, Math.min(600, Number(cmdCooldown.value || 0))),
-                enabled: Boolean(cmdEnabled.checked)
+                enabled: Boolean(cmdEnabled.checked),
+                animation: enforcePremiumAnimation(document.getElementById('cmdAnimation').value),
+                position: document.getElementById('cmdPosition').value,
+                font: document.getElementById('cmdFont').value,
+                bgColor: document.getElementById('cmdBgColor').value,
+                textColor: document.getElementById('cmdTextColor').value
             });
 
             commands = sanitizeCommands(commands);
@@ -620,7 +824,12 @@
             timers.push({
                 message,
                 minutes,
-                enabled: Boolean(timerEnabled.checked)
+                enabled: Boolean(timerEnabled.checked),
+                animation: enforcePremiumAnimation(document.getElementById('timerAnimation').value),
+                position: document.getElementById('timerPosition').value,
+                font: document.getElementById('timerFont').value,
+                bgColor: document.getElementById('timerBgColor').value,
+                textColor: document.getElementById('timerTextColor').value
             });
 
             timers = sanitizeTimers(timers);
@@ -667,6 +876,58 @@
 
         saveBtn.addEventListener('click', guardarConfiguracion);
         reloadBtn.addEventListener('click', cargarConfiguracion);
+
+        function showPreview(text, anim, pos, font, bg, color) {
+            const overlay = document.getElementById('previewOverlay');
+            const container = document.getElementById('previewContainer');
+            
+            // Check premium anims
+            const premiumAnims = ['bounce', 'zoom', 'glitch', 'neon', 'elastic'];
+            if (premiumAnims.includes(anim) && !canUseRealChatCommands) {
+                setStatus('Esa animación es exclusiva del plan Premium. Se usará Fade In como respaldo.', 'err');
+                anim = 'fade';
+            }
+
+            container.innerHTML = '';
+            overlay.style.display = 'block';
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert-box alert-${pos} anim-${anim}`;
+            alertDiv.style.backgroundColor = bg;
+            alertDiv.style.color = color;
+            alertDiv.style.fontFamily = `"${font}", sans-serif`;
+            alertDiv.textContent = text || '¡Mensaje de prueba!';
+
+            container.appendChild(alertDiv);
+
+            setTimeout(() => {
+                alertDiv.style.animation = 'none';
+                alertDiv.style.opacity = '0';
+                setTimeout(() => { overlay.style.display = 'none'; }, 300);
+            }, 3000);
+        }
+
+        document.getElementById('previewCommandBtn').addEventListener('click', () => {
+            showPreview(
+                cmdResponse.value.trim() || 'Ejemplo de respuesta de comando',
+                document.getElementById('cmdAnimation').value,
+                document.getElementById('cmdPosition').value,
+                document.getElementById('cmdFont').value,
+                document.getElementById('cmdBgColor').value,
+                document.getElementById('cmdTextColor').value
+            );
+        });
+
+        document.getElementById('previewTimerBtn').addEventListener('click', () => {
+            showPreview(
+                timerMessage.value.trim() || 'Ejemplo de mensaje de timer',
+                document.getElementById('timerAnimation').value,
+                document.getElementById('timerPosition').value,
+                document.getElementById('timerFont').value,
+                document.getElementById('timerBgColor').value,
+                document.getElementById('timerTextColor').value
+            );
+        });
 
         onAuthStateChanged(auth, async (user) => {
             const planContext = resolvePlanContextFromParent();

@@ -267,3 +267,70 @@ body {
     background: rgba(255, 80, 80, 0.18);
     color: #ffb3b3;
 }
+
+/* ========================================================
+   Bot Alerts (Command / Timer Pop-ups)
+   ======================================================== */
+#alert-container {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.alert-box {
+    position: absolute;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 1.5rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    max-width: 80%;
+    word-wrap: break-word;
+    /* Emotes inside the alert */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.alert-box .chat-emote {
+    height: 1.5em; /* slightly larger for alerts */
+    vertical-align: middle;
+}
+
+/* Positions */
+.alert-top-center { top: 10%; left: 50%; transform: translateX(-50%); }
+.alert-center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.alert-bottom-center { bottom: 10%; left: 50%; transform: translateX(-50%); }
+.alert-top-left { top: 10%; left: 5%; }
+.alert-top-right { top: 10%; right: 5%; }
+.alert-bottom-left { bottom: 10%; left: 5%; }
+.alert-bottom-right { bottom: 10%; right: 5%; }
+
+/* Animations */
+@keyframes animFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes animSlideUp { from { opacity: 0; transform: translateY(40px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
+@keyframes animSlideLeft { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes animBounce { 0% { transform: scale(0.3) translateX(-50%); opacity: 0; } 50% { transform: scale(1.05) translateX(-50%); opacity: 1; } 70% { transform: scale(0.9) translateX(-50%); } 100% { transform: scale(1) translateX(-50%); opacity: 1; } }
+@keyframes animZoom { from { opacity: 0; transform: scale(0.5) translateX(-50%); } to { opacity: 1; transform: scale(1) translateX(-50%); } }
+@keyframes animGlitch {
+    0% { transform: translate(0) }
+    20% { transform: translate(-2px, 2px) }
+    40% { transform: translate(-2px, -2px) }
+    60% { transform: translate(2px, 2px) }
+    80% { transform: translate(2px, -2px) }
+    100% { transform: translate(0) }
+}
+@keyframes animNeon { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes animElastic { 0% { transform: scale(0) translateX(-50%); } 80% { transform: scale(1.1) translateX(-50%); } 100% { transform: scale(1) translateX(-50%); } }
+
+.anim-fade { animation: animFade 0.5s ease forwards; }
+.anim-slide-up { animation: animSlideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.anim-slide-left { animation: animSlideLeft 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.anim-bounce { animation: animBounce 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: left; }
+.anim-zoom { animation: animZoom 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: left; }
+.anim-glitch { animation: animGlitch 0.3s ease infinite; }
+.anim-neon { animation: animNeon 0.1s ease 5; }
+.anim-elastic { animation: animElastic 0.8s cubic-bezier(0.5, -0.5, 0.5, 1.5) forwards; transform-origin: left; }
