@@ -980,6 +980,7 @@
             };
 
             const ensureGlobalBadgesLoaded = async () => {
+                if (hasHelixBadges) return; // No necesitamos fallback si tenemos la API oficial
                 if (badgeState.globalLoaded) return;
                 badgeState.globalLoaded = true;
                 const globalSets = await fetchPublicGlobalBadges();
@@ -991,6 +992,7 @@
             };
 
             const ensureChannelBadgesLoaded = async (roomId) => {
+                if (hasHelixBadges) return; // No necesitamos fallback si tenemos la API oficial
                 const normalizedRoom = String(roomId || '').trim();
                 if (!normalizedRoom) return;
                 if (badgeState.channelLoadedForRoom === normalizedRoom) return;
