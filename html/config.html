@@ -505,14 +505,18 @@
 
     <label>Diseño del mensaje:</label>
     <select id="disenoMensaje">
-        <option value="design-solid">Clásico</option>
-        <option value="design-transparent">Transparente total</option>
-        <option value="design-square">Cuadrado</option>
-        <option value="design-glass">Glass</option>
-        <option value="design-neon">Neón</option>
-        <option value="design-outline">Contorno</option>
-        <option value="design-pill">Píldora</option>
-        <option value="design-custom">Personalizado (CSS)</option>
+        <optgroup label="Diseños por Defecto" id="defaultDesignsGroup">
+            <option value="design-solid">Clásico</option>
+            <option value="design-transparent">Transparente total</option>
+            <option value="design-square">Cuadrado</option>
+            <option value="design-glass">Glass</option>
+            <option value="design-neon">Neón</option>
+            <option value="design-outline">Contorno</option>
+            <option value="design-pill">Píldora</option>
+        </optgroup>
+        <optgroup label="Tus Diseños CSS" id="customDesignsGroup" style="display:none;">
+            <!-- Opciones inyectadas por JS -->
+        </optgroup>
     </select>
 
     <label>Espacio entre mensajes (px):</label>
@@ -521,25 +525,31 @@
         <span id="espacioMensajesValor" style="min-width: 40px; font-weight: bold;">15px</span>
     </div>
 
-    <div id="customDesignGroup" class="custom-design-group" style="display:none;">
-        <label>Método de diseño personalizado:</label>
-        <select id="customCssMode">
-            <option value="url">URL CSS</option>
+    <div style="margin: 20px 0; padding: 15px; border-radius: 12px; background: rgba(145, 71, 255, 0.05); border: 1px dashed rgba(145, 71, 255, 0.3);">
+        <h4 style="margin: 0 0 10px; color: #a970ff; font-size: 0.95rem;">Librería de Custom CSS</h4>
+        <p style="font-size: 0.85rem; color: #aaa; margin: 0 0 10px;">Sube tus propios diseños CSS para usarlos en el chat o en comandos. El plan Free permite hasta 3 diseños (los más viejos se borran al subir nuevos). Premium permite hasta 8.</p>
+        
+        <label>Nombre del diseño (ej. "Tema Oscuro"):</label>
+        <input type="text" id="libCssName" placeholder="Mi Diseño">
+        
+        <label>Método de subida:</label>
+        <select id="libCssMode">
+            <option value="url">URL de CSS</option>
             <option value="file">Archivo .css</option>
         </select>
 
-        <div id="customCssUrlGroup">
+        <div id="libCssUrlGroup">
             <label>URL del CSS:</label>
-            <input type="url" id="customCssUrl" placeholder="https://tu-sitio.com/chat.css">
+            <input type="url" id="libCssUrl" placeholder="https://tu-sitio.com/chat.css">
         </div>
 
-        <div id="customCssFileGroup" style="display:none;">
+        <div id="libCssFileGroup" style="display:none;">
             <label>Subir archivo CSS:</label>
-            <input type="file" id="customCssFile" accept=".css,text/css">
-            <small id="customCssFileStatus">No hay archivo cargado.</small>
+            <input type="file" id="libCssFile" accept=".css,text/css">
+            <small id="libCssFileStatus">No hay archivo cargado.</small>
         </div>
 
-        <small>Tip: podés usar clases como <strong>.mensaje</strong> o <strong>.preview-message</strong> en tu CSS.</small>
+        <button type="button" id="btnAddLibCss" class="secondary-btn" style="margin-top:15px; padding: 10px;">Subir y Guardar en Librería</button>
     </div>
 
     <span class="emote-section-label">Emotes externos</span>
@@ -616,13 +626,13 @@
     const disenoMensajeSelect = document.getElementById('disenoMensaje');
     const espacioMensajesInput = document.getElementById('espacioMensajes');
     const espacioMensajesValor = document.getElementById('espacioMensajesValor');
-    const customDesignGroup = document.getElementById('customDesignGroup');
-    const customCssModeSelect = document.getElementById('customCssMode');
-    const customCssUrlGroup = document.getElementById('customCssUrlGroup');
-    const customCssFileGroup = document.getElementById('customCssFileGroup');
-    const customCssUrlInput = document.getElementById('customCssUrl');
-    const customCssFileInput = document.getElementById('customCssFile');
-    const customCssFileStatus = document.getElementById('customCssFileStatus');
+    const libCssNameInput = document.getElementById('libCssName');
+    const libCssModeSelect = document.getElementById('libCssMode');
+    const libCssUrlInput = document.getElementById('libCssUrl');
+    const libCssFileInput = document.getElementById('libCssFile');
+    const libCssFileStatus = document.getElementById('libCssFileStatus');
+    const btnAddLibCss = document.getElementById('btnAddLibCss');
+    const customDesignsGroup = document.getElementById('customDesignsGroup');
     const enable7tvEmotesInput = document.getElementById('enable7tvEmotes');
     const enableBttvEmotesInput = document.getElementById('enableBttvEmotes');
     const enableFfzEmotesInput = document.getElementById('enableFfzEmotes');
@@ -730,13 +740,9 @@
     }
 
     function updateCustomControlsVisibility() {
-        const isCustomDesign = mapDesignClass() === 'design-custom';
-        customDesignGroup.style.display = isCustomDesign ? 'block' : 'none';
-
-        if (!isCustomDesign) return;
-        const mode = customCssModeSelect.value || 'url';
-        customCssUrlGroup.style.display = mode === 'url' ? 'block' : 'none';
-        customCssFileGroup.style.display = mode === 'file' ? 'block' : 'none';
+        const mode = libCssModeSelect.value || 'url';
+        document.getElementById('libCssUrlGroup').style.display = mode === 'url' ? 'block' : 'none';
+        document.getElementById('libCssFileGroup').style.display = mode === 'file' ? 'block' : 'none';
     }
 
     function removePreviewCustomAssets() {
@@ -778,25 +784,27 @@
 
     function applyCustomPreviewAssets() {
         removePreviewCustomAssets();
-        if (mapDesignClass() !== 'design-custom') return;
+        const designClass = mapDesignClass();
+        if (!designClass.startsWith('lib_')) return;
 
-        const mode = customCssModeSelect.value || 'url';
-        if (mode === 'url') {
-            const cssUrl = customCssUrlInput.value.trim();
-            if (!cssUrl) return;
-            if (!isSafeCustomCssUrl(cssUrl)) return;
+        const libId = designClass.replace('lib_', '');
+        const libItem = customCssLibrary.find(i => i.id === libId);
+        if (!libItem) return;
+
+        if (libItem.mode === 'url') {
+            if (!isSafeCustomCssUrl(libItem.url)) return;
             previewCustomLinkTag = document.createElement('link');
             previewCustomLinkTag.rel = 'stylesheet';
-            previewCustomLinkTag.href = cssUrl;
+            previewCustomLinkTag.href = libItem.url;
             previewCustomLinkTag.setAttribute('data-preview-custom-css', 'true');
             document.head.appendChild(previewCustomLinkTag);
             return;
         }
 
-        if (mode === 'file' && customCssContent && validateCustomCssText(customCssContent)) {
+        if (libItem.mode === 'file' && libItem.content && validateCustomCssText(libItem.content)) {
             previewCustomStyleTag = document.createElement('style');
             previewCustomStyleTag.setAttribute('data-preview-custom-css', 'true');
-            previewCustomStyleTag.textContent = normalizeCssForPreview(customCssContent);
+            previewCustomStyleTag.textContent = normalizeCssForPreview(libItem.content);
             document.head.appendChild(previewCustomStyleTag);
         }
     }
@@ -868,13 +876,13 @@
                 selectFuente.value = data.fuente || 'Poppins';
                 animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
                 animacionEstiloSelect.value = data.animacionEstilo || 'slide';
+                
+                customCssLibrary = data.customCssLibrary || [];
+                renderCustomCssLibrary();
+                
                 disenoMensajeSelect.value = data.disenoMensaje || 'design-solid';
                 espacioMensajesInput.value = data.espacioMensajes !== undefined ? data.espacioMensajes : 15;
-                customCssModeSelect.value = data.customCssMode || 'url';
-                customCssUrlInput.value = data.customCssUrl || '';
-                customCssContent = data.customCssContent || '';
                 applyEmoteSettingsFromData(data);
-                customCssFileStatus.textContent = customCssContent ? 'Archivo CSS cargado en configuración.' : 'No hay archivo cargado.';
             } else {
                 canalInput.value = getTwitchChannelFromStorage();
                 applyEmoteSettingsFromData({});
@@ -905,13 +913,13 @@
                     selectFuente.value = data.fuente || 'Poppins';
                     animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
                     animacionEstiloSelect.value = data.animacionEstilo || 'slide';
+                    
+                    customCssLibrary = data.customCssLibrary || [];
+                    renderCustomCssLibrary();
+                    
                     disenoMensajeSelect.value = data.disenoMensaje || 'design-solid';
                     espacioMensajesInput.value = data.espacioMensajes !== undefined ? data.espacioMensajes : 15;
-                    customCssModeSelect.value = data.customCssMode || 'url';
-                    customCssUrlInput.value = data.customCssUrl || '';
-                    customCssContent = data.customCssContent || '';
                     applyEmoteSettingsFromData(data);
-                    customCssFileStatus.textContent = customCssContent ? 'Archivo CSS cargado en configuración.' : 'No hay archivo cargado.';
                 }
             } catch (e) {
                 console.warn('No se pudo cargar config de canal Twitch:', e);
@@ -928,19 +936,22 @@
         window.parent.location.href = '/index.html';
     });
 
-    async function persistirConfiguracion(canal, color, fuente) {
-        const customMode = customCssModeSelect.value || 'url';
-        const customUrl = customCssUrlInput.value.trim();
-
-        if (disenoMensajeSelect.value === 'design-custom') {
-            if (customMode === 'url' && customUrl && !isSafeCustomCssUrl(customUrl)) {
-                throw new Error('URL de CSS inválida. Usá http/https.');
-            }
-            if (customMode === 'file' && customCssContent && !validateCustomCssText(customCssContent)) {
-                throw new Error('El CSS contiene reglas no permitidas (@import, body, html, :root o *).');
-            }
+    function renderCustomCssLibrary() {
+        customDesignsGroup.innerHTML = '';
+        if (customCssLibrary.length > 0) {
+            customDesignsGroup.style.display = '';
+            customCssLibrary.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = `lib_${item.id}`;
+                opt.textContent = item.name;
+                customDesignsGroup.appendChild(opt);
+            });
+        } else {
+            customDesignsGroup.style.display = 'none';
         }
+    }
 
+    async function persistirConfiguracion(canal, color, fuente) {
         const payload = {
             canal,
             color,
@@ -956,9 +967,7 @@
             enableBttvEmotes: Boolean(enableBttvEmotesInput.checked),
             enableFfzEmotes: Boolean(enableFfzEmotesInput.checked),
             enableThirdPartyEmotes: Boolean(enable7tvEmotesInput.checked || enableBttvEmotesInput.checked || enableFfzEmotesInput.checked),
-            customCssMode: customMode,
-            customCssUrl: customUrl,
-            customCssContent,
+            customCssLibrary,
             ultima_actualizacion: new Date()
         };
 
@@ -1060,49 +1069,86 @@
 
     disenoMensajeSelect.addEventListener('change', () => {
         updateColorRecuadroVisibility();
-        updateCustomControlsVisibility();
         renderPreview();
     });
 
-    customCssModeSelect.addEventListener('change', () => {
-        updateCustomControlsVisibility();
-        renderPreview();
-    });
+    libCssModeSelect.addEventListener('change', updateCustomControlsVisibility);
 
-    customCssUrlInput.addEventListener('input', () => {
-        if (mapDesignClass() === 'design-custom' && customCssModeSelect.value === 'url') {
-            renderPreview();
-        }
-    });
-
-    customCssFileInput.addEventListener('change', async () => {
-        const file = customCssFileInput.files?.[0];
+    let tempLibCssContent = '';
+    libCssFileInput.addEventListener('change', async () => {
+        const file = libCssFileInput.files?.[0];
         if (!file) {
-            customCssContent = '';
-            customCssFileStatus.textContent = 'No hay archivo cargado.';
-            renderPreview();
+            tempLibCssContent = '';
+            libCssFileStatus.textContent = 'No hay archivo cargado.';
             return;
         }
-
         if (file.size > 200 * 1024) {
             showSaveFeedback('El archivo CSS es demasiado grande (máx. 200KB).', 'error');
-            customCssFileInput.value = '';
+            libCssFileInput.value = '';
             return;
         }
-
         const text = await file.text();
         if (!validateCustomCssText(text)) {
             showSaveFeedback('CSS no permitido: evitá @import, body, html, :root o *.', 'error');
-            customCssContent = '';
-            customCssFileInput.value = '';
-            customCssFileStatus.textContent = 'No hay archivo cargado.';
-            renderPreview();
+            tempLibCssContent = '';
+            libCssFileInput.value = '';
+            libCssFileStatus.textContent = 'No hay archivo cargado.';
             return;
         }
+        tempLibCssContent = text;
+        libCssFileStatus.textContent = `Archivo cargado: ${file.name}`;
+    });
 
-        customCssContent = text;
-        customCssFileStatus.textContent = `Archivo cargado: ${file.name}`;
-        renderPreview();
+    btnAddLibCss.addEventListener('click', async () => {
+        const name = libCssNameInput.value.trim() || `Diseño ${customCssLibrary.length + 1}`;
+        const mode = libCssModeSelect.value;
+        const url = libCssUrlInput.value.trim();
+        
+        let content = '';
+        if (mode === 'url') {
+            if (!url || !isSafeCustomCssUrl(url)) {
+                showSaveFeedback('URL de CSS inválida. Usá http/https.', 'error');
+                return;
+            }
+        } else {
+            if (!tempLibCssContent) {
+                showSaveFeedback('Primero debés cargar un archivo CSS.', 'error');
+                return;
+            }
+            content = tempLibCssContent;
+        }
+
+        let isPremium = false;
+        if (window.parent && typeof window.parent.getCurrentUserPlanContext === 'function') {
+            const ctx = window.parent.getCurrentUserPlanContext();
+            isPremium = ctx.canUseRealChatCommands;
+        }
+
+        const maxLimit = isPremium ? 8 : 3;
+
+        customCssLibrary.push({
+            id: Date.now().toString(),
+            name,
+            mode,
+            url,
+            content
+        });
+
+        if (customCssLibrary.length > maxLimit) {
+            customCssLibrary.shift(); // Remove oldest
+            showSaveFeedback(`Límite alcanzado (${maxLimit}). El diseño más antiguo fue reemplazado.`, 'error');
+        } else {
+            showSaveFeedback(`Diseño añadido a la librería. ¡No olvides Guardar Configuración!`, 'success');
+        }
+
+        renderCustomCssLibrary();
+        
+        // Reset form
+        libCssNameInput.value = '';
+        libCssUrlInput.value = '';
+        libCssFileInput.value = '';
+        tempLibCssContent = '';
+        libCssFileStatus.textContent = 'No hay archivo cargado.';
     });
 
     selectFuente.addEventListener('change', () => {

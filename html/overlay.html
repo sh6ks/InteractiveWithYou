@@ -86,6 +86,9 @@
     </style>
 </head>
 <body>
+<!-- Iframe para alertas externas (StreamElements, Streamlabs, etc) -->
+    <iframe id="externalAlertsIframe" style="position: absolute; inset: 0; width: 100%; height: 100%; border: none; z-index: -1; display: none;"></iframe>
+    
 <!-- Contenedor dinámico donde se muestran las alertas emitidas desde Firebase -->
     <div id="alertContainer"></div>
     <div id="debugHud" class="debug-hud hidden"></div>
@@ -137,6 +140,7 @@
 
         const container = document.getElementById('alertContainer');
         const debugHud = document.getElementById('debugHud');
+        const externalAlertsIframe = document.getElementById('externalAlertsIframe');
         const shownIds = new Set();
         const shownEffectIds = new Set();
         const alertQueue = [];
@@ -144,6 +148,20 @@
         let effectActive = false;
         let lastEvent = 'ninguno';
         let lastDocId = '-';
+
+        // Cargar alertas externas
+        if (canalParam) {
+            const userQ = query(collection(db, 'usuarios'), where('canal', '==', canalParam));
+            getDocs(userQ).then(snap => {
+                if (!snap.empty) {
+                    const data = snap.docs[0].data();
+                    if (data.externalAlertsUrl) {
+                        externalAlertsIframe.src = data.externalAlertsUrl;
+                        externalAlertsIframe.style.display = 'block';
+                    }
+                }
+            }).catch(e => console.error("No se pudo cargar la URL externa:", e));
+        }
 
         const renderDebugHud = (extra = '') => {
             if (!debugEnabled) return;

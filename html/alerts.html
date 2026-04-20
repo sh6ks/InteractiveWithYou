@@ -632,6 +632,7 @@
         <div class="tabs">
             <button class="tab-btn active" data-tab="crear">Crear alerta</button>
             <button class="tab-btn" data-tab="mis-alertas">Mis alertas</button>
+            <button class="tab-btn" data-tab="alertas-externas">Alertas Externas</button>
         </div>
 
         <!-- TAB: Crear alerta -->
@@ -809,6 +810,26 @@
             </div>
         </div>
         <!-- FIN TAB: Mis alertas -->
+
+        <!-- TAB: Alertas Externas -->
+        <div id="alertas-externas" class="tab-content">
+            <div class="info-box" style="margin-bottom: 20px;">
+                <strong>¿Ya tienes alertas en StreamElements o Streamlabs?</strong><br>
+                Si no quieres volver a hacer tus alertas, puedes pegar tu link de OBS aquí. 
+                Tu widget maestro de <em>InteractiveWithYou</em> cargará automáticamente tus alertas antiguas por detrás.
+                ¡Así solo necesitas 1 fuente de navegador en OBS!
+            </div>
+            
+            <div class="field-group">
+                <label>URL de Browser Source (StreamElements, Twitch, Streamlabs)</label>
+                <input id="externalAlertsUrlInput" type="url" placeholder="https://streamelements.com/overlay/..." />
+            </div>
+
+            <button class="btn-primary" id="saveExternalUrlBtn">Guardar Alertas Externas</button>
+            
+            <div id="externalAlertsStatus" class="info-box" style="display: none; margin-top: 15px;"></div>
+        </div>
+        <!-- FIN TAB: Alertas Externas -->
     </div>
 
     <script type="module">
@@ -873,6 +894,22 @@
         const clearTestQueueButton = document.getElementById('clearTestQueueButton');
         const eventPills = document.querySelectorAll('.event-pill');
         const newAlertButton = document.getElementById('newAlertButton');
+        const externalAlertsUrlInput = document.getElementById('externalAlertsUrlInput');
+        const saveExternalUrlBtn = document.getElementById('saveExternalUrlBtn');
+        const externalAlertsStatus = document.getElementById('externalAlertsStatus');
+
+        // Tabs Logic
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
 
         // Límites de alertas por tipo de evento
         const FREE_LIMIT = 3;
@@ -1643,6 +1680,72 @@
         });
 
         canalInput.addEventListener('input', updateOverlayLink);
+
+        // Alertas Externas Logic
+        const setExternalStatus = (msg, success = true) => {
+            externalAlertsStatus.style.display = 'block';
+            externalAlertsStatus.style.background = success ? 'rgba(74, 222, 128, 0.1)' : 'rgba(255, 100, 100, 0.1)';
+            externalAlertsStatus.style.borderColor = success ? 'rgba(74, 222, 128, 0.3)' : 'rgba(255, 100, 100, 0.3)';
+            externalAlertsStatus.style.color = success ? '#4ade80' : '#ff6464';
+            externalAlertsStatus.textContent = msg;
+            setTimeout(() => { externalAlertsStatus.style.display = 'none'; }, 5000);
+        };
+
+        const loadExternalAlertsUrl = async (canal) => {
+            if (!canal) return;
+            try {
+                const q = query(collection(db, 'usuarios'), where('canal', '==', canal));
+                const snap = await getDocs(q);
+                if (!snap.empty && snap.docs[0].data().externalAlertsUrl) {
+                    externalAlertsUrlInput.value = snap.docs[0].data().externalAlertsUrl;
+                }
+            } catch (error) {
+                console.error("Error al cargar URL externa:", error);
+            }
+        };
+
+        saveExternalUrlBtn.addEventListener('click', async () => {
+            const url = externalAlertsUrlInput.value.trim();
+            const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
+            
+            if (!canal) {
+                setExternalStatus('Necesitas iniciar sesión para guardar esto.', false);
+                return;
+            }
+
+            if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+                setExternalStatus('Por favor, ingresa una URL válida que empiece con http:// o https://', false);
+                return;
+            }
+
+            try {
+                const q = query(collection(db, 'usuarios'), where('canal', '==', canal));
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                    const docId = snap.docs[0].id;
+                    await updateDoc(doc(db, 'usuarios', docId), {
+                        externalAlertsUrl: url
+                    });
+                    setExternalStatus('✅ URL de alertas externas guardada correctamente.');
+                } else if (auth.currentUser) {
+                    await setDoc(doc(db, 'usuarios', auth.currentUser.uid), {
+                        canal: canal,
+                        externalAlertsUrl: url
+                    }, { merge: true });
+                    setExternalStatus('✅ URL de alertas externas guardada correctamente.');
+                }
+            } catch (error) {
+                setExternalStatus('❌ Error al guardar: ' + error.message, false);
+            }
+        });
+
+        // Al iniciar
+        onAuthStateChanged(auth, (user) => {
+            const currentCanal = getTwitchChannel();
+            if (currentCanal) {
+                loadExternalAlertsUrl(currentCanal);
+            }
+        });
 
         cargarFuentesDeGoogle();
         updatePreview();

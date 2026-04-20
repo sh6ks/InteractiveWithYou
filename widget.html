@@ -194,6 +194,8 @@
                     ffz: config.enableFfzEmotes ?? legacyThirdPartyEnabled
                 };
 
+                window.loadedCustomCssLibrary = config.customCssLibrary || [];
+
                 let thirdPartyEmotes = {};
                 if (emoteProviders.sevenTv || emoteProviders.bttv || emoteProviders.ffz) {
                     try {
@@ -203,8 +205,12 @@
                     }
                 }
 
-                if (config.disenoMensaje === 'design-custom') {
-                    applyCustomWidgetCss(config.customCssMode, config.customCssUrl, config.customCssContent);
+                if (config.disenoMensaje && config.disenoMensaje.startsWith('lib_')) {
+                    const libId = config.disenoMensaje.replace('lib_', '');
+                    const libItem = window.loadedCustomCssLibrary.find(i => i.id === libId);
+                    if (libItem) {
+                        applyScopedWidgetCss(libItem, config.disenoMensaje);
+                    }
                 }
 
                 // Cargamos la fuente y RECIÉN AHÍ conectamos al chat
@@ -825,6 +831,14 @@
             const bg = configParams?.bgColor || '#9147ff';
             const color = configParams?.textColor || '#ffffff';
 
+            if (anim.startsWith('lib_')) {
+                const libId = anim.replace('lib_', '');
+                const libItem = window.loadedCustomCssLibrary?.find(i => i.id === libId);
+                if (libItem) {
+                    applyScopedWidgetCss(libItem, anim);
+                }
+            }
+
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert-box alert-${pos} anim-${anim}`;
             alertDiv.style.backgroundColor = bg;
@@ -887,20 +901,6 @@
             return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
         }
 
-        let customWidgetStyleTag = null;
-        let customWidgetLinkTag = null;
-
-        function removeCustomWidgetCss() {
-            if (customWidgetStyleTag) {
-                customWidgetStyleTag.remove();
-                customWidgetStyleTag = null;
-            }
-            if (customWidgetLinkTag) {
-                customWidgetLinkTag.remove();
-                customWidgetLinkTag = null;
-            }
-        }
-
         function isSafeCustomCssUrl(url) {
             try {
                 const parsed = new URL(url);
@@ -922,25 +922,32 @@
             return !forbidden.some((pattern) => pattern.test(content));
         }
 
-        function applyCustomWidgetCss(mode = 'url', cssUrl = '', cssContent = '') {
-            removeCustomWidgetCss();
-            if (mode === 'url') {
-                const url = (cssUrl || '').trim();
+        function applyScopedWidgetCss(libItem, scopeClass) {
+            const styleId = `custom-style-${scopeClass}`;
+            if (document.getElementById(styleId)) return;
+
+            if (libItem.mode === 'url') {
+                const url = (libItem.url || '').trim();
                 if (!url || !isSafeCustomCssUrl(url)) return;
-                customWidgetLinkTag = document.createElement('link');
-                customWidgetLinkTag.rel = 'stylesheet';
-                customWidgetLinkTag.href = url;
-                customWidgetLinkTag.setAttribute('data-widget-custom-css', 'true');
-                document.head.appendChild(customWidgetLinkTag);
+                const link = document.createElement('link');
+                link.id = styleId;
+                link.rel = 'stylesheet';
+                link.href = url;
+                document.head.appendChild(link);
                 return;
             }
 
-            const content = (cssContent || '').trim();
+            let content = (libItem.content || '').trim();
             if (!content || !validateCustomCssText(content)) return;
-            customWidgetStyleTag = document.createElement('style');
-            customWidgetStyleTag.setAttribute('data-widget-custom-css', 'true');
-            customWidgetStyleTag.textContent = content;
-            document.head.appendChild(customWidgetStyleTag);
+            
+            // Scope rules to the specific animation/design class to prevent collisions
+            content = content.replace(/\.mensaje\b/g, `.mensaje.${scopeClass}`)
+                             .replace(/\.alert-box\b/g, `.alert-box.${scopeClass}`);
+            
+            const styleTag = document.createElement('style');
+            styleTag.id = styleId;
+            styleTag.textContent = content;
+            document.head.appendChild(styleTag);
         }
 
         function mostrarEjemplos(texto) {
