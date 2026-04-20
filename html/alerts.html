@@ -802,6 +802,16 @@
 
         <!-- TAB: Mis alertas -->
         <div id="mis-alertas" class="tab-content">
+            <!-- Banner de alertas externas -->
+            <div id="externalAlertsBanner" style="display:none; margin-bottom:18px; padding:14px 18px; border-radius:12px; border:1px solid rgba(145,71,255,0.3); background:rgba(145,71,255,0.08); display:flex; align-items:center; gap:14px;">
+                <span style="font-size:1.6rem;">🔗</span>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700; color:#c4aeff; margin-bottom:2px;">Alertas Externas activas</div>
+                    <div id="externalAlertsBannerUrl" style="font-size:0.82rem; color:#a7a2c9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:520px;"></div>
+                </div>
+                <button class="btn-small" id="goToExternalTabBtn" style="white-space:nowrap; background:rgba(145,71,255,0.18); color:#c4aeff; border:1px solid rgba(145,71,255,0.35); border-radius:8px; padding:6px 14px; cursor:pointer; font-size:0.85rem;">Editar enlace</button>
+            </div>
+
             <div id="alertsContainer" class="alerts-list">
                 <div class="empty-state">
                     <p>No tienes alertas guardadas</p>
@@ -1104,6 +1114,15 @@
             });
         });
 
+        // Botón "Editar enlace" lleva a la pestaña de Alertas Externas
+        document.getElementById('goToExternalTabBtn')?.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            const extBtn = document.querySelector('[data-tab="alertas-externas"]');
+            extBtn?.classList.add('active');
+            document.getElementById('alertas-externas')?.classList.add('active');
+        });
+
         // Cargar mis alertas
         async function loadMyAlerts() {
             const user = auth.currentUser;
@@ -1113,6 +1132,23 @@
             }
 
             const canal = getTwitchChannel() || user?.displayName?.toLowerCase();
+
+            // Mostrar banner de alertas externas si existe
+            const externalBanner = document.getElementById('externalAlertsBanner');
+            const externalBannerUrl = document.getElementById('externalAlertsBannerUrl');
+            if (canal && externalBanner && externalBannerUrl) {
+                try {
+                    const q = query(collection(db, 'usuarios'), where('canal', '==', canal));
+                    const snap = await getDocs(q);
+                    if (!snap.empty && snap.docs[0].data().externalAlertsUrl) {
+                        const extUrl = snap.docs[0].data().externalAlertsUrl;
+                        externalBannerUrl.textContent = extUrl;
+                        externalBanner.style.display = 'flex';
+                    } else {
+                        externalBanner.style.display = 'none';
+                    }
+                } catch(_) { externalBanner.style.display = 'none'; }
+            }
             
             try {
                 const q = query(collection(db, 'liveAlerts'), where('canal', '==', canal));
