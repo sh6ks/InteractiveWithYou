@@ -515,6 +515,12 @@
         <option value="design-custom">Personalizado (CSS)</option>
     </select>
 
+    <label>Espacio entre mensajes (px):</label>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <input type="range" id="espacioMensajes" min="0" max="100" value="15" style="flex:1;">
+        <span id="espacioMensajesValor" style="min-width: 40px; font-weight: bold;">15px</span>
+    </div>
+
     <div id="customDesignGroup" class="custom-design-group" style="display:none;">
         <label>Método de diseño personalizado:</label>
         <select id="customCssMode">
@@ -608,6 +614,8 @@
     const animacionDireccionSelect = document.getElementById('animacionDireccion');
     const animacionEstiloSelect = document.getElementById('animacionEstilo');
     const disenoMensajeSelect = document.getElementById('disenoMensaje');
+    const espacioMensajesInput = document.getElementById('espacioMensajes');
+    const espacioMensajesValor = document.getElementById('espacioMensajesValor');
     const customDesignGroup = document.getElementById('customDesignGroup');
     const customCssModeSelect = document.getElementById('customCssMode');
     const customCssUrlGroup = document.getElementById('customCssUrlGroup');
@@ -802,6 +810,7 @@
     function updateControlLabels() {
         grosorBordeValue.textContent = inputGrosorBorde.value;
         opacidadRecuadroValue.textContent = inputOpacidadRecuadro.value;
+        espacioMensajesValor.textContent = `${espacioMensajesInput.value}px`;
     }
 
     function applyEmoteSettingsFromData(data = {}) {
@@ -823,6 +832,7 @@
         if (mapDesignClass() === 'design-solid' || mapDesignClass() === 'design-square') {
             div.style.backgroundColor = hexToRgba(inputColorRecuadro.value, Number(inputOpacidadRecuadro.value || 88) / 100);
         }
+        div.style.marginBottom = `${espacioMensajesInput.value}px`;
         div.innerHTML = `${item.badges || ''}<strong style="color:${item.color};">${item.usuario}:</strong> ${item.mensaje}`;
         previewChat.appendChild(div);
         if (previewChat.children.length > 5) {
@@ -859,6 +869,7 @@
                 animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
                 animacionEstiloSelect.value = data.animacionEstilo || 'slide';
                 disenoMensajeSelect.value = data.disenoMensaje || 'design-solid';
+                espacioMensajesInput.value = data.espacioMensajes !== undefined ? data.espacioMensajes : 15;
                 customCssModeSelect.value = data.customCssMode || 'url';
                 customCssUrlInput.value = data.customCssUrl || '';
                 customCssContent = data.customCssContent || '';
@@ -895,6 +906,7 @@
                     animacionDireccionSelect.value = data.animacionDireccion || 'from-top';
                     animacionEstiloSelect.value = data.animacionEstilo || 'slide';
                     disenoMensajeSelect.value = data.disenoMensaje || 'design-solid';
+                    espacioMensajesInput.value = data.espacioMensajes !== undefined ? data.espacioMensajes : 15;
                     customCssModeSelect.value = data.customCssMode || 'url';
                     customCssUrlInput.value = data.customCssUrl || '';
                     customCssContent = data.customCssContent || '';
@@ -939,6 +951,7 @@
             animacionDireccion: animacionDireccionSelect.value,
             animacionEstilo: animacionEstiloSelect.value,
             disenoMensaje: disenoMensajeSelect.value,
+            espacioMensajes: Number(espacioMensajesInput.value || 15),
             enable7tvEmotes: Boolean(enable7tvEmotesInput.checked),
             enableBttvEmotes: Boolean(enableBttvEmotesInput.checked),
             enableFfzEmotes: Boolean(enableFfzEmotesInput.checked),
@@ -1036,6 +1049,11 @@
     });
 
     inputOpacidadRecuadro.addEventListener('input', () => {
+        updateControlLabels();
+        renderPreview();
+    });
+
+    espacioMensajesInput.addEventListener('input', () => {
         updateControlLabels();
         renderPreview();
     });

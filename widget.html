@@ -229,7 +229,8 @@
                             emoteProviders,
                             config.chatCommands || [],
                             config.chatTimers || [],
-                            Boolean(config.sendToTwitchChat)
+                            Boolean(config.sendToTwitchChat),
+                            config.espacioMensajes !== undefined ? config.espacioMensajes : 15
                         );
                     },
                     inactive: function() {
@@ -249,7 +250,8 @@
                             emoteProviders,
                             config.chatCommands || [],
                             config.chatTimers || [],
-                            Boolean(config.sendToTwitchChat)
+                            Boolean(config.sendToTwitchChat),
+                            config.espacioMensajes !== undefined ? config.espacioMensajes : 15
                         );
                     }
                 });
@@ -959,7 +961,11 @@
         }
 
         // Conecta al chat de Twitch vía WebSocket para recibir mensajes en vivo.
-        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null, thirdPartyEmotes = {}, emoteProviders = { sevenTv: true, bttv: true, ffz: true }, chatCommands = [], chatTimers = [], sendToTwitchChatEnabled = false) {
+        function conectarTwitch(canal, colorBorde, animacionDireccion = 'from-left', animacionEstilo = 'slide', disenoMensaje = 'design-solid', colorRecuadro = '#000000', opacidadRecuadro = 88, grosorBorde = 5, twitchAssets = null, thirdPartyEmotes = {}, emoteProviders = { sevenTv: true, bttv: true, ffz: true }, chatCommands = [], chatTimers = [], sendToTwitchChatEnabled = false, espacioMensajes = 15) {
+            
+            const customSpacingStyle = document.createElement('style');
+            customSpacingStyle.textContent = `.mensaje { margin-bottom: ${espacioMensajes}px !important; }`;
+            document.head.appendChild(customSpacingStyle);
             setStatus(`Conectando al chat de #${canal}...`, 'info');
             const normalizedCommands = sanitizeChatCommands(chatCommands);
             const normalizedTimers = sanitizeChatTimers(chatTimers);
