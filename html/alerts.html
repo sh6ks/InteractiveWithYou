@@ -803,13 +803,15 @@
         <!-- TAB: Mis alertas -->
         <div id="mis-alertas" class="tab-content">
             <!-- Banner de alertas externas -->
-            <div id="externalAlertsBanner" style="display:none; margin-bottom:18px; padding:14px 18px; border-radius:12px; border:1px solid rgba(145,71,255,0.3); background:rgba(145,71,255,0.08); display:flex; align-items:center; gap:14px;">
-                <span style="font-size:1.6rem;">🔗</span>
-                <div style="flex:1; min-width:0;">
-                    <div style="font-weight:700; color:#c4aeff; margin-bottom:2px;">Alertas Externas activas</div>
-                    <div id="externalAlertsBannerUrl" style="font-size:0.82rem; color:#a7a2c9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:520px;"></div>
+            <div id="externalAlertsBanner" class="hidden" style="margin-bottom:18px; border-radius:14px; border:1px solid rgba(145,71,255,0.35); background:linear-gradient(135deg, rgba(145,71,255,0.12), rgba(71,102,255,0.08)); overflow:hidden;">
+                <div style="display:flex; align-items:center; gap:14px; padding:14px 18px; flex-wrap:nowrap;">
+                    <span style="font-size:1.5rem; flex-shrink:0; line-height:1;">🔗</span>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; color:#c4aeff; font-size:0.93rem; margin-bottom:3px; white-space:nowrap;">Alertas Externas activas</div>
+                        <div id="externalAlertsBannerUrl" style="font-size:0.78rem; color:#8a7fc9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                    </div>
+                    <button id="goToExternalTabBtn" style="flex-shrink:0; white-space:nowrap; background:rgba(145,71,255,0.22); color:#c4aeff; border:1px solid rgba(145,71,255,0.4); border-radius:8px; padding:7px 16px; cursor:pointer; font-size:0.82rem; font-weight:600;">Editar enlace</button>
                 </div>
-                <button class="btn-small" id="goToExternalTabBtn" style="white-space:nowrap; background:rgba(145,71,255,0.18); color:#c4aeff; border:1px solid rgba(145,71,255,0.35); border-radius:8px; padding:6px 14px; cursor:pointer; font-size:0.85rem;">Editar enlace</button>
             </div>
 
             <div id="alertsContainer" class="alerts-list">
@@ -1143,11 +1145,11 @@
                     if (!snap.empty && snap.docs[0].data().externalAlertsUrl) {
                         const extUrl = snap.docs[0].data().externalAlertsUrl;
                         externalBannerUrl.textContent = extUrl;
-                        externalBanner.style.display = 'flex';
+                        externalBanner.classList.remove('hidden');
                     } else {
-                        externalBanner.style.display = 'none';
+                        externalBanner.classList.add('hidden');
                     }
-                } catch(_) { externalBanner.style.display = 'none'; }
+                } catch(_) { externalBanner.classList.add('hidden'); }
             }
             
             try {
