@@ -129,14 +129,24 @@
             }
         }
         const debugEnabled = urlParams.get('debug') === '1';
+        // tipo: 'alertas' | 'efectos' | 'comandos' | '' (todo)
+        const tipoOverlay = urlParams.get('tipo')?.toLowerCase() || '';
 
-        // Query sin combinaciones que requieran índice compuesto
-        const alertsQuery = canalParam
+        const mostrarAlertas   = !tipoOverlay || tipoOverlay === 'alertas';
+        const mostrarEfectos   = !tipoOverlay || tipoOverlay === 'efectos';
+        const mostrarComandos  = !tipoOverlay || tipoOverlay === 'comandos';
+        const mostrarExternas  = !tipoOverlay || tipoOverlay === 'alertas'; // iframe solo en alertas o genérico
+
+        // Queries condicionales según tipo de overlay
+        const alertsQuery = mostrarAlertas && canalParam
             ? query(collection(db, 'liveAlerts'), where('canal', '==', canalParam))
-            : query(collection(db, 'liveAlerts'));
-        const effectsQuery = canalParam
+            : mostrarAlertas ? query(collection(db, 'liveAlerts')) : null;
+        const effectsQuery = mostrarEfectos && canalParam
             ? query(collection(db, 'liveEffects'), where('canal', '==', canalParam))
-            : query(collection(db, 'liveEffects'));
+            : mostrarEfectos ? query(collection(db, 'liveEffects')) : null;
+        const commandsQuery = mostrarComandos && canalParam
+            ? query(collection(db, 'commandAlerts'), where('canal', '==', canalParam))
+            : mostrarComandos ? query(collection(db, 'commandAlerts')) : null;
 
         const container = document.getElementById('alertContainer');
         const debugHud = document.getElementById('debugHud');
@@ -149,8 +159,8 @@
         let lastEvent = 'ninguno';
         let lastDocId = '-';
 
-        // Cargar alertas externas
-        if (canalParam) {
+        // Cargar alertas externas (solo si aplica)
+        if (mostrarExternas && canalParam) {
             const userQ = query(collection(db, 'usuarios'), where('canal', '==', canalParam));
             getDocs(userQ).then(snap => {
                 if (!snap.empty) {
@@ -511,31 +521,48 @@
         };
 
         renderDebugHud('Esperando cambios de Firestore');
-        onSnapshot(alertsQuery, (snapshot) => {
-            renderDebugHud(`Snapshot docs: ${snapshot.size}`);
-            snapshot.docChanges().forEach(change => {
-                const data = change.doc.data();
-                if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending') {
-                    enqueueAlert(change.doc);
-                }
+        if (alertsQuery) {
+            onSnapshot(alertsQuery, (snapshot) => {
+                renderDebugHud(`Snapshot docs: ${snapshot.size}`);
+                snapshot.docChanges().forEach(change => {
+                    const data = change.doc.data();
+                    if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending') {
+                        enqueueAlert(change.doc);
+                    }
+                });
+            }, (error) => {
+                console.error('Error en listener de overlay:', error);
+                renderDebugHud(`Error listener: ${error.message || 'desconocido'}`);
             });
-        }, (error) => {
-            console.error('Error en listener de overlay:', error);
-            renderDebugHud(`Error listener: ${error.message || 'desconocido'}`);
-        });
+        }
 
-        onSnapshot(effectsQuery, (snapshot) => {
-            snapshot.docChanges().forEach(change => {
-                const data = change.doc.data();
-                if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending' && data.effectType === 'emote_rain') {
-                    playEmoteRain(change.doc);
-                }
+        if (effectsQuery) {
+            onSnapshot(effectsQuery, (snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    const data = change.doc.data();
+                    if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending' && data.effectType === 'emote_rain') {
+                        playEmoteRain(change.doc);
+                    }
+                });
             });
-        });
+        }
+
+        // Listener de comandos/timers (tipo=comandos)
+        if (commandsQuery) {
+            onSnapshot(commandsQuery, (snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    const data = change.doc.data();
+                    if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending') {
+                        enqueueAlert(change.doc);
+                    }
+                });
+            });
+        }
 
         _startOverlayPresenceHeartbeat();
 
-        // ─── Twitch EventSub WebSocket (gratuito, sin Cloud Functions) ───────────
+        // EventSub solo si mostramos efectos (channel points)
+        if (!mostrarEfectos) return;
         // El overlay se conecta directamente a Twitch y despacha los canjes a Firestore.
         const TWITCH_CLIENT_ID = '9cac6zpfterkbzigfr28hpil7se9y3';
         let _eswWs = null;

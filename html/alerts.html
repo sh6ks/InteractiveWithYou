@@ -1631,7 +1631,9 @@
 
         const updateOverlayLink = () => {
             const canal = canalInput.value.trim().toLowerCase() || getTwitchChannel();
-            const url = canal ? `${window.location.origin}/html/overlay.html?canal=${canal}` : `${window.location.origin}/html/overlay.html`;
+            const url = canal
+                ? `${window.location.origin}/html/overlay.html?canal=${canal}&tipo=alertas`
+                : `${window.location.origin}/html/overlay.html?tipo=alertas`;
             overlayLinkInput.value = url;
             return url;
         };

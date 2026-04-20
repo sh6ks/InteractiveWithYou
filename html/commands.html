@@ -350,6 +350,16 @@
                 </div>
             </div>
             
+            <div class="row">
+                <label>Modo de respuesta del comando</label>
+                <select id="cmdModo">
+                    <option value="pantalla">🎬 Animación en pantalla (OBS overlay)</option>
+                    <option value="chat">💬 Mensaje por chat (bot en Twitch)</option>
+                    <option value="ambos">🎬 + 💬 Animación y mensaje de chat</option>
+                </select>
+                <div style="font-size:0.8rem; color:#8a85b0; margin-top:4px;">Si elegís pantalla, agrega el link de OBS de Comandos en tu escena de OBS.</div>
+            </div>
+
             <div style="margin-top: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; background: rgba(0,0,0,0.2);">
                 <h4 style="margin: 0 0 10px; color: #a18bff; font-size: 0.9rem;">Diseño Visual en Pantalla</h4>
                 <div class="inline" style="grid-template-columns: 1fr 1fr; gap:10px;">
@@ -423,6 +433,16 @@
                     <label for="timerMinutes">Cada (min)</label>
                     <input id="timerMinutes" type="number" min="1" max="120" step="1" value="5">
                 </div>
+            </div>
+
+            <div class="row">
+                <label>Modo de respuesta del timer</label>
+                <select id="timerModo">
+                    <option value="pantalla">🎬 Animación en pantalla (OBS overlay)</option>
+                    <option value="chat">💬 Mensaje por chat (bot en Twitch)</option>
+                    <option value="ambos">🎬 + 💬 Animación y mensaje de chat</option>
+                </select>
+                <div style="font-size:0.8rem; color:#8a85b0; margin-top:4px;">Si elegís pantalla, agrega el link de OBS de Comandos en tu escena de OBS.</div>
             </div>
 
             <div style="margin-top: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; background: rgba(0,0,0,0.2);">
@@ -523,6 +543,20 @@
         </section>
     </div>
 
+    <!-- Link OBS para Comandos y Timers -->
+    <div class="card" style="margin-top:16px; border-left-color: #4766ff;">
+        <h3 style="color:#89aaff; margin-bottom:8px;">🎬 Link del Overlay de Comandos para OBS</h3>
+        <p style="font-size:0.85rem; color:#a7a2c9; margin-bottom:14px;">
+            Agrégalo como <strong>Browser Source</strong> en OBS para que tus comandos y timers en modo animación se vean en pantalla.
+            Es <em>independiente</em> del overlay de alertas y del widget de chat.
+        </p>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <input id="commandsOverlayLink" readonly style="flex:1; background:#0d0b1f; border:1px solid #3b3660; border-radius:8px; padding:9px 12px; color:#c4aeff; font-size:0.85rem;" />
+            <button type="button" id="copyCommandsOverlayLink" style="background:#4766ff; border:none; border-radius:8px; padding:9px 16px; color:#fff; font-size:0.85rem; cursor:pointer;">Copiar</button>
+            <button type="button" id="openCommandsOverlayLink" style="background:#2b2852; border:1px solid #4766ff; border-radius:8px; padding:9px 14px; color:#89aaff; font-size:0.85rem; cursor:pointer;">Abrir</button>
+        </div>
+    </div>
+
     <div class="card" style="margin-top:16px;">
         <div class="row" style="margin-bottom:4px;">
             <label class="toggle-row" for="sendToTwitchChat"><input id="sendToTwitchChat" class="toggle-input" type="checkbox"><span class="toggle-switch" aria-hidden="true"></span><span class="toggle-label">Enviar respuestas también al chat real de Twitch <strong>(Premium)</strong></span></label>
@@ -564,11 +598,13 @@
         const cmdPermission = document.getElementById('cmdPermission');
         const cmdCooldown = document.getElementById('cmdCooldown');
         const cmdEnabled = document.getElementById('cmdEnabled');
+        const cmdModo = document.getElementById('cmdModo');
         const commandsListEl = document.getElementById('commandsList');
 
         const timerMessage = document.getElementById('timerMessage');
         const timerMinutes = document.getElementById('timerMinutes');
         const timerEnabled = document.getElementById('timerEnabled');
+        const timerModo = document.getElementById('timerModo');
         const timersListEl = document.getElementById('timersList');
 
         const addCommandBtn = document.getElementById('addCommandBtn');
@@ -599,6 +635,38 @@
         const API_KEY = 'AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE';
 
         const getTwitchChannelFromStorage = () => localStorage.getItem('nombreTwitch')?.toLowerCase() || '';
+
+        // Link OBS de Comandos
+        const commandsOverlayLinkInput = document.getElementById('commandsOverlayLink');
+        const copyCommandsOverlayLinkBtn = document.getElementById('copyCommandsOverlayLink');
+        const openCommandsOverlayLinkBtn = document.getElementById('openCommandsOverlayLink');
+
+        const generateCommandsOverlayLink = () => {
+            const canal = getTwitchChannelFromStorage();
+            return canal
+                ? `${window.location.origin}/html/overlay.html?canal=${encodeURIComponent(canal)}&tipo=comandos`
+                : `${window.location.origin}/html/overlay.html?tipo=comandos`;
+        };
+
+        const updateCommandsOverlayLink = () => {
+            if (commandsOverlayLinkInput) commandsOverlayLinkInput.value = generateCommandsOverlayLink();
+        };
+
+        copyCommandsOverlayLinkBtn?.addEventListener('click', async () => {
+            try {
+                const url = generateCommandsOverlayLink();
+                if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+                else { const t = document.createElement('textarea'); t.value = url; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+                copyCommandsOverlayLinkBtn.textContent = '¡Copiado!';
+                setTimeout(() => copyCommandsOverlayLinkBtn.textContent = 'Copiar', 2000);
+            } catch (_) {}
+        });
+
+        openCommandsOverlayLinkBtn?.addEventListener('click', () => {
+            window.open(generateCommandsOverlayLink(), '_blank', 'noopener');
+        });
+
+        updateCommandsOverlayLink();
 
         function resolvePlanContextFromParent() {
             if (window.parent && typeof window.parent.getCurrentUserPlanContext === 'function') {

@@ -1111,8 +1111,8 @@
         const updateOverlayLink = () => {
             const canal = getCanal();
             const url = canal
-                ? `${window.location.origin}/html/overlay.html?canal=${encodeURIComponent(canal)}`
-                : `${window.location.origin}/html/overlay.html`;
+                ? `${window.location.origin}/html/overlay.html?canal=${encodeURIComponent(canal)}&tipo=efectos`
+                : `${window.location.origin}/html/overlay.html?tipo=efectos`;
             overlayLinkCanjes.value = url;
             return url;
         };
