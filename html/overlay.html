@@ -558,7 +558,7 @@
         });
 
         // EventSub solo si mostramos efectos (channel points)
-        if (!mostrarEfectos) return;
+        if (mostrarEfectos) {
         // El overlay se conecta directamente a Twitch y despacha los canjes a Firestore.
         const TWITCH_CLIENT_ID = '9cac6zpfterkbzigfr28hpil7se9y3';
         let _eswWs = null;
@@ -778,6 +778,7 @@
         };
 
         if (canalParam) _eswConnect();
+        }
         // ─────────────────────────────────────────────────────────────────────────
     </script>
 </body>
