@@ -87,8 +87,8 @@
 </head>
 <body>
 <!-- Iframe para alertas externas (StreamElements, Streamlabs, etc) -->
-    <iframe id="externalAlertsIframe" style="position: absolute; inset: 0; width: 100%; height: 100%; border: none; z-index: -1; display: none;"></iframe>
     
+
 <!-- Contenedor dinámico donde se muestran las alertas emitidas desde Firebase -->
     <div id="alertContainer"></div>
     <div id="debugHud" class="debug-hud hidden"></div>
@@ -113,7 +113,7 @@
         const auth = getAuth(app);
         let overlayUid = null;
         // El overlay necesita sesión Firebase para escribir alertas/efectos a Firestore.
-        signInAnonymously(auth).then((cred) => {
+        const _authReady = signInAnonymously(auth).then((cred) => {
             overlayUid = cred.user.uid;
         }).catch(() => {});
 
@@ -150,7 +150,6 @@
 
         const container = document.getElementById('alertContainer');
         const debugHud = document.getElementById('debugHud');
-        const externalAlertsIframe = document.getElementById('externalAlertsIframe');
         const shownIds = new Set();
         const shownEffectIds = new Set();
         const alertQueue = [];
@@ -559,7 +558,10 @@
             });
         }
 
-        _startOverlayPresenceHeartbeat();
+        // Inicia heartbeat DESPUÉS de que auth esté listo para que hasFirebaseAuth sea true desde el primer ping
+        _authReady.finally(() => {
+            _startOverlayPresenceHeartbeat();
+        });
 
         // EventSub solo si mostramos efectos (channel points)
         if (!mostrarEfectos) return;
