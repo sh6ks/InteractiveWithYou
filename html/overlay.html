@@ -135,7 +135,6 @@
         const mostrarAlertas   = !tipoOverlay || tipoOverlay === 'alertas' || tipoOverlay === 'efectos';
         const mostrarEfectos   = !tipoOverlay || tipoOverlay === 'efectos';
         const mostrarComandos  = !tipoOverlay || tipoOverlay === 'comandos';
-        const mostrarExternas  = !tipoOverlay || tipoOverlay === 'alertas'; // iframe solo en alertas o genérico
 
         // Queries condicionales según tipo de overlay
         const alertsQuery = mostrarAlertas && canalParam
@@ -158,19 +157,7 @@
         let lastEvent = 'ninguno';
         let lastDocId = '-';
 
-        // Cargar alertas externas (solo si aplica)
-        if (mostrarExternas && canalParam) {
-            const userQ = query(collection(db, 'usuarios'), where('canal', '==', canalParam));
-            getDocs(userQ).then(snap => {
-                if (!snap.empty) {
-                    const data = snap.docs[0].data();
-                    if (data.externalAlertsUrl) {
-                        externalAlertsIframe.src = data.externalAlertsUrl;
-                        externalAlertsIframe.style.display = 'block';
-                    }
-                }
-            }).catch(e => console.error("No se pudo cargar la URL externa:", e));
-        }
+
 
         const renderDebugHud = (extra = '') => {
             if (!debugEnabled) return;
