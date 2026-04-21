@@ -1109,22 +1109,7 @@
 
             const canal = getTwitchChannel() || user?.displayName?.toLowerCase();
 
-            // Mostrar banner de alertas externas si existe
-            const externalBanner = document.getElementById('externalAlertsBanner');
-            const externalBannerUrl = document.getElementById('externalAlertsBannerUrl');
-            if (canal && externalBanner && externalBannerUrl) {
-                try {
-                    const q = query(collection(db, 'usuarios'), where('canal', '==', canal));
-                    const snap = await getDocs(q);
-                    if (!snap.empty && snap.docs[0].data().externalAlertsUrl) {
-                        const extUrl = snap.docs[0].data().externalAlertsUrl;
-                        externalBannerUrl.textContent = extUrl;
-                        externalBanner.style.display = 'flex';
-                    } else {
-                        externalBanner.style.display = 'none';
-                    }
-                } catch(_) { externalBanner.style.display = 'none'; }
-            }
+
             
             try {
                 const q = query(collection(db, 'liveAlerts'), where('canal', '==', canal));

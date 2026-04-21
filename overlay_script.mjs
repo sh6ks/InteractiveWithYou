@@ -1,0 +1,687 @@
+
+        // Script del overlay: recibe alertas pendientes desde Firestore y las muestra visualmente.
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, addDoc, getDocs, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, setPersistence, inMemoryPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCb5rrwIy-obPXV6eukbuUmTiRVVAHFfiE",
+            authDomain: "interactivewithyou.firebaseapp.com",
+            projectId: "interactivewithyou",
+            storageBucket: "interactivewithyou.firebasestorage.app",
+            messagingSenderId: "220446228684",
+            appId: "1:220446228684:web:759044ab4365962d300269"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        let overlayUid = null;
+        // Usa inMemoryPersistence para compatibilidad con OBS (CEF bloquea IndexedDB).
+        const _authReady = setPersistence(auth, inMemoryPersistence)
+            .then(() => signInAnonymously(auth))
+            .then((cred) => {
+                overlayUid = cred.user.uid;
+            }).catch(() => {});
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let canalParam = urlParams.get('canal')?.toLowerCase() || '';
+        // Fallback: si el overlay se abre sin ?canal=..., intentamos inferirlo desde la sesión local (OBS)
+        // Esto evita el caso donde "Probar en OBS" funciona (Firestore), pero los canjes reales (EventSub) no conectan.
+        if (!canalParam) {
+            try {
+                canalParam = (localStorage.getItem('nombreTwitch') || '').toLowerCase();
+            } catch (_) {
+                canalParam = '';
+            }
+        }
+        const debugEnabled = urlParams.get('debug') === '1';
+        // tipo: 'alertas' | 'efectos' | 'comandos' | '' (todo)
+        const tipoOverlay = urlParams.get('tipo')?.toLowerCase() || '';
+
+        const mostrarAlertas   = !tipoOverlay || tipoOverlay === 'alertas' || tipoOverlay === 'efectos';
+        const mostrarEfectos   = !tipoOverlay || tipoOverlay === 'efectos';
+        const mostrarComandos  = !tipoOverlay || tipoOverlay === 'comandos';
+
+        // Queries condicionales según tipo de overlay
+        const alertsQuery = mostrarAlertas && canalParam
+            ? query(collection(db, 'liveAlerts'), where('canal', '==', canalParam))
+            : mostrarAlertas ? query(collection(db, 'liveAlerts')) : null;
+        const effectsQuery = mostrarEfectos && canalParam
+            ? query(collection(db, 'liveEffects'), where('canal', '==', canalParam))
+            : mostrarEfectos ? query(collection(db, 'liveEffects')) : null;
+        const commandsQuery = mostrarComandos && canalParam
+            ? query(collection(db, 'commandAlerts'), where('canal', '==', canalParam))
+            : mostrarComandos ? query(collection(db, 'commandAlerts')) : null;
+
+        const container = document.getElementById('alertContainer');
+        const debugHud = document.getElementById('debugHud');
+        const shownIds = new Set();
+        const shownEffectIds = new Set();
+        const alertQueue = [];
+        let active = false;
+        let effectActive = false;
+        let lastEvent = 'ninguno';
+        let lastDocId = '-';
+
+
+
+        const renderDebugHud = (extra = '') => {
+            if (!debugEnabled) return;
+            debugHud.classList.remove('hidden');
+            debugHud.textContent = [
+                'IWY Overlay Debug',
+                `Canal: ${canalParam || '(sin canal)'}`,
+                `Activa: ${active ? 'si' : 'no'}`,
+                `Pendientes cache: ${shownIds.size}`,
+                `Ultimo evento: ${lastEvent}`,
+                `Ultimo doc: ${lastDocId}`,
+                extra ? `Info: ${extra}` : ''
+            ].filter(Boolean).join('\n');
+        };
+
+        const getOverlayUid = () => overlayUid || auth.currentUser?.uid || null;
+        let _overlayPresenceTimer = null;
+        const _overlayPresenceRef = canalParam ? doc(db, 'overlayPresence', canalParam) : null;
+        const _updateOverlayPresence = async (patch = {}) => {
+            if (!_overlayPresenceRef || !canalParam) return;
+            const uid = getOverlayUid();
+            try {
+                await setDoc(_overlayPresenceRef, {
+                    canal: canalParam,
+                    source: 'obs_overlay',
+                    hasFirebaseAuth: !!uid,
+                    ...(uid ? { uid } : {}),
+                    updatedAt: serverTimestamp(),
+                    ...patch
+                }, { merge: true });
+            } catch (_) {}
+        };
+
+        const _startOverlayPresenceHeartbeat = () => {
+            if (!canalParam) return;
+            if (_overlayPresenceTimer) clearInterval(_overlayPresenceTimer);
+            _updateOverlayPresence({
+                overlayOpen: true,
+                wsState: 'booting'
+            });
+            _overlayPresenceTimer = setInterval(() => {
+                _updateOverlayPresence({ overlayOpen: true });
+            }, 15000);
+        };
+        const createLocalDocSnap = (data, kind = 'local') => ({
+            id: `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            data: () => data
+        });
+
+        const inferAnimation = (data) => {
+            if (data.animation) return data.animation;
+            if (data.effects?.vibrate) return 'vibrate';
+            if (data.effects?.bounce) return 'bounce';
+            if (data.effects?.zoom) return 'zoom';
+            return 'none';
+        };
+
+        // Crea el elemento visual de alerta según el tipo de asset.
+        const createAlertElement = (data) => {
+            const card = document.createElement('div');
+            card.className = 'alert-box';
+
+            const body = document.createElement('div');
+            body.className = 'alert-card';
+            const position = data.mediaPosition || 'center';
+            body.classList.add(`position-${position}`);
+
+            const media = document.createElement('div');
+            media.className = 'alert-media';
+
+            if (data.type === 'image') {
+                const img = document.createElement('img');
+                img.src = data.assetUrl;
+                img.alt = data.text || 'Alerta';
+                media.appendChild(img);
+            } else if (data.type === 'video') {
+                const video = document.createElement('video');
+                video.src = data.assetUrl;
+                video.autoplay = true;
+                video.muted = false;
+                video.controls = false;
+                video.playsInline = true;
+                video.style.objectFit = 'contain';
+                media.appendChild(video);
+            } else {
+                const audio = document.createElement('audio');
+                audio.src = data.assetUrl;
+                audio.autoplay = true;
+                audio.controls = false;
+                audio.style.display = 'none';
+                media.appendChild(audio);
+
+                if (String(data.text || '').trim()) {
+                    const soundText = document.createElement('div');
+                    soundText.className = 'sound-only';
+                    soundText.innerText = data.text;
+                    media.appendChild(soundText);
+                }
+            }
+
+            const text = document.createElement('div');
+            text.className = 'alert-text';
+            text.innerText = String(data.text || '').trim();
+            text.style.fontFamily = data.fuente || 'Poppins, sans-serif';
+            text.style.fontSize = `${Number(data.fontSize) || 32}px`;
+            text.style.color = data.textColor || '#f7f3ff';
+
+            const animationClassMap = {
+                vibrate: 'effect-vibrate',
+                bounce: 'effect-bounce',
+                zoom: 'effect-zoom',
+                'slide-left': 'effect-slide-left',
+                pulse: 'effect-pulse',
+                rotate: 'effect-rotate',
+                float: 'effect-float',
+                'shake-hard': 'effect-shake-hard'
+            };
+            const animationClass = animationClassMap[inferAnimation(data)];
+            if (animationClass) media.classList.add(animationClass);
+
+            if (debugEnabled) {
+                const debugMeta = document.createElement('div');
+                debugMeta.className = 'alert-debug-meta';
+                debugMeta.textContent = [
+                    `Nombre: ${data.nombre || '(sin nombre)'}`,
+                    `Evento: ${data.eventType || 'generico'}`,
+                    `Asset: ${data.type || 'unknown'}`,
+                    `Canal: ${data.canal || '(sin canal)'}`
+                ].join('\n');
+                body.appendChild(debugMeta);
+            }
+
+            body.appendChild(media);
+            if (text.innerText) body.appendChild(text);
+
+            if (data.soundUrl && data.type !== 'sound') {
+                const extraAudio = document.createElement('audio');
+                extraAudio.src = data.soundUrl;
+                extraAudio.autoplay = true;
+                extraAudio.controls = false;
+                extraAudio.style.display = 'none';
+                body.appendChild(extraAudio);
+            }
+
+            card.appendChild(body);
+            return card;
+        };
+
+        const enqueueAlert = (docSnap) => {
+            if (shownIds.has(docSnap.id)) return;
+            alertQueue.push(docSnap);
+            processQueue();
+        };
+
+        const processQueue = async () => {
+            if (active || alertQueue.length === 0) return;
+            const nextDoc = alertQueue.shift();
+            await playAlert(nextDoc);
+        };
+
+        const playEmoteRain = async (docSnap) => {
+            if (effectActive || shownEffectIds.has(docSnap.id)) return;
+            shownEffectIds.add(docSnap.id);
+            effectActive = true;
+
+            const data = docSnap.data();
+            const durationSec = Math.max(3, Number(data.duration) || 8);
+            const count = Math.max(8, Number(data.count) || 30);
+            const emoteSizeBase = Math.max(16, Math.min(96, Number(data.emoteSize) || 40));
+            const normalizeEmoteUrl = (url) => {
+                const raw = String(url || '').trim();
+                if (!raw || raw.includes('[object Object]')) return '';
+                if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+                if (raw.startsWith('//')) return `https:${raw}`;
+                return `https://${raw.replace(/^\/+/, '')}`;
+            };
+            const urls = Array.isArray(data.emoteUrls)
+                ? data.emoteUrls.map(normalizeEmoteUrl).filter(Boolean)
+                : [];
+            const allowedMotions = ['top', 'center_burst', 'random_dirs', 'edges_in'];
+            const rawMotion = String(data.motion || 'top').toLowerCase();
+            const motion = rawMotion === 'auto'
+                ? allowedMotions[Math.floor(Math.random() * allowedMotions.length)]
+                : (allowedMotions.includes(rawMotion) ? rawMotion : 'top');
+            if (!urls.length) {
+                effectActive = false;
+                if (!String(docSnap.id || '').startsWith('local-')) {
+                    await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' }).catch(() => {});
+                }
+                return;
+            }
+
+            const layer = document.createElement('div');
+            layer.className = 'effect-layer';
+            container.appendChild(layer);
+
+            const width = Math.max(layer.clientWidth, window.innerWidth || 1280);
+            const height = Math.max(layer.clientHeight, window.innerHeight || 720);
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            const randomBetween = (min, max) => min + Math.random() * (max - min);
+
+            const getTrajectory = (kind) => {
+                if (kind === 'center_burst') {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.max(width, height) * randomBetween(0.45, 0.85);
+                    return {
+                        startX: centerX + randomBetween(-30, 30),
+                        startY: centerY + randomBetween(-30, 30),
+                        endX: centerX + Math.cos(angle) * radius,
+                        endY: centerY + Math.sin(angle) * radius
+                    };
+                }
+
+                if (kind === 'edges_in') {
+                    const edge = Math.floor(Math.random() * 4);
+                    if (edge === 0) {
+                        return { startX: randomBetween(0, width), startY: -80, endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                    }
+                    if (edge === 1) {
+                        return { startX: width + 80, startY: randomBetween(0, height), endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                    }
+                    if (edge === 2) {
+                        return { startX: randomBetween(0, width), startY: height + 80, endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                    }
+                    return { startX: -80, startY: randomBetween(0, height), endX: centerX + randomBetween(-180, 180), endY: centerY + randomBetween(-120, 120) };
+                }
+
+                if (kind === 'random_dirs') {
+                    const startX = randomBetween(width * 0.2, width * 0.8);
+                    const startY = randomBetween(height * 0.2, height * 0.8);
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = randomBetween(Math.min(width, height) * 0.2, Math.max(width, height) * 0.55);
+                    return {
+                        startX,
+                        startY,
+                        endX: startX + Math.cos(angle) * distance,
+                        endY: startY + Math.sin(angle) * distance
+                    };
+                }
+
+                const startX = randomBetween(0, width);
+                return {
+                    startX,
+                    startY: -90,
+                    endX: startX + randomBetween(-130, 130),
+                    endY: height + 120
+                };
+            };
+
+            for (let i = 0; i < count; i++) {
+                const img = document.createElement('img');
+                img.className = 'fall-emote';
+                img.src = urls[Math.floor(Math.random() * urls.length)];
+                img.referrerPolicy = 'no-referrer';
+                img.onerror = () => img.remove();
+                const jitter = Math.floor((Math.random() - 0.5) * Math.max(6, emoteSizeBase * 0.35));
+                const finalSize = Math.max(12, emoteSizeBase + jitter);
+                img.style.width = `${finalSize}px`;
+                img.style.height = img.style.width;
+                layer.appendChild(img);
+
+                const trajectory = getTrajectory(motion);
+                const delayMs = Math.random() * (durationSec * 700);
+                const durationMs = 1300 + Math.random() * 1800;
+                const rotation = -360 + Math.random() * 720;
+                const startScale = 0.75 + Math.random() * 0.35;
+                const endScale = 0.9 + Math.random() * 0.6;
+
+                const startTransform = `translate(${trajectory.startX}px, ${trajectory.startY}px) rotate(0deg) scale(${startScale})`;
+                const endTransform = `translate(${trajectory.endX}px, ${trajectory.endY}px) rotate(${rotation}deg) scale(${endScale})`;
+                const easing = motion === 'edges_in' ? 'cubic-bezier(0.2, 0.75, 0.25, 1)' : 'cubic-bezier(0.15, 0.8, 0.3, 1)';
+
+                img.style.transform = startTransform;
+                img.style.opacity = '0';
+
+                // OBS puede venir con un runtime sin soporte completo de WAAPI.
+                if (typeof img.animate === 'function') {
+                    img.animate([
+                        { transform: startTransform, opacity: 0 },
+                        { transform: startTransform, opacity: 1, offset: 0.12 },
+                        { transform: endTransform, opacity: 0.95 }
+                    ], {
+                        duration: durationMs,
+                        delay: delayMs,
+                        easing,
+                        fill: 'forwards'
+                    });
+                } else {
+                    setTimeout(() => {
+                        img.style.transition = `transform ${durationMs}ms ${easing}, opacity ${durationMs}ms linear`;
+                        img.style.opacity = '1';
+                        img.style.transform = endTransform;
+                    }, delayMs);
+                }
+            }
+
+            setTimeout(async () => {
+                layer.remove();
+                effectActive = false;
+                try {
+                    if (!String(docSnap.id || '').startsWith('local-')) {
+                        await updateDoc(doc(db, 'liveEffects', docSnap.id), { status: 'shown' });
+                    }
+                } catch (_) {}
+            }, durationSec * 1000);
+        };
+
+        // Reproduce la alerta y actualiza su estado a 'shown' cuando finaliza.
+        const playAlert = async (docSnap) => {
+            if (shownIds.has(docSnap.id)) return;
+            shownIds.add(docSnap.id);
+            active = true;
+
+            const data = docSnap.data();
+            lastEvent = `${data.eventType || 'generico'} (${data.type || 'unknown'})`;
+            lastDocId = docSnap.id;
+            renderDebugHud('Reproduciendo alerta');
+            const alertEl = createAlertElement(data);
+            alertEl.style.display = 'flex';
+            container.appendChild(alertEl);
+
+            const duration = Number(data.duration) || 8;
+            const video = alertEl.querySelector('video');
+            const audios = alertEl.querySelectorAll('audio');
+
+            if (video) {
+                await video.play().catch(() => {});
+            }
+            audios.forEach(a => a.play().catch(() => {}));
+
+            setTimeout(async () => {
+                alertEl.remove();
+                active = false;
+                renderDebugHud('Alerta finalizada');
+                try {
+                    if (!String(docSnap.id || '').startsWith('local-')) {
+                        await updateDoc(doc(db, 'liveAlerts', docSnap.id), { status: 'shown' });
+                    }
+                } catch (err) {
+                    console.error('No se pudo actualizar el estado de la alerta', err);
+                    renderDebugHud('Error actualizando status shown');
+                }
+                processQueue();
+            }, duration * 1000);
+        };
+
+        // Inicia listeners DESPUÉS de que auth esté listo — OBS CEF necesita auth state resuelto
+        // antes de que onSnapshot funcione correctamente, aunque las reglas digan read: if true
+        renderDebugHud('Esperando auth...');
+        _authReady.finally(() => {
+            _startOverlayPresenceHeartbeat();
+            renderDebugHud('Esperando cambios de Firestore');
+
+            if (alertsQuery) {
+                onSnapshot(alertsQuery, (snapshot) => {
+                    renderDebugHud(`Alertas snapshot: ${snapshot.size}`);
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending') {
+                            enqueueAlert(change.doc);
+                        }
+                    });
+                }, (error) => {
+                    console.error('Error en listener alertas:', error);
+                    renderDebugHud(`Error alertas: ${error.message || 'desconocido'}`);
+                });
+            }
+
+            if (effectsQuery) {
+                onSnapshot(effectsQuery, (snapshot) => {
+                    renderDebugHud(`Efectos snapshot: ${snapshot.size}`);
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending' && data.effectType === 'emote_rain') {
+                            playEmoteRain(change.doc);
+                        }
+                    });
+                }, (error) => {
+                    console.error('Error en listener efectos:', error);
+                    renderDebugHud(`Error efectos: ${error.message || 'desconocido'}`);
+                });
+            }
+
+            if (commandsQuery) {
+                onSnapshot(commandsQuery, (snapshot) => {
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        if ((change.type === 'added' || change.type === 'modified') && data.status === 'pending') {
+                            enqueueAlert(change.doc);
+                        }
+                    });
+                });
+            }
+        });
+
+        // EventSub solo si mostramos efectos (channel points)
+        if (!mostrarEfectos) return;
+        // El overlay se conecta directamente a Twitch y despacha los canjes a Firestore.
+        const TWITCH_CLIENT_ID = '9cac6zpfterkbzigfr28hpil7se9y3';
+        let _eswWs = null;
+        let _eswReconnectTimer = null;
+        let _eswOwnerUid = null;
+
+        const _eswGetToken = async (channel) => {
+            try {
+                const snap = await getDoc(doc(db, 'twitchBots', channel));
+                if (snap.exists()) {
+                    const data = snap.data() || {};
+                    _eswOwnerUid = data.uid || null;
+                    return data.accessToken || null;
+                }
+            } catch (_) {}
+            return null;
+        };
+
+        const _eswGetBroadcasterId = async (channel, token) => {
+            try {
+                const res = await fetch(
+                    `https://api.twitch.tv/helix/users?login=${encodeURIComponent(channel)}`,
+                    { headers: { 'Client-ID': TWITCH_CLIENT_ID, 'Authorization': `Bearer ${token}` } }
+                );
+                if (!res.ok) return null;
+                return (await res.json()).data?.[0]?.id || null;
+            } catch (_) { return null; }
+        };
+
+        const _eswSubscribe = async (sessionId, broadcasterId, token) => {
+            try {
+                const res = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+                    method: 'POST',
+                    headers: {
+                        'Client-ID': TWITCH_CLIENT_ID,
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'channel.channel_points_custom_reward_redemption.add',
+                        version: '1',
+                        condition: { broadcaster_user_id: broadcasterId },
+                        transport: { method: 'websocket', session_id: sessionId }
+                    })
+                });
+                const ok = res.ok || res.status === 409; // 409 = ya suscrito
+                await _updateOverlayPresence({
+                    wsState: ok ? 'subscribed' : 'subscribe_failed',
+                    lastError: ok ? '' : `subscribe_http_${res.status}`,
+                    lastSubscribeAt: serverTimestamp()
+                });
+                return ok;
+            } catch (_) { return false; }
+        };
+
+        const _normalizeStr = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+        const _eswDispatch = async (event) => {
+            if (!canalParam || !event) return;
+            const rewardTitle = event.reward?.title || '';
+            if (!rewardTitle) return;
+
+            const rewardKey = _normalizeStr(rewardTitle);
+            const redeemsQuery = _eswOwnerUid
+                ? query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam), where('uid', '==', _eswOwnerUid))
+                : query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam));
+            const snap = await getDocs(redeemsQuery);
+            if (snap.empty) return;
+
+            const match = snap.docs.find(d => {
+                const data = d.data();
+                if (data?.enabled === false) return false;
+                return _normalizeStr(data?.rewardName || data?.nombre) === rewardKey;
+            });
+            if (!match) return;
+
+            const redeem = match.data();
+            const cfg = redeem?.config || {};
+            const interpolate = (text) => String(text || '')
+                .split('{usuario}').join(event.user_name || event.user_login || '')
+                .split('{input}').join(event.user_input || '');
+
+            if (String(redeem.redeemType || '').toLowerCase() === 'emote_rain') {
+                const urls = Array.isArray(cfg.emoteUrls) ? cfg.emoteUrls.filter(Boolean) : [];
+                if (!urls.length) return;
+                const uid = getOverlayUid();
+                const effectPayload = {
+                    canal: canalParam,
+                    status: 'pending',
+                    effectType: 'emote_rain',
+                    duration: Math.max(3, Number(cfg.duration) || 8),
+                    count: Math.max(10, Number(cfg.count) || 30),
+                    emoteSize: Math.max(16, Math.min(96, Number(cfg.emoteSize) || 40)),
+                    motion: String(cfg.motion || 'auto'),
+                    emoteUrls: urls,
+                    rewardName: rewardTitle,
+                    redeemedBy: event.user_login || '',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+
+                if (uid) {
+                    await addDoc(collection(db, 'liveEffects'), {
+                        ...effectPayload,
+                        uid
+                    });
+                } else {
+                    // Fallback sin Firestore write: ejecuta el efecto directo en el overlay.
+                    await playEmoteRain(createLocalDocSnap(effectPayload, 'local-effect'));
+                }
+                return;
+            }
+
+            const assetUrl = String(cfg.assetUrl || '').trim();
+            if (!assetUrl) return;
+            const uid = getOverlayUid();
+            const alertPayload = {
+                canal: canalParam,
+                type: String(cfg.type || 'image'),
+                eventType: 'channel_points',
+                nombre: String(redeem.nombre || 'Canje de puntos').trim(),
+                assetUrl,
+                soundUrl: String(cfg.soundUrl || '').trim(),
+                text: interpolate(String(cfg.text || '').trim()),
+                fontSize: Number(cfg.fontSize) || 34,
+                textColor: String(cfg.textColor || '#f3efff'),
+                mediaPosition: String(cfg.mediaPosition || 'center'),
+                animation: String(cfg.animation || 'pulse'),
+                status: 'pending',
+                rewardName: rewardTitle,
+                redeemedBy: event.user_login || '',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            };
+
+            if (uid) {
+                await addDoc(collection(db, 'liveAlerts'), {
+                    ...alertPayload,
+                    uid
+                });
+            } else {
+                // Fallback sin Firestore write: muestra la alerta directo.
+                enqueueAlert(createLocalDocSnap(alertPayload, 'local-alert'));
+            }
+        };
+
+        const _eswConnect = async (wsUrl = 'wss://eventsub.wss.twitch.tv/ws') => {
+            if (!canalParam) return;
+
+            await _updateOverlayPresence({ wsState: 'connecting', lastError: '' });
+
+            const token = await _eswGetToken(canalParam);
+            if (!token) {
+                await _updateOverlayPresence({ wsState: 'missing_token', lastError: 'missing_twitch_token' });
+                return; // Sin token guardado, nada que hacer
+            }
+
+            const broadcasterId = await _eswGetBroadcasterId(canalParam, token);
+            if (!broadcasterId) {
+                await _updateOverlayPresence({ wsState: 'invalid_token', lastError: 'invalid_or_expired_twitch_token' });
+                return; // Token inválido o expirado
+            }
+
+            if (_eswReconnectTimer) { clearTimeout(_eswReconnectTimer); _eswReconnectTimer = null; }
+
+            const prevWs = _eswWs;
+            let keepTimer = null;
+            let keepMs = 15000;
+
+            const resetKeep = () => {
+                if (keepTimer) clearTimeout(keepTimer);
+                keepTimer = setTimeout(() => ws.close(1001, 'keepalive timeout'), keepMs);
+            };
+
+            const ws = new WebSocket(wsUrl);
+            _eswWs = ws;
+
+            ws.addEventListener('open', () => {
+                resetKeep();
+                if (prevWs && prevWs !== ws) { try { prevWs.close(4000, 'replaced'); } catch (_) {} }
+                _updateOverlayPresence({ wsState: 'connected', lastError: '' });
+            });
+
+            ws.addEventListener('message', async (evt) => {
+                resetKeep();
+                let msg;
+                try { msg = JSON.parse(evt.data); } catch { return; }
+                const t = msg?.metadata?.message_type;
+
+                if (t === 'session_welcome') {
+                    const session = msg.payload?.session;
+                    keepMs = (Number(session?.keepalive_timeout_seconds) || 10) * 1000 + 5000;
+                    resetKeep();
+                    if (session?.id) await _eswSubscribe(session.id, broadcasterId, token);
+                }
+
+                if (t === 'notification') {
+                    _updateOverlayPresence({ wsState: 'receiving', lastNotificationAt: serverTimestamp() });
+                    _eswDispatch(msg.payload?.event).catch(err => console.error('[IWY EventSub]', err));
+                }
+
+                if (t === 'session_reconnect') {
+                    const reconnectUrl = msg.payload?.session?.reconnect_url;
+                    if (reconnectUrl) await _eswConnect(reconnectUrl);
+                }
+            });
+
+            ws.addEventListener('close', (evt) => {
+                if (keepTimer) clearTimeout(keepTimer);
+                if (_eswWs !== ws) return;
+                _eswWs = null;
+                _updateOverlayPresence({ wsState: 'disconnected', lastError: `ws_close_${evt.code}` });
+                if (evt.code !== 4000 && canalParam) {
+                    _eswReconnectTimer = setTimeout(() => _eswConnect(), 5000);
+                }
+            });
+        };
+
+        if (canalParam) _eswConnect();
+        // ─────────────────────────────────────────────────────────────────────────
+    
