@@ -101,18 +101,15 @@ service cloud.firestore {
     }
 
     // ── Alertas y efectos en vivo – cualquier usuario autenticado puede escribir
-    // (incluye anónimos del overlay en OBS)
+    // (incluye anónimos del overlay en OBS y sin autenticar si falló el login)
     match /liveAlerts/{docId} {
       allow read: if true;
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0;
-      allow update: if request.auth != null
-        && (
-          (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'shown')
-        );
+      allow update: if (request.auth != null && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'shown');
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;
     }
@@ -123,11 +120,8 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0;
-      allow update: if request.auth != null
-        && (
-          (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'shown')
-        );
+      allow update: if (request.auth != null && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'shown');
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;
     }
@@ -135,9 +129,9 @@ service cloud.firestore {
     // ── Presencia del overlay en OBS (heartbeat + estado EventSub) ────────────
     match /overlayPresence/{channel} {
       allow read: if true;
-      allow write: if request.auth != null
-        && request.resource.data.canal is string
-        && request.resource.data.canal == channel;
+      allow write: if request.resource.data.canal is string
+        && request.resource.data.canal == channel
+        && (request.auth != null || request.resource.data.source == 'obs_overlay');
     }
 
     // ── Resto de colecciones (comandos, bots, etc.) – requiere autenticación ───
