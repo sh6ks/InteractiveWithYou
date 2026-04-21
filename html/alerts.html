@@ -873,43 +873,6 @@
 
                 <button class="btn-primary" id="createButton">Crear alerta</button>
                 <button class="btn-secondary" id="newAlertButton" style="display: none;">Nueva alerta</button>
-
-                <div class="test-zone">
-                    <h4>Simular en OBS</h4>
-                    <p>Dispara eventos de prueba para validar que el overlay esté conectado y reproduzca tus alertas.</p>
-                    <div class="test-buttons">
-                        <button type="button" class="test-alert-btn" data-test-event="follow">Follow</button>
-                        <button type="button" class="test-alert-btn" data-test-event="sub">Sub</button>
-                        <button type="button" class="test-alert-btn" data-test-event="resub">Resub</button>
-                        <button type="button" class="test-alert-btn" data-test-event="gift_sub">Gift Sub</button>
-                        <button type="button" class="test-alert-btn" data-test-event="raid">Raid</button>
-                        <button type="button" class="test-alert-btn" data-test-event="bits">Bits</button>
-                        <button type="button" class="test-alert-btn" data-test-event="channel_points">Channel Points</button>
-                    </div>
-                    <button type="button" class="test-clear-btn" id="clearTestQueueButton">Limpiar cola de pruebas pendientes</button>
-                    <!-- Picker: aparece cuando hay varias alertas del mismo evento -->
-                    <div class="test-picker" id="testPicker" style="display:none;">
-                        <span class="test-picker-label">¿Cuál alerta de <strong id="testPickerEvent"></strong> quieres probar?</span>
-                        <div class="test-picker-options" id="testPickerOptions"></div>
-                    </div>
-                    <!-- Panel: Alertas Externas (se muestra si hay URL guardada) -->
-                    <div class="external-test-panel" id="externalTestPanel">
-                        <div class="ext-panel-header">
-                            <span class="ext-panel-title">
-                                🔗 Alertas Externas detectadas
-                                <span class="ext-status-badge checking" id="extStatusBadge">⏳ Verificando...</span>
-                            </span>
-                        </div>
-                        <div class="ext-url-display" id="extUrlDisplay"></div>
-                        <div class="ext-panel-actions">
-                            <button type="button" class="ext-action-btn ext-btn-preview" id="extPreviewBtn">👁 Abrir preview</button>
-                            <button type="button" class="ext-action-btn ext-btn-open" id="extOpenTabBtn">↗ Abrir en pestaña</button>
-                        </div>
-                        <div style="margin-top:10px; font-size:0.78rem; color:#a7a2c9; line-height:1.5;">
-                            💡 El preview te muestra la overlay de alertas externas cargando en tu página. Si se ve bien acá, también se verá en OBS.
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Preview -->
@@ -943,17 +906,65 @@
                 <div id="status" class="info-box" style="display: none;"></div>
             </div>
             </div><!-- /container-main -->
+
+            <!-- Zona de pruebas: full-width debajo del grid -->
+            <div class="test-zone" style="margin-top: 20px;">
+                <h4>Simular en OBS</h4>
+                <p>Dispara eventos de prueba para validar que el overlay esté conectado y reproduzca tus alertas.</p>
+                <div class="test-buttons">
+                    <button type="button" class="test-alert-btn" data-test-event="follow">Follow</button>
+                    <button type="button" class="test-alert-btn" data-test-event="sub">Sub</button>
+                    <button type="button" class="test-alert-btn" data-test-event="resub">Resub</button>
+                    <button type="button" class="test-alert-btn" data-test-event="gift_sub">Gift Sub</button>
+                    <button type="button" class="test-alert-btn" data-test-event="raid">Raid</button>
+                    <button type="button" class="test-alert-btn" data-test-event="bits">Bits</button>
+                    <button type="button" class="test-alert-btn" data-test-event="channel_points">Channel Points</button>
+                </div>
+                <button type="button" class="test-clear-btn" id="clearTestQueueButton">Limpiar cola de pruebas pendientes</button>
+                <!-- Picker: aparece cuando hay varias alertas del mismo evento -->
+                <div class="test-picker" id="testPicker" style="display:none;">
+                    <span class="test-picker-label">¿Cuál alerta de <strong id="testPickerEvent"></strong> quieres probar?</span>
+                    <div class="test-picker-options" id="testPickerOptions"></div>
+                </div>
+                <!-- Panel: Alertas Externas (se muestra si hay URL guardada) -->
+                <div class="external-test-panel" id="externalTestPanel">
+                    <div class="ext-panel-header">
+                        <span class="ext-panel-title">
+                            🔗 Alertas Externas detectadas
+                            <span class="ext-status-badge checking" id="extStatusBadge">⏳ Verificando...</span>
+                        </span>
+                    </div>
+                    <div class="ext-url-display" id="extUrlDisplay"></div>
+                    <div class="ext-panel-actions">
+                        <button type="button" class="ext-action-btn ext-btn-preview" id="extPreviewBtn">👁 Ver info del link</button>
+                        <button type="button" class="ext-action-btn ext-btn-open" id="extOpenTabBtn">↗ Abrir en pestaña</button>
+                    </div>
+                    <div style="margin-top:10px; font-size:0.78rem; color:#a7a2c9; line-height:1.5;">
+                        💡 Tu link externo está guardado y se cargará en OBS automáticamente. Usá "Abrir en pestaña" para confirmar que carga correctamente.
+                    </div>
+                </div>
+            </div>
         </div>
         <!-- FIN TAB: Crear alerta -->
 
-        <!-- Modal: Preview de alertas externas -->
+        <!-- Modal: Info de alertas externas -->
         <div class="ext-preview-modal" id="extPreviewModal">
             <div class="ext-preview-modal-header">
-                <span class="ext-preview-modal-title">🔗 Preview de Alertas Externas — se ve igual que en OBS</span>
+                <span class="ext-preview-modal-title">🔗 Tu link de Alertas Externas</span>
                 <button type="button" class="ext-preview-close-btn" id="extPreviewCloseBtn">✕ Cerrar</button>
             </div>
-            <div class="ext-preview-modal-box">
-                <iframe id="extPreviewIframe" src="" allowfullscreen></iframe>
+            <div style="width:min(680px,96vw); background:#1a1733; border:1px solid rgba(145,71,255,0.35); border-radius:16px; padding:28px; display:flex; flex-direction:column; gap:16px;">
+                <div style="font-size:0.88rem; color:#c4aeff; font-weight:700;">URL guardada:</div>
+                <div id="extModalUrl" style="font-size:0.82rem; color:#a7a2c9; word-break:break-all; background:rgba(0,0,0,0.25); padding:10px 14px; border-radius:8px; border:1px solid rgba(145,71,255,0.2);"></div>
+                <div style="background:rgba(255,185,0,0.08); border:1px solid rgba(255,185,0,0.25); border-radius:10px; padding:14px; font-size:0.83rem; color:#ffd85a; line-height:1.6;">
+                    <strong style="display:block; margin-bottom:6px;">⚠️ ¿Por qué no se puede previsualizar aquí?</strong>
+                    Servicios como Twitch, StreamElements y Streamlabs bloquean la carga de su overlay dentro de iframes de otros sitios por seguridad del navegador (<code>X-Frame-Options</code>).<br><br>
+                    <strong style="color:#4ade80;">Esto NO significa que tu link esté roto.</strong> En OBS funciona perfectamente porque usa su propio browser (Chromium embebido) sin esas restricciones.
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button type="button" id="extModalOpenBtn" style="margin:0;width:auto;padding:10px 20px;border-radius:9px;background:#9147ff;border:none;color:#fff;font-weight:700;font-size:0.86rem;cursor:pointer;transition:background 0.2s;">↗️ Abrir en pestaña nueva</button>
+                    <div style="font-size:0.78rem; color:#a7a2c9; align-self:center;">Confirmá que carga correctamente</div>
+                </div>
             </div>
         </div>
 
@@ -1976,6 +1987,9 @@
         };
 
         // Carga y muestra el panel de prueba externo
+        const extModalUrl    = document.getElementById('extModalUrl');
+        const extModalOpenBtn = document.getElementById('extModalOpenBtn');
+
         const refreshExternalTestPanel = async (canal) => {
             if (!canal) { externalTestPanel.classList.remove('visible'); return; }
             try {
@@ -1986,10 +2000,13 @@
                     extUrlDisplay.textContent = extUrl;
                     extUrlDisplay.title = extUrl;
                     externalTestPanel.classList.add('visible');
-                    verifyExternalUrl(extUrl);
+                    // Badge: URL guardada ✅ (no intentamos iframe)
+                    extStatusBadge.className = 'ext-status-badge ok';
+                    extStatusBadge.textContent = '✅ URL guardada';
 
                     extPreviewBtn.onclick = () => {
-                        extPreviewIframe.src = extUrl;
+                        if (extModalUrl) extModalUrl.textContent = extUrl;
+                        if (extModalOpenBtn) extModalOpenBtn.onclick = () => window.open(extUrl, '_blank', 'noopener,noreferrer');
                         extPreviewModal.classList.add('open');
                     };
                     extOpenTabBtn.onclick = () => window.open(extUrl, '_blank', 'noopener,noreferrer');
@@ -2004,12 +2021,10 @@
         // Cerrar modal con botón o click fuera
         extPreviewCloseBtn.addEventListener('click', () => {
             extPreviewModal.classList.remove('open');
-            extPreviewIframe.src = '';
         });
         extPreviewModal.addEventListener('click', (e) => {
             if (e.target === extPreviewModal) {
                 extPreviewModal.classList.remove('open');
-                extPreviewIframe.src = '';
             }
         });
 
