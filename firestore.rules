@@ -109,8 +109,10 @@ service cloud.firestore {
         && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0;
       allow update: if request.auth != null
-        && resource.data.uid == request.auth.uid
-        && request.resource.data.uid == request.auth.uid;
+        && (
+          (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'shown')
+        );
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;
     }
@@ -122,8 +124,10 @@ service cloud.firestore {
         && request.resource.data.canal is string
         && request.resource.data.canal.size() > 0;
       allow update: if request.auth != null
-        && resource.data.uid == request.auth.uid
-        && request.resource.data.uid == request.auth.uid;
+        && (
+          (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'shown')
+        );
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;
     }
@@ -131,31 +135,9 @@ service cloud.firestore {
     // ── Presencia del overlay en OBS (heartbeat + estado EventSub) ────────────
     match /overlayPresence/{channel} {
       allow read: if true;
-      allow create: if (
-          request.auth != null
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.canal is string
-          && request.resource.data.canal == channel
-        ) || (
-          request.auth == null
-          && request.resource.data.canal is string
-          && request.resource.data.canal == channel
-          && request.resource.data.source == 'obs_overlay'
-        );
-      allow update: if (
-          request.auth != null
-          && resource.data.uid == request.auth.uid
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.canal is string
-          && request.resource.data.canal == channel
-        ) || (
-          request.auth == null
-          && request.resource.data.canal is string
-          && request.resource.data.canal == channel
-          && request.resource.data.source == 'obs_overlay'
-        );
-      allow delete: if request.auth != null
-        && resource.data.uid == request.auth.uid;
+      allow write: if request.auth != null
+        && request.resource.data.canal is string
+        && request.resource.data.canal == channel;
     }
 
     // ── Resto de colecciones (comandos, bots, etc.) – requiere autenticación ───
