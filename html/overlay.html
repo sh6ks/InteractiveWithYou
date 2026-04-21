@@ -132,7 +132,7 @@
         // tipo: 'alertas' | 'efectos' | 'comandos' | '' (todo)
         const tipoOverlay = urlParams.get('tipo')?.toLowerCase() || '';
 
-        const mostrarAlertas   = !tipoOverlay || tipoOverlay === 'alertas';
+        const mostrarAlertas   = !tipoOverlay || tipoOverlay === 'alertas' || tipoOverlay === 'efectos';
         const mostrarEfectos   = !tipoOverlay || tipoOverlay === 'efectos';
         const mostrarComandos  = !tipoOverlay || tipoOverlay === 'comandos';
         const mostrarExternas  = !tipoOverlay || tipoOverlay === 'alertas'; // iframe solo en alertas o genérico
