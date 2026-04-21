@@ -621,6 +621,134 @@
             .card { padding: 16px; }
             #alertPreview { min-height: 300px; padding: 20px; }
         }
+        /* Modal preview de alertas externas */
+        .ext-preview-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(8, 6, 22, 0.88);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 14px;
+            padding: 24px;
+        }
+        .ext-preview-modal.open { display: flex; }
+        .ext-preview-modal-box {
+            width: min(1000px, 96vw);
+            height: min(600px, 80vh);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid rgba(145, 71, 255, 0.5);
+            background: #0e0c1e;
+            position: relative;
+        }
+        .ext-preview-modal-box iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        .ext-preview-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: min(1000px, 96vw);
+        }
+        .ext-preview-modal-title {
+            color: #c4aeff;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+        .ext-preview-close-btn {
+            background: rgba(255, 99, 132, 0.18);
+            border: 1px solid rgba(255, 99, 132, 0.4);
+            border-radius: 8px;
+            color: #ffdce2;
+            padding: 7px 16px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 0;
+            width: auto;
+            transition: background 0.15s;
+        }
+        .ext-preview-close-btn:hover { background: rgba(255,99,132,0.3); transform: none; }
+        /* Panel alertas externas dentro de test-zone */
+        .external-test-panel {
+            display: none;
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: rgba(145, 71, 255, 0.06);
+            border: 1px solid rgba(145, 71, 255, 0.28);
+        }
+        .external-test-panel.visible { display: block; }
+        .ext-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .ext-panel-title {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #c4aeff;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .ext-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+        .ext-status-badge.checking { background: rgba(255,185,0,0.15); color: #ffd85a; border: 1px solid rgba(255,185,0,0.3); }
+        .ext-status-badge.ok       { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+        .ext-status-badge.error    { background: rgba(255,99,132,0.15); color: #ff9090; border: 1px solid rgba(255,99,132,0.3); }
+        .ext-url-display {
+            font-size: 0.78rem;
+            color: #a7a2c9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 10px;
+            max-width: 100%;
+        }
+        .ext-panel-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .ext-action-btn {
+            margin-top: 0;
+            width: auto;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .ext-btn-preview {
+            background: rgba(145,71,255,0.2);
+            border: 1px solid rgba(145,71,255,0.45);
+            color: #c4aeff;
+        }
+        .ext-btn-preview:hover { background: rgba(145,71,255,0.34); border-color: #9147ff; }
+        .ext-btn-open {
+            background: rgba(74,222,128,0.1);
+            border: 1px solid rgba(74,222,128,0.3);
+            color: #4ade80;
+        }
+        .ext-btn-open:hover { background: rgba(74,222,128,0.2); }
     </style>
     <link rel="stylesheet" href="../css/modern-selects.css">
 </head>
@@ -637,6 +765,7 @@
 
         <!-- TAB: Crear alerta -->
         <div id="crear" class="tab-content active">
+            <div class="container-main">
             <!-- Formulario -->
             <div>
 
@@ -763,6 +892,23 @@
                         <span class="test-picker-label">¿Cuál alerta de <strong id="testPickerEvent"></strong> quieres probar?</span>
                         <div class="test-picker-options" id="testPickerOptions"></div>
                     </div>
+                    <!-- Panel: Alertas Externas (se muestra si hay URL guardada) -->
+                    <div class="external-test-panel" id="externalTestPanel">
+                        <div class="ext-panel-header">
+                            <span class="ext-panel-title">
+                                🔗 Alertas Externas detectadas
+                                <span class="ext-status-badge checking" id="extStatusBadge">⏳ Verificando...</span>
+                            </span>
+                        </div>
+                        <div class="ext-url-display" id="extUrlDisplay"></div>
+                        <div class="ext-panel-actions">
+                            <button type="button" class="ext-action-btn ext-btn-preview" id="extPreviewBtn">👁 Abrir preview</button>
+                            <button type="button" class="ext-action-btn ext-btn-open" id="extOpenTabBtn">↗ Abrir en pestaña</button>
+                        </div>
+                        <div style="margin-top:10px; font-size:0.78rem; color:#a7a2c9; line-height:1.5;">
+                            💡 El preview te muestra la overlay de alertas externas cargando en tu página. Si se ve bien acá, también se verá en OBS.
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -796,8 +942,20 @@
 
                 <div id="status" class="info-box" style="display: none;"></div>
             </div>
+            </div><!-- /container-main -->
         </div>
         <!-- FIN TAB: Crear alerta -->
+
+        <!-- Modal: Preview de alertas externas -->
+        <div class="ext-preview-modal" id="extPreviewModal">
+            <div class="ext-preview-modal-header">
+                <span class="ext-preview-modal-title">🔗 Preview de Alertas Externas — se ve igual que en OBS</span>
+                <button type="button" class="ext-preview-close-btn" id="extPreviewCloseBtn">✕ Cerrar</button>
+            </div>
+            <div class="ext-preview-modal-box">
+                <iframe id="extPreviewIframe" src="" allowfullscreen></iframe>
+            </div>
+        </div>
 
         <!-- TAB: Mis alertas -->
         <div id="mis-alertas" class="tab-content">
@@ -1052,6 +1210,14 @@
                 if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
             }
             return '';
+        };
+
+        // Mensaje informativo (amarillo/ámbar) — sin bug reporter
+        const setInfo = (message) => {
+            statusBox.style.display = 'block';
+            statusBox.style.borderColor = 'rgba(255, 185, 0, 0.4)';
+            statusBox.style.background = 'rgba(255, 185, 0, 0.07)';
+            statusBox.innerHTML = `<div style="color:#ffd85a;">⚠️ ${escapeHtml(String(message))}</div>`;
         };
 
         const setStatus = (message, success = true) => {
@@ -1609,9 +1775,9 @@
                             updatedAt:     serverTimestamp()
                         };
                     } else {
-                        // No usar fallback genérico: la prueba debe corresponder a una alerta real de ese evento
+                        // No hay alertas de ese tipo: mensaje informativo, no bug
                         const evName = { generico:'Genérico', follow:'Follow', sub:'Sub', resub:'Resub', gift_sub:'Gift Sub', raid:'Raid', bits:'Bits', channel_points:'Channel Points' }[eventType] || eventType;
-                        setStatus(`No tenés alertas creadas para ${evName}. Creá una primero para poder probarla.`, false);
+                        setInfo(`No tenés alertas creadas para ${evName}. Creá una primero para poder probarla.`);
                         return;
                     }
                 }
@@ -1763,8 +1929,87 @@
                     }, { merge: true });
                     setExternalStatus('✅ URL de alertas externas guardada correctamente.');
                 }
+                // Refrescar panel de prueba tras guardar
+                refreshExternalTestPanel(canal);
             } catch (error) {
                 setExternalStatus('❌ Error al guardar: ' + error.message, false);
+            }
+        });
+
+        // ── Panel de prueba de Alertas Externas ──────────────────────────────────
+        const externalTestPanel  = document.getElementById('externalTestPanel');
+        const extStatusBadge     = document.getElementById('extStatusBadge');
+        const extUrlDisplay      = document.getElementById('extUrlDisplay');
+        const extPreviewBtn      = document.getElementById('extPreviewBtn');
+        const extOpenTabBtn      = document.getElementById('extOpenTabBtn');
+        const extPreviewModal    = document.getElementById('extPreviewModal');
+        const extPreviewIframe   = document.getElementById('extPreviewIframe');
+        const extPreviewCloseBtn = document.getElementById('extPreviewCloseBtn');
+
+        // Verifica accesibilidad del URL externo y actualiza el badge
+        const verifyExternalUrl = (url) => {
+            extStatusBadge.className = 'ext-status-badge checking';
+            extStatusBadge.textContent = '⏳ Verificando...';
+            // Intentamos cargar la URL en un iframe temporal oculto
+            const testFrame = document.createElement('iframe');
+            testFrame.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;';
+            testFrame.src = url;
+            let resolved = false;
+            const resolve = (ok) => {
+                if (resolved) return;
+                resolved = true;
+                testFrame.remove();
+                if (ok) {
+                    extStatusBadge.className = 'ext-status-badge ok';
+                    extStatusBadge.textContent = '✅ URL alcanzable';
+                } else {
+                    // Muchos overlays bloquean iframe (X-Frame-Options) — igual pueden funcionar en OBS
+                    extStatusBadge.className = 'ext-status-badge ok';
+                    extStatusBadge.textContent = '✅ URL guardada';
+                }
+            };
+            testFrame.onload  = () => resolve(true);
+            testFrame.onerror = () => resolve(false);
+            document.body.appendChild(testFrame);
+            // Timeout de 8s como fallback
+            setTimeout(() => resolve(false), 8000);
+        };
+
+        // Carga y muestra el panel de prueba externo
+        const refreshExternalTestPanel = async (canal) => {
+            if (!canal) { externalTestPanel.classList.remove('visible'); return; }
+            try {
+                const q = query(collection(db, 'usuarios'), where('canal', '==', canal));
+                const snap = await getDocs(q);
+                if (!snap.empty && snap.docs[0].data().externalAlertsUrl) {
+                    const extUrl = snap.docs[0].data().externalAlertsUrl;
+                    extUrlDisplay.textContent = extUrl;
+                    extUrlDisplay.title = extUrl;
+                    externalTestPanel.classList.add('visible');
+                    verifyExternalUrl(extUrl);
+
+                    extPreviewBtn.onclick = () => {
+                        extPreviewIframe.src = extUrl;
+                        extPreviewModal.classList.add('open');
+                    };
+                    extOpenTabBtn.onclick = () => window.open(extUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                    externalTestPanel.classList.remove('visible');
+                }
+            } catch (_) {
+                externalTestPanel.classList.remove('visible');
+            }
+        };
+
+        // Cerrar modal con botón o click fuera
+        extPreviewCloseBtn.addEventListener('click', () => {
+            extPreviewModal.classList.remove('open');
+            extPreviewIframe.src = '';
+        });
+        extPreviewModal.addEventListener('click', (e) => {
+            if (e.target === extPreviewModal) {
+                extPreviewModal.classList.remove('open');
+                extPreviewIframe.src = '';
             }
         });
 
@@ -1773,6 +2018,7 @@
             const currentCanal = getTwitchChannel();
             if (currentCanal) {
                 loadExternalAlertsUrl(currentCanal);
+                refreshExternalTestPanel(currentCanal);
             }
         });
 
