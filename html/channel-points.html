@@ -1761,13 +1761,7 @@
             }
         });
 
-        document.getElementById('simulateRainRedeemBtn').addEventListener('click', async () => {
-            try {
-                await simulateRealRedeem(rainName.value);
-            } catch (error) {
-                showStatus('Error simulando canje real: ' + error.message, false);
-            }
-        });
+
 
         document.getElementById('repairRainBtn').addEventListener('click', async () => {
             try {
