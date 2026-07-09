@@ -562,6 +562,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
                     <i class="fa-brands fa-twitch" style="color: #9147ff;"></i>
                     <span class="link_name">Entrar con Twitch</span>
                 </a>
+                <span id="login-status-msg" style="color:#f9a8d4;font-size:0.72rem;padding:4px 8px;display:block;"></span>
             `;
             mainContainer.innerHTML = `
                 <div style="text-align:center; padding-top: 50px;">
@@ -613,9 +614,19 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         });
 
         // --- LÓGICA DE GOOGLE ---
-        // Usamos siempre redirect (más compatible con Vercel y navegadores modernos).
-        window.login = () => {
-            signInWithRedirect(auth, provider).catch(e => console.error('[IWY] Redirect error:', e));
+        window.login = async () => {
+            const loginStatusEl = document.getElementById('login-status-msg');
+            if (loginStatusEl) loginStatusEl.textContent = 'Redirigiendo a Google...';
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (e) {
+                console.error('[IWY] Redirect error:', e?.code, e?.message, e);
+                const msg = e?.code || e?.message || String(e);
+                if (loginStatusEl) loginStatusEl.textContent = 'Error: ' + msg;
+                // Si falla el SDK, abrir directo a Google OAuth como último recurso
+                const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=220446228684-web&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=openid%20email%20profile`;
+                console.warn('[IWY] SDK failed, fallback URL (manual):', oauthUrl);
+            }
         };
         
         window.logout = () => {
