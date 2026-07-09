@@ -1301,7 +1301,7 @@
                 redeemList.innerHTML = `<div class="item"><div class="item-title">${getUidErrorHint()}</div></div>`;
                 return;
             }
-            const q = query(collection(db, 'channelPointRedeems'), where('canal', '==', canal), where('uid', '==', uid));
+            const q = query(collection(db, 'channelPointRedeems'), where('canal', '==', canal));
             const snap = await getDocs(q);
             if (snap.empty) {
                 redeemList.innerHTML = '<div class="item"><div class="item-title">No hay canjes guardados todavía.</div></div>';
