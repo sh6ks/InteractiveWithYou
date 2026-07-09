@@ -622,9 +622,7 @@
             if (!rewardTitle) return;
 
             const rewardKey = _normalizeStr(rewardTitle);
-            const redeemsQuery = _eswOwnerUid
-                ? query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam), where('uid', '==', _eswOwnerUid))
-                : query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam));
+            const redeemsQuery = query(collection(db, 'channelPointRedeems'), where('canal', '==', canalParam));
             const snap = await getDocs(redeemsQuery);
             if (snap.empty) return;
 
