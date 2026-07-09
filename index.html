@@ -92,7 +92,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
     <script type="module">
         // Script principal: inicializa Firebase, gestiona autenticación, sidebar y carga de secciones.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Configuración de Firebase para autenticación y acceso a datos.
@@ -602,8 +602,29 @@ Panel de control principal con navegación, autenticación y carga de secciones.
 
         window.addEventListener('load', handleTwitchCallback);
 
+        // Maneja el resultado del redirect de Google si el popup fue bloqueado.
+        getRedirectResult(auth).then(async (result) => {
+            if (result?.user) {
+                // El login por redirect fue exitoso, onAuthStateChanged lo tomará desde aquí.
+                console.log('[IWY] Login por redirect completado:', result.user.email);
+            }
+        }).catch((error) => {
+            console.warn('[IWY] getRedirectResult error:', error);
+        });
+
         // --- LÓGICA DE GOOGLE ---
-        window.login = () => signInWithRedirect(auth, provider).catch(error => console.error(error));
+        // Intenta popup primero; si el navegador lo bloquea, usa redirect.
+        window.login = () => {
+            signInWithPopup(auth, provider).catch((error) => {
+                const blockedCodes = ['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+                if (blockedCodes.includes(error?.code)) {
+                    console.warn('[IWY] Popup bloqueado, usando redirect:', error.code);
+                    signInWithRedirect(auth, provider).catch(e => console.error('[IWY] Redirect error:', e));
+                } else {
+                    console.error('[IWY] Login error:', error);
+                }
+            });
+        };
         
         window.logout = () => {
             localStorage.clear();
