@@ -92,7 +92,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
     <script type="module">
         // Script principal: inicializa Firebase, gestiona autenticación, sidebar y carga de secciones.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Configuración de Firebase para autenticación y acceso a datos.
@@ -603,7 +603,7 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         window.addEventListener('load', handleTwitchCallback);
 
         // --- LÓGICA DE GOOGLE ---
-        window.login = () => signInWithPopup(auth, provider).catch(error => console.error(error));
+        window.login = () => signInWithRedirect(auth, provider).catch(error => console.error(error));
         
         window.logout = () => {
             localStorage.clear();
