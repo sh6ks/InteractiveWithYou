@@ -613,17 +613,9 @@ Panel de control principal con navegación, autenticación y carga de secciones.
         });
 
         // --- LÓGICA DE GOOGLE ---
-        // Intenta popup primero; si el navegador lo bloquea, usa redirect.
+        // Usamos siempre redirect (más compatible con Vercel y navegadores modernos).
         window.login = () => {
-            signInWithPopup(auth, provider).catch((error) => {
-                const blockedCodes = ['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
-                if (blockedCodes.includes(error?.code)) {
-                    console.warn('[IWY] Popup bloqueado, usando redirect:', error.code);
-                    signInWithRedirect(auth, provider).catch(e => console.error('[IWY] Redirect error:', e));
-                } else {
-                    console.error('[IWY] Login error:', error);
-                }
-            });
+            signInWithRedirect(auth, provider).catch(e => console.error('[IWY] Redirect error:', e));
         };
         
         window.logout = () => {
